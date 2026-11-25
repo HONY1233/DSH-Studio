@@ -1,0 +1,26 @@
+{
+  "projects": [
+    {
+      "name": "omp-studio",
+      "upstream_url": "https://github.com/the-snowpear/omp-studio.git",
+      "upstream_branch": "main",
+      "baseline_version": "0.2.8",
+      "baseline_commit": null,
+      "method": "reference",
+      "reference_dir": "upstream/omp-studio",
+      "fork_dir": "apps/renderer-omp",
+      "manifest": "dsh-overlay.json",
+      "adopt_policy": "file-by-file",
+      "conflict_policy": "pause-and-ask",
+      "ignore": [
+        "node_modules",
+        "dist",
+        "out",
+        "logs",
+        ".screenshots",
+        "*.log"
+      ],
+      "last_sync": null
+    }
+  ]
+}

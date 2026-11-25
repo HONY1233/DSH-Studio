@@ -1,0 +1,103 @@
+.runtime-queue .qs-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+.runtime-queue-row {
+  min-width: 0;
+}
+.runtime-queue .qs-status {
+  flex-wrap: wrap;
+}
+.runtime-queue-editor {
+  padding: 8px 12px;
+}
+.runtime-queue-editor textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  max-height: 180px;
+}
+.runtime-queue-editor .btn + .btn {
+  margin-inline-start: 6px;
+}
+.runtime-queue > p {
+  padding: 0 12px;
+  overflow-wrap: anywhere;
+}
+
+.runtime-queue {
+  min-width: 0;
+}
+.runtime-queue .qs-list {
+  max-height: min(180px, 25vh);
+  overflow-x: hidden;
+}
+.runtime-queue .qs-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  padding: 8px 0;
+}
+.runtime-queue .qs-status {
+  position: static;
+  transform: none;
+  width: auto;
+  justify-content: flex-start;
+  gap: 8px;
+  font-size: var(--fs-11);
+  color: var(--text-3);
+}
+.runtime-queue .qs-actions {
+  margin-inline-start: auto;
+  opacity: 1;
+  pointer-events: auto;
+}
+.runtime-queue-row + .runtime-queue-row {
+  border-top: 1px solid var(--border);
+}
+
+/* Inside the composer tray the tray itself scrolls; the list stays in flow. */
+.composer-tray .runtime-queue .qs-list {
+  max-height: none;
+  overflow: visible;
+}
+.convo-wrap[data-reading-column] > .composer-region > .composer-queues .runtime-queue .qs-text {
+  overflow-wrap: anywhere;
+}
+
+/* 后台交接：不阻塞的状态行，挂在已提交队列标题下。标签用 BTW / 工作行同款扫光
+   说明「仍在进行」，取消是次要动作，所以是 ghost。 */
+.runtime-handoff {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  margin: var(--sp-2) calc(-1 * var(--sp-6)) var(--sp-6);
+  padding: var(--sp-6) var(--sp-6) var(--sp-6) var(--sp-8);
+  border-radius: var(--r-6);
+  background: var(--accent-softer);
+  animation: var(--motion-reveal);
+}
+.runtime-handoff-glyph {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-4);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.runtime-handoff-copy { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.runtime-handoff-title {
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+  background: linear-gradient(90deg, var(--text-2) 30%, var(--text) 50%, var(--text-2) 70%);
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: al-sweep var(--loop-drift) linear infinite;
+}
+.runtime-handoff-note { overflow: hidden; color: var(--text-3); font-size: var(--fs-11); text-overflow: ellipsis; white-space: nowrap; }
+.runtime-handoff-cancel { flex: none; }
+.runtime-handoff-cancel:hover:not(:disabled) { color: var(--red); }

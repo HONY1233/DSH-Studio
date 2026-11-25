@@ -1,0 +1,14 @@
+{
+  "name": "@dsh-studio/testkit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "bench": "node scripts/bench-session.mjs"
+  },
+  "dependencies": {
+    "@dsh-studio/contract": "0.1.0",
+    "@dsh-studio/dsh-gateway": "0.1.0"
+  }
+}

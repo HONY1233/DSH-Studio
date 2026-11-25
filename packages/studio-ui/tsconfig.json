@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    // 浏览器半要 DOM 类型；base 只给了 ES2022。
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["react", "react-dom", "node"],
+    // ── 与 base 的两处偏离，都是「先落地、再收紧」的权衡 ──────────────────
+    // 这批源码来自 scaffold，按普通 strict 编写（大量 `arr[0]` 已用 `?.` 兜住，
+    // 但没有逐处显式判空）。开 noUncheckedIndexedAccess 会产生上百条纯类型噪音，
+    // 掩盖真正的错误。落地跑通后单独一轮收紧（见 docs 里的 TODO）。
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["src"]
+}

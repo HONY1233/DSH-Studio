@@ -1,0 +1,526 @@
+✔ accepted is not completed (1.327026ms)
+✔ failed, rejected, and outcome_unknown keep a safe reason and terminal once (2.062838ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13.615499
+✔ parser rollback performs full validation while preserving the same immutable event contract (1.951998ms)
+✔ tailUtf8 keeps the newest bytes and never splits a codepoint (1.515674ms)
+✔ tailUtf8 is the mirror of truncateUtf8, not a copy of it (2.138557ms)
+✔ tailUtf8 stays linear on large multibyte input (0.96846ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13.45393
+✔ registry namespaces counters and rejects a duplicate provider name (2.660031ms)
+✔ unregister is idempotent and never removes a later provider under the same name (1.990989ms)
+✔ a throwing provider only loses its own counters (0.248528ms)
+✔ invalid numbers and dynamic keys are dropped, not coerced (0.257717ms)
+✔ selectCounters follows the allow-list and keeps missing values missing (0.156688ms)
+✔ normalizeMemorySample drops invalid memory fields instead of zeroing them (0.244737ms)
+✔ a static sample logs once, then only on the heartbeat (0.468325ms)
+✔ heap uses the 5% threshold and native memory the 10% threshold (0.191378ms)
+✔ native memory growing on its own is reported even with a flat heap (0.437065ms)
+✔ a zero or tiny baseline does not turn every sample into a log line (0.220028ms)
+✔ a memory field appearing or disappearing counts as a change (0.144898ms)
+✔ counters going down is a change worth logging (0.143498ms)
+✔ reset forgets the baseline (0.165418ms)
+✔ formatMemorySampleLine renders present fields only and stays within the cap (1.149258ms)
+✔ formatMemorySampleLine ignores prefix values that look like content or paths (0.129058ms)
+✔ sampler never overlaps samples and stops after dispose (0.728852ms)
+✔ sampler skips a failing sample and a failing sink without dying (0.256327ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19.620767
+✔ bootstrap establishes authority/runtime epoch, stateVersion, cursor and snapshot (2.353344ms)
+✔ snapshot reducer carries optional Runtime settings and speculation projections (2.417214ms)
+✔ bootstrap restores the authority-level resident broker overview (0.140868ms)
+✔ residents.changed accepts a broker update despite a stale runtime epoch and consumes its cursor (0.486475ms)
+✔ runtime epoch switches retain the resident broker overview (0.159419ms)
+✔ a terminal receipt from an older resident epoch is applied without clearing the active slice (0.464275ms)
+✔ an unavailable bootstrap establishes authority, surface and manifests without a snapshot (0.164848ms)
+✔ a later snapshot event establishes runtime state after an unavailable bootstrap (0.366696ms)
+✔ duplicate cursor events are idempotent (0.606603ms)
+✔ a cursor gap forces resync_required and drops the gapped payload (0.429836ms)
+✔ stale authority and runtime epochs are ignored (0.204537ms)
+✔ runtime loss marks accepted commands outcome_unknown (0.264608ms)
+✔ telemetry.changed updates session telemetry without changing snapshot stateVersion (0.143149ms)
+✔ stale-session telemetry consumes its cursor without replacing current telemetry (0.22985ms)
+✔ btw.changed writes the side-channel snapshot for the live session (0.191928ms)
+✔ stale-session BTW consumes its cursor without replacing the live answer (0.118619ms)
+✔ session.resume survives its expected connected epoch change until the completed receipt (0.481865ms)
+✔ session.create survives the fresh Runtime epoch change until completion (0.167218ms)
+✔ runtime.ensure remains Host-owned through connecting, reconnect and force-restart snapshots (0.214728ms)
+✔ Time Travel restore keeps its receipt while resuming a session in a different Runtime (0.135049ms)
+✔ same-version snapshot restores the client slice after deferred connecting fenced its identity (0.190218ms)
+✔ runtime.ensure still becomes unknown on transport or authority loss (0.127629ms)
+✔ session.archive survives the Runtime loss it causes until the Host receipt (0.245906ms)
+✔ a new runtime epoch accepts a smaller stateVersion and replaces the snapshot (0.129908ms)
+✔ a new runtime identity accepts a smaller stateVersion within the same epoch (0.154748ms)
+✔ the same runtime epoch still rejects a regressing snapshot (0.096949ms)
+✔ a runtime epoch change via snapshot marks in-flight commands outcome_unknown (0.193198ms)
+✔ workspace commands survive the Runtime epoch change they trigger (0.103999ms)
+✔ terminal receipts cannot regress or duplicate (0.132709ms)
+✔ interaction_required transitions from pending states and never regresses (0.202658ms)
+✔ interaction without a requestId still enters state.interaction.pending (0.203538ms)
+✔ interaction.resolved clears pending only for matching id and generation (0.214177ms)
+✔ a snapshot that still names the same GUI prompt keeps the pending card (0.118049ms)
+✔ a snapshot without a GUI prompt clears the pending card (0.119039ms)
+✔ a TUI-owned snapshot prompt does not keep a GUI pending card (0.173508ms)
+✔ bootstrap restores pending interaction and clears it when absent (0.165168ms)
+✔ runtime epoch change clears the pending interaction (0.160399ms)
+✔ sensitive mutations are blocked with RESYNC_REQUIRED while resync is required (0.283467ms)
+✔ re-bootstrap marks in-flight commands outcome_unknown (0.135618ms)
+✔ opaque cursors only support equality; a different cursor forces resync (0.142618ms)
+✔ large decimal cursors advance without Number precision loss (0.140899ms)
+✔ lost SSH acknowledgement remains unknown and is not retried on reconnect (1.221907ms)
+✔ transport loss preserves target state while making pending work unknown (0.156548ms)
+✔ StudioClientImpl buffers bootstrap races and does not deliver ignored events (0.822712ms)
+✔ Computer metadata reaches runtime subscribers without waking global state or leaking sessions (0.604203ms)
+✔ StudioClientImpl rejects an incompatible bootstrap contract before applying state (0.524224ms)
+✔ StudioClientImpl blocks sensitive commands before the transport sees them (0.962549ms)
+✔ a transport rejection becomes a failed command without claiming accepted (0.529734ms)
+✔ outcome_unknown is never retried automatically (0.398855ms)
+✔ command requestId correlates handle, envelope, and accepted entry end-to-end (0.437035ms)
+✔ MemoryClientTransport filters events exactly by subscription scope (0.452345ms)
+✔ MemoryClientTransport clones emitted payloads (0.250858ms)
+✔ MemoryClientTransport enforces closed behavior (0.283167ms)
+✔ conversation.changed advances transport state without retaining transcript payload (0.231548ms)
+✔ late bootstrap completion cannot overwrite a recovered connection or clear its pending bootstrap (0.740202ms)
+✔ concurrent first commands initialize once before dispatch and retain immediate receipts (2.261787ms)
+✔ failed first-command initialization sends nothing and allows an explicit retry (0.558824ms)
+✔ terminal command receipts are capped so a long session cannot retain unbounded command state (3.796809ms)
+ℹ tests 58
+ℹ suites 0
+ℹ pass 58
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39.041715
+✔ accepted is not completed (2.106447ms)
+✔ failed, rejected, and outcome_unknown keep a safe reason and terminal once (2.904609ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17.828277
+✔ new settings reject malformed values and retain all native service tiers (1.662112ms)
+✖ new settings and credential status round-trip while native clamped values remain readable (4.352603ms)
+✖ snapshots preserve restart-required settings and retry deadlines through reconnect (5.993266ms)
+✖ PR-001 parses the canonical hello fixture (0.768901ms)
+✖ WP-011 parses the canonical hello response without inventing full parity (0.387046ms)
+✔ WP-011 rejects ambiguous protocol version offers (0.87146ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12.305657
+✔ conversation contract freezes capability, concurrency, cursor, and mapping (3.373184ms)
+✖ transcript page fixture accepts every public item and block kind (5.529431ms)
+✔ conversation.open validates explicit child identity, watermark, and target-local sequence (6.826496ms)
+✖ WP-012 parses the canonical initial snapshot and fences nested epochs (1.810181ms)
+✖ WP-012 accepts semantic session titles and rejects invalid title sources (1.92152ms)
+✖ snapshot accepts optional fast and prewalk projections (0.785042ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16.084525
+
+✖ failing tests:
+
+test at vendor/omp/packages/studio-protocol/test/settings-second-batch.test.ts:9:31
+✖ new settings and credential status round-trip while native clamped values remain readable (4.352603ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/settings-second-batch.test.ts:7:31)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+  }
+✖ snapshot accepts optional session model projection (3.302384ms)
+✖ Runtime settings and compaction projections mirror the closed Runtime seam (1.325426ms)
+✖ WP-012 validates state events against their envelope (0.496845ms)
+✖ transcript page rejects missing fields, extra keys, non-JSON, and over-limit payloads (4.227574ms)
+✔ content blocks reject wrong booleans, extra keys, and deep JSON (0.656093ms)
+✖ plan review snapshot may carry title and body (0.369876ms)
+✔ session telemetry events validate numeric usage and reject unsafe fields (0.672573ms)
+✔ btw.changed events validate the snapshot instead of accepting any JSON (0.96461ms)
+✔ telemetry turns validate optional rate fields and reject deviations (0.425465ms)
+✔ session telemetry snapshots accept the probe unavailable reason (0.489825ms)
+✔ session telemetry read results validate source, semantics, and identity (0.332126ms)
+✖ snapshot messagesCursor is an opaque head hint and does not carry bodies (4.276147ms)
+✔ CURSOR_STALE is a protocol error distinct from STATE_VERSION_CONFLICT (0.406216ms)
+✔ live conversation events parse every kind and reject inner occurredAt (1.228716ms)
+✔ W05 parser output is frozen, registered, and reused by identity only (0.603033ms)
+✔ W05 an externally frozen look-alike is not trusted and invalid input is never cached (0.360566ms)
+✔ publicConversationToolCallId keeps distinct long ids unique (0.263547ms)
+✔ truncateUtf8 does not split a multibyte codepoint (0.407946ms)
+✔ truncateUtf8 keeps text whole under the 3-bytes-per-unit bound and still cuts by bytes above it (0.547344ms)
+✖ WP-001 parses canonical request and receipt fixtures bidirectionally (0.959019ms)
+✔ M4 validates the complete operator command manifest boundary (1.822629ms)
+✔ M4 operator operations fail closed on invalid shapes (0.090259ms)
+✔ M4 receipts accept TERMINAL_REQUIRED and reject unknown error codes (0.195878ms)
+✔ M4 validates interaction, progress, and notification events (0.543714ms)
+✔ interaction payloads are bounded at the Studio protocol boundary (0.490185ms)
+✔ canonical JSON is stable across key order (0.189337ms)
+✔ frame codec handles chunking and validates the body length (0.828981ms)
+✔ PR-008 rejects an oversized frame before payload allocation (0.129008ms)
+✔ fragmented frames survive reused input buffers and an adjacent frame (0.824321ms)
+✔ malformed frames poison the decoder and cannot accumulate more bytes (0.192438ms)
+✔ encode rejects an oversized frame (0.118699ms)
+✔ decoder consumes a large multi-frame chunk without retaining its backing buffer (5.594886ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 18
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 41.291949
+
+✖ failing tests:
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:12:31
+✖ snapshots preserve restart-required settings and retry deadlines through reconnect (5.993266ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:25:31)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:45:31
+✖ PR-001 parses the canonical hello fixture (0.768901ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/hello.request.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:35:37)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/hello.request.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:49:31
+✖ WP-011 parses the canonical hello response without inventing full parity (0.387046ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/hello.response.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:40:37)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/hello.response.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:76:31
+✖ WP-012 parses the canonical initial snapshot and fences nested epochs (1.810181ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:66:37)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:111:31
+✖ WP-012 accepts semantic session titles and rejects invalid title sources (1.92152ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:112:37)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:140:31
+✖ snapshot accepts optional fast and prewalk projections (0.785042ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:135:28)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:168:31
+✖ snapshot accepts optional session model projection (3.302384ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:161:28)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:199:31
+✖ Runtime settings and compaction projections mirror the closed Runtime seam (1.325426ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:199:28)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:257:31
+✖ WP-012 validates state events against their envelope (0.496845ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:235:16)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:282:31
+✖ plan review snapshot may carry title and body (0.369876ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:253:28)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/protocol.test.ts:617:31
+✖ WP-001 parses canonical request and receipt fixtures bidirectionally (0.959019ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/receipt.pause.accepted.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/protocol.test.ts:457:44)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/receipt.pause.accepted.json'
+  }
+ℹ tests 13
+ℹ suites 0
+ℹ pass 10
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 41.164807
+
+✖ failing tests:
+
+test at vendor/omp/packages/studio-protocol/test/conversation.test.ts:61:31
+✖ transcript page fixture accepts every public item and block kind (5.529431ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/conversation.page.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/conversation.test.ts:78:37)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/conversation.page.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/conversation.test.ts:143:31
+✖ transcript page rejects missing fields, extra keys, non-JSON, and over-limit payloads (4.227574ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/conversation.page.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/conversation.test.ts:158:28)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/conversation.page.json'
+  }
+
+test at vendor/omp/packages/studio-protocol/test/conversation.test.ts:269:31
+✖ snapshot messagesCursor is an opaque head hint and does not carry bodies (4.276147ms)
+  Error: ENOENT: no such file or directory, open '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+      at async open (node:internal/fs/promises:642:25)
+      at async readFile (node:internal/fs/promises:1279:14)
+      at TestContext.<anonymous> (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/studio-protocol/test/conversation.test.ts:290:39)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/vendor/omp/packages/fixtures/snapshot.initial.json'
+  }
+✔ bootstrap establishes authority/runtime epoch, stateVersion, cursor and snapshot (2.327465ms)
+✔ snapshot reducer carries optional Runtime settings and speculation projections (3.878249ms)
+✔ bootstrap restores the authority-level resident broker overview (0.214028ms)
+✔ residents.changed accepts a broker update despite a stale runtime epoch and consumes its cursor (0.340447ms)
+✔ runtime epoch switches retain the resident broker overview (0.255067ms)
+✔ a terminal receipt from an older resident epoch is applied without clearing the active slice (0.471015ms)
+✔ an unavailable bootstrap establishes authority, surface and manifests without a snapshot (0.239037ms)
+✔ a later snapshot event establishes runtime state after an unavailable bootstrap (0.491464ms)
+✔ duplicate cursor events are idempotent (0.509804ms)
+✔ a cursor gap forces resync_required and drops the gapped payload (0.495454ms)
+✔ stale authority and runtime epochs are ignored (0.217448ms)
+✔ runtime loss marks accepted commands outcome_unknown (0.402685ms)
+✔ telemetry.changed updates session telemetry without changing snapshot stateVersion (0.275927ms)
+✔ stale-session telemetry consumes its cursor without replacing current telemetry (0.215418ms)
+✔ btw.changed writes the side-channel snapshot for the live session (0.283757ms)
+✔ stale-session BTW consumes its cursor without replacing the live answer (0.172408ms)
+✔ session.resume survives its expected connected epoch change until the completed receipt (0.191178ms)
+✔ session.create survives the fresh Runtime epoch change until completion (0.221387ms)
+✔ runtime.ensure remains Host-owned through connecting, reconnect and force-restart snapshots (0.312097ms)
+✔ Time Travel restore keeps its receipt while resuming a session in a different Runtime (0.207078ms)
+✔ same-version snapshot restores the client slice after deferred connecting fenced its identity (0.307586ms)
+✔ runtime.ensure still becomes unknown on transport or authority loss (0.359676ms)
+✔ session.archive survives the Runtime loss it causes until the Host receipt (0.284157ms)
+✔ a new runtime epoch accepts a smaller stateVersion and replaces the snapshot (0.147789ms)
+✔ a new runtime identity accepts a smaller stateVersion within the same epoch (0.267787ms)
+✔ the same runtime epoch still rejects a regressing snapshot (0.095709ms)
+✔ a runtime epoch change via snapshot marks in-flight commands outcome_unknown (0.208108ms)
+✔ workspace commands survive the Runtime epoch change they trigger (0.137878ms)
+✔ terminal receipts cannot regress or duplicate (0.266047ms)
+✔ interaction_required transitions from pending states and never regresses (0.202828ms)
+✔ interaction without a requestId still enters state.interaction.pending (0.163348ms)
+✔ interaction.resolved clears pending only for matching id and generation (0.242347ms)
+✔ a snapshot that still names the same GUI prompt keeps the pending card (0.150778ms)
+✔ a snapshot without a GUI prompt clears the pending card (0.112589ms)
+✔ a TUI-owned snapshot prompt does not keep a GUI pending card (0.123499ms)
+✔ bootstrap restores pending interaction and clears it when absent (0.210748ms)
+✔ runtime epoch change clears the pending interaction (0.168728ms)
+✔ sensitive mutations are blocked with RESYNC_REQUIRED while resync is required (0.364486ms)
+✔ re-bootstrap marks in-flight commands outcome_unknown (0.176119ms)
+✔ opaque cursors only support equality; a different cursor forces resync (0.812581ms)
+✔ large decimal cursors advance without Number precision loss (0.158478ms)
+✔ lost SSH acknowledgement remains unknown and is not retried on reconnect (1.506444ms)
+✔ transport loss preserves target state while making pending work unknown (0.142069ms)
+✔ StudioClientImpl buffers bootstrap races and does not deliver ignored events (0.618073ms)
+✔ Computer metadata reaches runtime subscribers without waking global state or leaking sessions (0.712253ms)
+✔ StudioClientImpl rejects an incompatible bootstrap contract before applying state (0.338696ms)
+✔ StudioClientImpl blocks sensitive commands before the transport sees them (0.627873ms)
+✔ a transport rejection becomes a failed command without claiming accepted (1.84639ms)
+✔ outcome_unknown is never retried automatically (0.275557ms)
+✔ command requestId correlates handle, envelope, and accepted entry end-to-end (0.555574ms)
+✔ MemoryClientTransport filters events exactly by subscription scope (0.517784ms)
+✔ MemoryClientTransport clones emitted payloads (0.158948ms)
+✔ MemoryClientTransport enforces closed behavior (0.616813ms)
+✔ conversation.changed advances transport state without retaining transcript payload (0.145898ms)
+✔ late bootstrap completion cannot overwrite a recovered connection or clear its pending bootstrap (0.538334ms)
+✔ concurrent first commands initialize once before dispatch and retain immediate receipts (2.370514ms)
+✔ failed first-command initialization sends nothing and allows an explicit retry (0.444865ms)
+✔ terminal command receipts are capped so a long session cannot retain unbounded command state (3.134867ms)
+✔ parser rollback performs full validation while preserving the same immutable event contract (3.131247ms)
+✔ tailUtf8 keeps the newest bytes and never splits a codepoint (1.80938ms)
+✔ tailUtf8 is the mirror of truncateUtf8, not a copy of it (2.646581ms)
+✔ tailUtf8 stays linear on large multibyte input (1.336776ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22.186728
+✔ registry namespaces counters and rejects a duplicate provider name (5.641419ms)
+✔ unregister is idempotent and never removes a later provider under the same name (3.198411ms)
+✔ a throwing provider only loses its own counters (0.211667ms)
+✔ invalid numbers and dynamic keys are dropped, not coerced (0.225638ms)
+✔ selectCounters follows the allow-list and keeps missing values missing (0.186738ms)
+✔ normalizeMemorySample drops invalid memory fields instead of zeroing them (0.257767ms)
+✔ a static sample logs once, then only on the heartbeat (0.470205ms)
+✔ heap uses the 5% threshold and native memory the 10% threshold (0.253117ms)
+✔ native memory growing on its own is reported even with a flat heap (0.260027ms)
+✔ a zero or tiny baseline does not turn every sample into a log line (0.345957ms)
+✔ a memory field appearing or disappearing counts as a change (0.188388ms)
+✔ counters going down is a change worth logging (0.148688ms)
+✔ reset forgets the baseline (0.231387ms)
+✔ formatMemorySampleLine renders present fields only and stays within the cap (0.993809ms)
+✔ formatMemorySampleLine ignores prefix values that look like content or paths (0.115159ms)
+✔ sampler never overlaps samples and stops after dispose (0.811351ms)
+✔ sampler skips a failing sample and a failing sink without dying (0.251907ms)
+✔ conversation contract freezes capability, concurrency, cursor, and mapping (2.007199ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27.850718
+✔ transcript page fixture accepts every public item and block kind (15.181526ms)
+✔ conversation.open validates explicit child identity, watermark, and target-local sequence (0.9697ms)
+✔ transcript page rejects missing fields, extra keys, non-JSON, and over-limit payloads (1.551912ms)
+✔ content blocks reject wrong booleans, extra keys, and deep JSON (0.286677ms)
+✔ new settings reject malformed values and retain all native service tiers (3.106806ms)
+✔ new settings and credential status round-trip while native clamped values remain readable (25.793371ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29.55894
+JSON report written to /mnt/f/workbuddy data/tmp/dsh-renderer-regression-20261125/before-fix.json

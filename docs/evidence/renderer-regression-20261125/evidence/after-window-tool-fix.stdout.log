@@ -1,0 +1,59 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.1.1 [39m[90m/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp[39m
+
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps shared sidebar, right and bottom sizes locked for keyboard and double-click resizing
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mopens two dragged conversations with animations enabled and preserves the original draft (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mopens two dragged conversations with animations enabled and preserves the original draft (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mpreviews an unopened sidebar conversation over left tools, cancels and floats it (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mpreviews an unopened sidebar conversation over left tools, cancels and floats it (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mfloats over the conversation directory and drags again without docking or jumping (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mfloats over the conversation directory and drags again without docking or jumping (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mopens a sidebar conversation directly in a tool region and preserves the main conversation
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mdocks and detaches the same conversation through the left tool region (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mdocks and detaches the same conversation through the left tool region (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mdocks and detaches the same conversation through the right tool region (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mdocks and detaches the same conversation through the right tool region (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mdocks and detaches the same conversation through the bottom tool region (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mdocks and detaches the same conversation through the bottom tool region (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps independent pages free of workbench chrome and restores the same draft (preview=false, floating=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps independent pages free of workbench chrome and restores the same draft (preview=true, floating=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps independent pages free of workbench chrome and restores the same draft (preview=false, floating=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps independent pages free of workbench chrome and restores the same draft (preview=true, floating=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps dragging a tool card when the window preview replaces its source with a compact rail (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps dragging a tool card when the window preview replaces its source with a compact rail (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mpreviews and docks the context viewer beside a full-height main conversation without recreating it (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mpreviews and docks the context viewer beside a full-height main conversation without recreating it (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mpreserves the opposite quarter during left full-height drag preview, cancellation and drop
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mpreserves the opposite quarter during right full-height drag preview, cancellation and drop
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22msnaps conversations and tool windows well inside the edge and retains previews through pointer drift
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mshows the full canvas when a tool is dragged to maximize (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mshows the full canvas when a tool is dragged to maximize (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mreturns from a window preview to the conversation tools under the pointer
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mrestores the expanded rail before hit-testing a drag from the right sidebar (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mrestores the expanded rail before hit-testing a drag from the right sidebar (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mopens a sidebar conversation in another window without replacing the focused body (preview=false)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mopens a sidebar conversation in another window without replacing the focused body (preview=true)
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22moffers a workspace launcher that brings the existing conversation back without recreating its editor
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps the shell and cached directory present during delayed context loading without reconnecting on focus
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mmaximizes the last visible conversation back to the ordinary main area with the same editor
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mretains the original single conversation chrome without a second title or layout toolbar
+ [32m✓[39m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mdrags an original sidebar row into a float while keeping one shared left, right and bottom region[33m 2039[2mms[22m[39m
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mexpands, collapses and re-expands the active project from its sidebar row
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps the original preview project and conversation rows when opening and focusing floats
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mdrags the main title into the shared window frame and restores the same editor
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mborrows the body and complete floating header once and restores them on Escape
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mreuses the current conversation when its original sidebar row is dragged out
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mdrags main A while the shared title represents B, cancels to B and disables dragging when main is empty
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22msnaps B and automatically places main A beside it, resizes together and restores after maximizing
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps title-menu keyboard input, drag cancellation and window controls independent
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mrestores the most recently used visible window after close and minimize without reacting to hover
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mmoves the breadcrumb into window title rows and lists conversation tabs only once the main area is empty
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mrestores, focuses and closes conversation windows from the tabs without capsules or a replacement draft
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mkeeps the tabs usable while a new conversation window is still loading
+ [2m[90m↓[39m[22m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mlists tool windows beside conversations and opens a tool or a conversation from the tab bar's +
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[2m | [22m[33m49 skipped[39m[90m (50)[39m
+[2m   Start at [22m 15:01:01
+[2m   Duration [22m 4.36s[2m (tests 48%, transform 22%, import 17%, environment 12%)[22m
+

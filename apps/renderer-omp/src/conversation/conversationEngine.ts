@@ -1,0 +1,223 @@
+import type { ClientEvent, ConversationItem, ConversationRuntimeEvent, ConversationTranscriptReadPage } from "@omp-studio/client-contract";
+import { CONVERSATION_LIMITS, utf8ByteLength } from "@omp-studio/client-contract";
+import type { ConversationTarget } from "@omp-studio/studio-protocol";
+import { getPreviewConvoLive, PREVIEW_CONVO_IDENTITY, previewConversationItems } from "../preview/conversationFixtures";
+import { asClientError, identityKey, isStaleCursorError, type ConversationClient, type ConversationIdentity } from "./conversationHost";
+import { createConversationSource } from "./conversationSource";
+import { ConversationStore } from "./conversationStore";
+import type { ConversationState, PendingUser, TimelineRow } from "./conversationViewModel";
+import { getDefaultThumbStore, type UserThumbStore } from "./userMessageThumbs";
+import { registerRendererResource } from "../rendererResources";
+import { projectReadsFor } from "../conversationWorkspace/projectReads";
+import { sessionSwitchPerformance } from "../sessionSwitchPerformance";
+import { isZh } from "../i18n";
+
+export type ConversationEngineInput = {
+  readonly preview: boolean; readonly client: ConversationClient | null; readonly identity: ConversationIdentity | null;
+  readonly canRead: boolean; readonly runtimeConnected: boolean; readonly previewItems: readonly ConversationItem[];
+  /** Hold archive/live I/O while a selected resident session is being activated. */
+  readonly deferHydrate?: boolean;
+  readonly previewLive?: readonly ConversationRuntimeEvent[]; readonly thumbStore?: UserThumbStore;
+};
+export type ConversationSnapshot = { readonly state: ConversationState; readonly rows: readonly TimelineRow[]; readonly demo: boolean; readonly loadingOlder: boolean; readonly identityKey: string };
+/** Numeric-only counters for the diagnostics sampler; never rows, text or ids. */
+export type ConversationEngineDiagnostics = {
+  readonly disposed: number;
+  readonly rows: number;
+  readonly listeners: number;
+  readonly metadataListeners: number;
+  readonly openBufferEvents: number;
+  readonly openBufferBytes: number;
+};
+export type ConversationEngine = {
+  getSnapshot(): ConversationSnapshot; subscribe(listener: () => void): () => void;
+  getMetadataSnapshot(): ConversationSnapshot; subscribeMetadata(listener: () => void): () => void;
+  start(): void; dispose(): void; loadOlder(): Promise<void>; reload(): Promise<void>;
+  restoreFromUser(itemId: string): boolean; trackPending(pending: PendingUser): void; failPending(requestId: string, error: string): void; dropPending(requestId: string): void;
+  settleOpenTurns(): boolean;
+  getDiagnostics(): ConversationEngineDiagnostics;
+};
+
+let nextGeneration = 1;
+/** Engines created and not yet disposed. A leak shows up here before it shows up in RSS. */
+let activeEngines = 0;
+export function activeConversationEngineCount(): number { return activeEngines; }
+type BufferedConversationEvent = Extract<ClientEvent, { kind: "conversation.changed" }>;
+const OPEN_BUFFER_MAX_BYTES = 2 * 1024 * 1024;
+
+export function createConversationEngine(input: ConversationEngineInput): ConversationEngine {
+  const generation = nextGeneration++;
+  activeEngines += 1;
+  const identity: ConversationIdentity | null = input.preview ? PREVIEW_CONVO_IDENTITY : input.identity;
+  const store = new ConversationStore({ target: { sessionId: identity?.sessionId ?? ("unavailable" as ConversationIdentity["sessionId"]) }, identity, generation });
+  const listeners = new Set<() => void>();
+  const metadataListeners = new Set<() => void>();
+  let transportUnsubscribe: (() => void) | undefined;
+  let started = false; let disposed = false; let loadingOlder = false; let run = 0; let thumbRead = 0;
+  let initialCachedPage: ConversationTranscriptReadPage | undefined;
+  const storeUnsubscribe = store.subscribe(() => publish());
+  let metadataSnapshot: ConversationSnapshot;
+  const storeMetadataUnsubscribe = store.subscribeMetadata(() => {
+    if (disposed) return;
+    const value = store.getMetadataSnapshot(); metadataSnapshot = { ...value, demo: input.preview, loadingOlder, identityKey: identityKey(value.state.identity) };
+    for (const listener of metadataListeners) listener();
+  });
+  let liveTarget: ConversationTarget | undefined; let conversationSessionId: string | undefined; let watermark = 0;
+  let buffer: BufferedConversationEvent[] = []; let bufferBytes = 0; let bufferOverflowed = false;
+  let snapshot: ConversationSnapshot = { ...store.getSnapshot(), demo: input.preview, loadingOlder: false, identityKey: identityKey(identity) };
+  const unregisterDiagnostics = registerRendererResource("engines", () => ({ rows: snapshot.rows.length, listeners: listeners.size + metadataListeners.size,
+    openBufferEvents: buffer.length, openBufferBytes: bufferBytes }));
+  metadataSnapshot = { ...store.getMetadataSnapshot(), demo: input.preview, loadingOlder: false, identityKey: identityKey(identity) };
+
+  function publish(): void {
+    if (disposed) return;
+    snapshot = { ...store.getSnapshot(), demo: input.preview, loadingOlder, identityKey: identityKey(store.getSnapshot().state.identity) };
+    for (const listener of listeners) listener();
+  }
+  function applyLiveEvent(event: BufferedConversationEvent): void {
+    if (event.streamSeq <= watermark) return;
+    if (event.streamSeq !== watermark + 1) {
+      store.requireResync(isZh() ? "对话流序号不连续，正在重新同步。" : "Conversation stream sequence gap detected; resyncing.");
+      void hydrate(true);
+      return;
+    }
+    watermark = event.streamSeq;
+    store.applyEvent(event.update, event.streamSeq);
+  }
+  function onEvent(event: ClientEvent): void {
+    if (event.kind === "resync.required") { store.requireResync(event.reason); void hydrate(true); return; }
+    if (event.kind !== "conversation.changed") return;
+    if (conversationSessionId === undefined) {
+      const bytes = utf8ByteLength(JSON.stringify(event));
+      if (bytes > OPEN_BUFFER_MAX_BYTES) { buffer = []; bufferBytes = 0; bufferOverflowed = true; return; }
+      buffer.push(event); bufferBytes += bytes;
+      while (bufferBytes > OPEN_BUFFER_MAX_BYTES && buffer.length > 0) {
+        bufferOverflowed = true;
+        bufferBytes -= utf8ByteLength(JSON.stringify(buffer.shift()));
+      }
+      return;
+    }
+    if (event.sessionId !== conversationSessionId) return;
+    applyLiveEvent(event);
+  }
+  async function loadThumbs(token: number, sessionId: string): Promise<void> {
+    const current = ++thumbRead;
+    const itemIds = store.getSnapshot().state.items.filter(item => item.kind === "message" && item.role === "user").map(item => item.itemId);
+    try { const thumbs = await (input.thumbStore ?? getDefaultThumbStore()).load(sessionId, itemIds); if (!disposed && token === run && current === thumbRead) store.setUserThumbs(thumbs); } catch { /* local decoration never blocks transcript */ }
+  }
+  async function hydrate(resyncing = false): Promise<void> {
+    if (disposed) return;
+    const token = ++run; loadingOlder = false; buffer = []; bufferBytes = 0; bufferOverflowed = false; conversationSessionId = undefined; watermark = 0;
+    if (identity === null) { store.setUnavailable(isZh() ? "当前没有活动会话。" : "No active conversation."); return; }
+    if (input.deferHydrate) { store.setLoading(false); return; }
+    if (input.preview) {
+      store.setLoading(resyncing); store.hydrate({ items: input.previewItems, headCursor: "preview" as never, hasMoreBefore: false }, (input.previewLive ?? []).map((update, index) => ({ streamSeq: index + 1, update })), input.previewLive?.length ?? 0); return;
+    }
+    if (!input.canRead || input.client === null) { store.setUnavailable(isZh() ? "当前环境无法读取对话。" : "Cannot read conversations in this environment."); return; }
+    store.setLoading(resyncing || initialCachedPage !== undefined);
+    const source = createConversationSource(input.client);
+    const target = input.runtimeConnected && identity.runtimeEpoch !== undefined ? { kind: "session" as const, sessionId: identity.sessionId } : undefined;
+    liveTarget = target;
+    try {
+      if (target) {
+        const opened = await source.open(target, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT);
+        if (disposed || token !== run) return;
+        const resolvedSessionId = opened.target.conversationSessionId; conversationSessionId = resolvedSessionId; store.resolveTarget(resolvedSessionId, opened.page.runtimeEpoch);
+        watermark = opened.live.watermark;
+        if (opened.live.status === "resyncRequired") {
+          store.hydrate(opened.page, [], watermark);
+          store.requireResync(opened.live.reason);
+        } else {
+          store.hydrate(opened.page, opened.live.events.map((event) => ({ streamSeq: event.streamSeq, update: event.update })), watermark);
+        }
+        initialCachedPage = undefined;
+        const buffered = buffer; const overflowed = bufferOverflowed; buffer = []; bufferBytes = 0; bufferOverflowed = false;
+        if (overflowed) { store.requireResync(isZh() ? "打开对话期间的事件缓冲已满，正在重新同步。" : "Event buffer filled while opening conversation; resyncing."); void hydrate(true); return; }
+        for (const event of buffered) if (event.sessionId === conversationSessionId) applyLiveEvent(event);
+      } else {
+        const page = await source.readArchive(identity.sessionId, undefined, undefined, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT);
+        if (disposed || token !== run) return; conversationSessionId = identity.sessionId;
+        if (token === 1 && page === initialCachedPage) store.confirmHydrated(); else store.hydrate(page);
+        initialCachedPage = undefined;
+      }
+      void loadThumbs(token, identity.sessionId);
+    } catch (cause) {
+      if (disposed || token !== run) return;
+      try {
+        const page = await source.readArchive(identity.sessionId, undefined, undefined, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT);
+        if (disposed || token !== run) return; conversationSessionId = identity.sessionId; store.hydrate(page); void loadThumbs(token, identity.sessionId);
+      } catch (fallbackCause) { if (!disposed && token === run) store.setError(asClientError(fallbackCause ?? cause)); }
+    }
+  }
+  async function loadOlder(): Promise<void> {
+    if (disposed || loadingOlder || input.client === null) return; const cursor = store.getOlderCursor(); if (cursor === undefined) return;
+    loadingOlder = true; publish(); metadataSnapshot = { ...store.getMetadataSnapshot(), demo: input.preview, loadingOlder, identityKey: identityKey(store.getMetadataSnapshot().state.identity) }; for (const listener of metadataListeners) listener(); const token = run; const source = createConversationSource(input.client);
+    try {
+      const page = liveTarget !== undefined && input.runtimeConnected ? await source.readLiveOlder(liveTarget, cursor, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT) : await source.readArchive(identity!.sessionId, undefined, cursor, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT);
+      if (!disposed && token === run) { store.prepend(page); void loadThumbs(token, identity!.sessionId); }
+    } catch (cause) { if (disposed || token !== run) return; const error = asClientError(cause); if (isStaleCursorError(error)) await hydrate(true); else store.setError(error); }
+    finally { if (!disposed && token === run) { loadingOlder = false; publish(); metadataSnapshot = { ...store.getMetadataSnapshot(), demo: input.preview, loadingOlder, identityKey: identityKey(store.getMetadataSnapshot().state.identity) }; for (const listener of metadataListeners) listener(); } }
+  }
+
+  // Preview data is already available. Publish it before the first render so
+  // a locale change does not briefly replace the mounted transcript with an empty view.
+  if (input.preview) void hydrate();
+  else if (input.canRead && input.client && identity) {
+    const cached = projectReadsFor(input.client)?.page(identity.sessionId, identity.transcriptRevision);
+    if (cached) { initialCachedPage = cached; store.hydrate(cached); store.setLoading(true); sessionSwitchPerformance.mark("conversation.cacheDisplay", { rows: cached.items.length }); }
+  }
+
+  return {
+    getSnapshot: () => snapshot,
+    subscribe(listener) { if (disposed) return () => {}; listeners.add(listener); return () => listeners.delete(listener); },
+    getMetadataSnapshot: () => metadataSnapshot,
+    subscribeMetadata(listener) { if (disposed) return () => {}; metadataListeners.add(listener); return () => metadataListeners.delete(listener); },
+    start() {
+      if (started || disposed || input.preview) return;
+      started = true;
+      if (input.client !== null) transportUnsubscribe = createConversationSource(input.client).subscribe(onEvent);
+      void hydrate();
+    },
+    /**
+     * Release everything, including the snapshots this engine published.
+     *
+     * The store already swaps its own snapshots for empty ones on dispose, but
+     * `snapshot` / `metadataSnapshot` here are separate closures that would keep
+     * the last `rows` alive for as long as anyone still holds the engine (a
+     * ConversationPane mid-unmount, a retained `previous` ref). They are
+     * replaced — not dropped — so a racing `getSnapshot()` still reads "this
+     * conversation, empty" with identity and generation intact. Listeners are
+     * cleared first so nobody is told about the blanking.
+     */
+    dispose() {
+      if (disposed) return; disposed = true; run += 1;
+      unregisterDiagnostics();
+      transportUnsubscribe?.(); transportUnsubscribe = undefined;
+      storeUnsubscribe(); storeMetadataUnsubscribe();
+      listeners.clear(); metadataListeners.clear();
+      store.dispose();
+      const empty = { ...store.getSnapshot(), demo: input.preview, loadingOlder: false, identityKey: identityKey(store.getSnapshot().state.identity) };
+      snapshot = empty; metadataSnapshot = empty;
+      buffer = []; bufferBytes = 0; bufferOverflowed = false; loadingOlder = false;
+      liveTarget = undefined; conversationSessionId = undefined; watermark = 0;
+      initialCachedPage = undefined;
+      activeEngines -= 1;
+    },
+    getDiagnostics: () => ({ disposed: disposed ? 1 : 0, rows: snapshot.rows.length, listeners: listeners.size, metadataListeners: metadataListeners.size, openBufferEvents: buffer.length, openBufferBytes: bufferBytes }),
+    loadOlder,
+    reload: () => hydrate(true),
+    restoreFromUser: (itemId) => input.preview && store.restoreFromUser(itemId),
+    trackPending: (pending) => store.trackPending(pending),
+    failPending: (requestId, error) => store.failPending(requestId, error),
+    dropPending: (requestId) => store.dropPending(requestId),
+    settleOpenTurns: () => store.settleOpenTurns(),
+  };
+}
+
+export function defaultConversationEngineInput(input: Omit<ConversationEngineInput, "previewItems" | "previewLive"> & { readonly previewThreadId?: string; readonly zh?: boolean | undefined }): ConversationEngineInput {
+  const previewZh = input.zh ?? isZh();
+  // Only `t1` is the streaming demo. Handing the live fixture to every preview
+  // thread pins `running` true everywhere, which turns the send button into the
+  // stop button and hides the paused-continue state entirely.
+  return { ...input, previewItems: input.preview ? previewConversationItems(input.previewThreadId, previewZh) : [], ...(input.preview && input.previewThreadId === "t1" ? { previewLive: getPreviewConvoLive(previewZh) } : {}) };
+}

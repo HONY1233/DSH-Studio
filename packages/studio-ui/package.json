@@ -1,0 +1,24 @@
+{
+  "name": "@studio/ui-shell",
+  "version": "0.0.1",
+  "private": true,
+  "description": "omp 风格外壳：替换 DSH 左栏与会话主区",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  }
+}

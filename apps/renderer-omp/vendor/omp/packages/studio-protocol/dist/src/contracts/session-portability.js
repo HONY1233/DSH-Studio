@@ -1,0 +1,3 @@
+export const SESSION_PORTABILITY_KINDS = ["session.portability.pack", "session.portability.anonymize", "session.portability.prepare", "session.portability.import", "session.portability.cancel", "session.portability.moved", "session.portability.status"];
+export function isSessionPortabilityKind(kind) { return SESSION_PORTABILITY_KINDS.includes(kind); }
+//# sourceMappingURL=session-portability.js.map

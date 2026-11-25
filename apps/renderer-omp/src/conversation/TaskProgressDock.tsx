@@ -1,0 +1,411 @@
+import { useId, useLayoutEffect, useRef, useState, type Ref } from "react";
+import { Icon } from "../icons";
+import { usePreviewMode } from "../preview/PreviewContext";
+import { fileTypeOf, iconNameFor, isSensitive } from "../explorer-types";
+import { motionMs, motionReduced } from "../motion";
+import { useI18n } from "../i18n";
+import {
+  groupTodosByPhase,
+  isTodoPhaseComplete,
+  todoPhaseHeadersVisible,
+  todoPhaseOpenByDefault,
+  todoStepProgress,
+  type TodoPhaseGroup,
+  type TodoStatus,
+  type TodoTask,
+  type TurnFileChange,
+} from "./toolMeta";
+
+
+/** Identity of the todo snapshot; a new array of the same tasks must not retrigger scroll. */
+export function todoListEpoch(todos: readonly TodoTask[]): string {
+  return todos.map((todo) => `${todo.id}:${todo.status}:${todo.phase ?? ""}:${todo.content}`).join("\n");
+}
+
+/** Scroll only the task list, so the conversation behind the overlay does not jump. */
+export function scrollCurrentTodoIntoList(list: HTMLElement, row: HTMLElement): void {
+  const port = list.getBoundingClientRect();
+  const item = row.getBoundingClientRect();
+  const view = list.clientHeight || port.height;
+  if (view <= 0) return;
+  const rowSize = row.offsetHeight || item.height;
+  const top = item.top - port.top + list.scrollTop - Math.max(0, (view - rowSize) / 2);
+  const next = Math.max(0, top);
+  if (typeof list.scrollTo === "function") {
+    list.scrollTo({ top: next, behavior: motionReduced() ? "auto" : "smooth" });
+    return;
+  }
+  list.scrollTop = next;
+}
+
+function ProgressRing({ completed, total }: { completed: number; total: number }) {
+  const radius = 5.5;
+  const circumference = 2 * Math.PI * radius;
+  const ratio = total <= 0 ? 0 : Math.min(1, completed / total);
+  return (
+    <svg className="task-dock-ring" viewBox="0 0 16 16" aria-hidden="true">
+      <circle className="task-dock-ring-track" cx="8" cy="8" r={radius} />
+      <circle
+        className="task-dock-ring-fill"
+        cx="8"
+        cy="8"
+        r={radius}
+        strokeDasharray={`${circumference * ratio} ${circumference}`}
+        transform="rotate(-90 8 8)"
+      />
+    </svg>
+  );
+}
+
+function TodoMark({ status }: { status: TodoStatus }) {
+  if (status === "completed") {
+    return (
+      <span className="task-dock-mark done" aria-hidden="true">
+        <Icon name="check" extra="sm" />
+      </span>
+    );
+  }
+  if (status === "in_progress") {
+    return <span className="dot purple pulse" aria-hidden="true" />;
+  }
+  if (status === "blocked") {
+    return <span className="dot amber" aria-hidden="true" />;
+  }
+  if (status === "abandoned") {
+    return <span className="task-dock-mark abandoned" aria-hidden="true" />;
+  }
+  return <span className="task-dock-mark pending" aria-hidden="true" />;
+}
+
+function statusLabel(status: TodoStatus, zh: boolean): string {
+  if (status === "completed") return zh ? "已完成" : "Completed";
+  if (status === "in_progress") return zh ? "进行中" : "In progress";
+  if (status === "blocked") return zh ? "历史阻塞" : "Legacy blocked";
+  if (status === "abandoned") return zh ? "已放弃" : "Abandoned";
+  return zh ? "待办" : "Pending";
+}
+
+function TodoRow({ todo, rowRef }: { todo: TodoTask; rowRef?: Ref<HTMLLIElement> }) {
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const current = todo.status === "in_progress";
+  return (
+    <li
+      ref={rowRef}
+      className={`task-dock-todo ${todo.status}`}
+      aria-current={current ? "true" : undefined}
+      data-current={current ? "true" : undefined}
+    >
+      <TodoMark status={todo.status} />
+      <span className="task-dock-todo-text">
+        <span className="sr-only">{statusLabel(todo.status, zh)}，</span>
+        {todo.content}
+      </span>
+      {todo.status === "blocked" ? <span className="task-dock-legacy">{zh ? "旧记录" : "Legacy"}</span> : null}
+    </li>
+  );
+}
+
+function phaseKey(group: TodoPhaseGroup, index: number): string {
+  return group.phase ?? `phase-${index}`;
+}
+
+function TodoPhaseBlock({
+  group,
+  index,
+  open,
+  panelId,
+  currentTaskId,
+  currentRef,
+  onToggle,
+}: {
+  group: TodoPhaseGroup;
+  index: number;
+  open: boolean;
+  panelId: string;
+  currentTaskId: string | undefined;
+  currentRef: Ref<HTMLLIElement>;
+  onToggle: () => void;
+}) {
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const tasksId = `${panelId}-p${index + 1}`;
+  const label = group.phase ?? (zh ? "任务" : "Tasks");
+  const complete = isTodoPhaseComplete(group);
+  const total = group.tasks.filter((task) => task.status !== "abandoned").length;
+  const done = group.tasks.filter((task) => task.status === "completed").length;
+  return (
+    <li
+      className={`task-dock-phase${open ? " open" : ""}${complete ? " complete" : ""}`}
+      role="group"
+      aria-label={`P${index + 1} ${label}`}
+    >
+      <button
+        type="button"
+        className="task-dock-phase-toggle"
+        aria-expanded={open}
+        aria-controls={tasksId}
+        aria-label={zh
+          ? `P${index + 1} ${label}，${done}/${total}，${open ? "收起" : "展开"}`
+          : `P${index + 1} ${label}, ${done}/${total}, ${open ? "collapse" : "expand"}`}
+        onClick={onToggle}
+      >
+        <span className="task-dock-phase-index" aria-hidden="true">P{index + 1}</span>
+        <span className="task-dock-phase-main">
+          <span className="task-dock-phase-name">{label}</span>
+          {total > 0 ? <span className="task-dock-phase-meta">{done}/{total}</span> : null}
+          <Icon name={open ? "chevron-d" : "chevron-r"} extra="sm" />
+        </span>
+      </button>
+      <div
+        className="task-dock-phase-fold"
+        id={tasksId}
+        aria-hidden={!open}
+        {...(open ? {} : { inert: true })}
+      >
+        <div className="task-dock-phase-fold-inner">
+          <ul className="task-dock-phase-tasks">
+            {group.tasks.map((todo) => (
+              <TodoRow
+                key={todo.id}
+                todo={todo}
+                {...(todo.id === currentTaskId ? { rowRef: currentRef } : {})}
+              />
+            ))}
+          </ul>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+export function TaskProgressDock({
+  todos,
+  files,
+  demo,
+  onReview,
+  onOpen,
+}: {
+  todos: readonly TodoTask[];
+  files: readonly TurnFileChange[];
+  demo?: boolean;
+  onReview?: () => void;
+  onOpen?: (path: string) => void;
+}) {
+  const panelId = useId();
+  const { marks } = usePreviewMode();
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const [open, setOpen] = useState(false);
+  const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({});
+  const listRef = useRef<HTMLUListElement>(null);
+  const currentRef = useRef<HTMLLIElement>(null);
+  const userPausedRef = useRef(false);
+  const seenEpochRef = useRef<string | undefined>(undefined);
+  const currentTaskId = todos.find((todo) => todo.status === "in_progress")?.id;
+  const todoEpoch = todoListEpoch(todos);
+
+  useLayoutEffect(() => {
+    const current = todos.find((todo) => todo.status === "in_progress");
+    if (current === undefined) return;
+    const nextGroups = groupTodosByPhase(todos);
+    const index = nextGroups.findIndex((group) => group.tasks.some((task) => task.id === current.id));
+    if (index < 0) return;
+    const key = phaseKey(nextGroups[index]!, index);
+    setPhaseOpen((prev) => (prev[key] === true ? prev : { ...prev, [key]: true }));
+  }, [currentTaskId, todos]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      seenEpochRef.current = undefined;
+      userPausedRef.current = false;
+      return;
+    }
+    if (seenEpochRef.current !== todoEpoch) {
+      userPausedRef.current = false;
+      seenEpochRef.current = todoEpoch;
+    }
+    if (userPausedRef.current) return;
+    let cancelled = false;
+    const run = () => {
+      if (cancelled || userPausedRef.current) return;
+      const list = listRef.current;
+      const row = currentRef.current;
+      if (list === null || row === null || list.ownerDocument.hidden) return;
+      scrollCurrentTodoIntoList(list, row);
+    };
+    run();
+    const frame = requestAnimationFrame(run);
+    const timer = window.setTimeout(run, motionMs("slow"));
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [open, todoEpoch]);
+
+  const pauseTodoAutoScroll = () => {
+    userPausedRef.current = true;
+    const list = listRef.current;
+    if (list !== null) list.scrollTop = list.scrollTop;
+  };
+
+  if (todos.length === 0 && files.length === 0) return null;
+
+  const steps = todoStepProgress(todos);
+  const partialEdit = files.some(file => file.partial);
+  const legacyTodo = todos.some(todo => todo.status === "blocked");
+  const add = files.reduce((sum, file) => sum + file.add, 0);
+  const del = files.reduce((sum, file) => sum + file.del, 0);
+  const stepText = steps.total > 0
+    ? (zh ? `第 ${steps.current} / ${steps.total} 步` : `Step ${steps.current} / ${steps.total}`)
+    : "";
+  const fileText = files.length > 0
+    ? (zh ? `${files.length} 个文件已更改` : `${files.length} ${files.length === 1 ? "file" : "files"} changed`)
+    : "";
+  const summary = [stepText, fileText, partialEdit ? (zh ? "部分编辑" : "Partial edit") : ""].filter(Boolean).join(" · ");
+  const toggleLabel = zh
+    ? `${summary || "任务进度"}，${open ? "收起" : "展开"}任务与文件修改`
+    : `${summary || "Task progress"}, ${open ? "collapse" : "expand"} tasks and file changes`;
+  const both = todos.length > 0 && files.length > 0;
+  const groups = groupTodosByPhase(todos);
+  const showPhases = todoPhaseHeadersVisible(groups);
+  const phaseDefaults = todoPhaseOpenByDefault(groups);
+
+  return (
+    <div className={`task-dock${open ? " open" : ""}${both ? " both" : " single"}`}>
+      <div className="task-dock-shell">
+        <div
+          className="task-dock-collapse"
+          id={panelId}
+          aria-hidden={!open}
+          inert={open ? undefined : true}
+        >
+        <div className="task-dock-collapse-inner">
+          <div className="task-dock-panel">
+            {todos.length > 0 ? (
+              <section className="task-dock-col" aria-label={zh ? "任务列表" : "Task list"}>
+                {legacyTodo ? <p className="task-dock-note">{zh
+                  ? "旧记录的阻塞状态仅供回看；原生恢复会将其转为待办。"
+                  : "Blocked is a read-only legacy status; native restore returns it to pending."}</p> : null}
+                <ul
+                  ref={listRef}
+                  className={`task-dock-todos${showPhases ? " phased" : ""}`}
+                  onWheel={pauseTodoAutoScroll}
+                  onTouchMove={pauseTodoAutoScroll}
+                  onPointerDown={pauseTodoAutoScroll}
+                >
+                  {showPhases
+                    ? groups.map((group, index) => {
+                        const key = phaseKey(group, index);
+                        const phaseExpanded = Object.hasOwn(phaseOpen, key) ? phaseOpen[key] === true : phaseDefaults[index] === true;
+                        return (
+                          <TodoPhaseBlock
+                            key={key}
+                            group={group}
+                            index={index}
+                            open={phaseExpanded}
+                            panelId={panelId}
+                            currentTaskId={currentTaskId}
+                            currentRef={currentRef}
+                            onToggle={() => {
+                              setPhaseOpen((current) => ({ ...current, [key]: !phaseExpanded }));
+                            }}
+                          />
+                        );
+                      })
+                    : todos.map((todo) => (
+                        <TodoRow
+                          key={todo.id}
+                          todo={todo}
+                          {...(todo.id === currentTaskId ? { rowRef: currentRef } : {})}
+                        />
+                      ))}
+                </ul>
+              </section>
+            ) : null}
+            {files.length > 0 ? (
+              <section className="task-dock-col" aria-label={zh ? "文件修改" : "File changes"}>
+                {partialEdit ? <p className="task-dock-note is-warning" role="note"><Icon name="alert-c" extra="sm" />{zh
+                  ? "部分编辑未应用；仅显示已确认落盘的文件。"
+                  : "Partial edit; only confirmed-applied files are shown."}</p> : null}
+                <ul className="task-dock-file-list">
+                  {files.map((file) => {
+                    const ftype = fileTypeOf(file.name);
+                    return (
+                    <li
+                      key={file.path}
+                      className="task-dock-file"
+                      data-ftype={ftype ?? undefined}
+                      data-secret={isSensitive(file.name) || undefined}
+                    >
+                      <span className="task-dock-file-icon" aria-hidden="true">
+                        <Icon name={iconNameFor(ftype, file.name)} extra="sm" />
+                      </span>
+                      <button
+                        type="button"
+                        className="task-dock-file-open"
+                        aria-label={demo === true && marks
+                          ? (zh ? `打开 ${file.path}（演示）` : `Open ${file.path} (Demo)`)
+                          : (zh ? `打开 ${file.path}` : `Open ${file.path}`)}
+                        data-tip={demo === true && marks
+                          ? (zh ? "打开（演示）" : "Open (Demo)")
+                          : (zh ? "打开" : "Open")}
+                        onClick={() => onOpen?.(file.path)}
+                      >
+                        <span className="task-dock-file-name">{file.name}</span>
+                        {file.dir ? <span className="task-dock-file-dir">{file.dir}</span> : null}
+                      </button>
+                      {file.add || file.del ? (
+                        <span className="task-dock-file-stats" aria-hidden="true">
+                          {file.add ? <span className="add">+{file.add}</span> : null}
+                          {file.del ? <span className="del">-{file.del}</span> : null}
+                        </span>
+                      ) : null}
+                    </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
+          </div>
+        </div>
+        </div>
+        <div className={`task-dock-bar${open && files.length > 0 ? " has-review" : ""}`}>
+          <button
+            type="button"
+            className="task-dock-pill"
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label={toggleLabel}
+            onClick={() => setOpen((value) => !value)}
+          >
+            {steps.total > 0 ? <ProgressRing completed={steps.completed} total={steps.total} /> : null}
+            {stepText ? <span className="task-dock-step">{stepText}</span> : null}
+            {stepText && fileText ? <span className="task-dock-sep" aria-hidden="true">·</span> : null}
+            {fileText ? <span className="task-dock-files">{fileText}</span> : null}
+            {partialEdit ? <span className="task-dock-partial"><Icon name="alert-c" extra="sm" />{zh ? "部分编辑" : "Partial edit"}</span> : null}
+            {add || del ? (
+              <span className="task-dock-stats" aria-hidden="true">
+                <span className="add">+{add}</span>
+                <span className="del">-{del}</span>
+              </span>
+            ) : null}
+            {demo === true && marks ? <span className="chip gray xs">{zh ? "演示" : "Demo"}</span> : null}
+          </button>
+          {open && files.length > 0 ? (
+            <button
+              type="button"
+              className="btn small task-dock-review"
+              onClick={onReview}
+              data-tip={demo === true && marks ? (zh ? "Changes（演示）" : "Changes (Demo)") : "Changes"}
+            >
+              <Icon name="diff" extra="sm" />
+              {zh ? "审核" : "Review"}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}

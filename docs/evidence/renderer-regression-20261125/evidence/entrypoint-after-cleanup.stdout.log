@@ -1,0 +1,3 @@
+[entrypoints] renderer: 79 queries / 97 commands
+[entrypoints] bridge: 103 cases / 130 explicit reasons
+[entrypoints] PASS · 没有沉默接口

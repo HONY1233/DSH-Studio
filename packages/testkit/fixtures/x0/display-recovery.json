@@ -1,0 +1,122 @@
+{
+  "schema": "dsh-studio/x0-display-recovery@1",
+  "units": "Electron DIP",
+  "note": "几何 fixture 只冻结恢复策略与期望结果；不代表本机已完成双屏真机验收。",
+  "policy": [
+    "保存 displayId，同时保存 label/bounds/workArea/scaleFactor/rotation 指纹；displayId 只作为快速匹配，不作为跨驱动永久身份。",
+    "恢复时先找指纹匹配的显示器，否则按窗口矩形与 workArea 的最大交集选择；所有交集为 0 时回退主显示器。",
+    "Electron 窗口几何使用 DIP；scaleFactor 变化不直接乘算保存坐标。",
+    "负坐标合法；旋转或拔屏后重新读取 bounds/workArea，不手工旋转窗口矩形。",
+    "有限数、正整数宽高且不超过合理上限才可恢复；非法值拒绝恢复并使用默认窗口。",
+    "窗口必须完整留在所选 workArea 内；大于 workArea 时缩放到 workArea，绝不保留不可达的屏外区域。"
+  ],
+  "displays": [
+    {
+      "id": 1,
+      "label": "primary",
+      "bounds": { "x": 0, "y": 0, "width": 1920, "height": 1080 },
+      "workArea": { "x": 0, "y": 0, "width": 1920, "height": 1032 },
+      "scaleFactor": 1,
+      "rotation": 0
+    },
+    {
+      "id": 2,
+      "label": "right-hidpi",
+      "bounds": { "x": 1920, "y": 0, "width": 2560, "height": 1440 },
+      "workArea": { "x": 1920, "y": 48, "width": 2560, "height": 1352 },
+      "scaleFactor": 1.25,
+      "rotation": 0
+    },
+    {
+      "id": 3,
+      "label": "left",
+      "bounds": { "x": -1920, "y": -200, "width": 1920, "height": 1080 },
+      "workArea": { "x": -1920, "y": -200, "width": 1920, "height": 1032 },
+      "scaleFactor": 1,
+      "rotation": 0
+    }
+  ],
+  "cases": [
+    {
+      "id": "right-hidpi-restore",
+      "savedDisplayId": 2,
+      "savedBounds": { "x": 2200, "y": 120, "width": 1200, "height": 800 },
+      "availableDisplayIds": [1, 2, 3],
+      "expectedDisplayId": 2,
+      "expectedBounds": { "x": 2200, "y": 120, "width": 1200, "height": 800 }
+    },
+    {
+      "id": "negative-coordinate-restore",
+      "savedDisplayId": 3,
+      "savedBounds": { "x": -1500, "y": -100, "width": 900, "height": 700 },
+      "availableDisplayIds": [1, 2, 3],
+      "expectedDisplayId": 3,
+      "expectedBounds": { "x": -1500, "y": -100, "width": 900, "height": 700 }
+    },
+    {
+      "id": "removed-display-falls-back-to-primary",
+      "savedDisplayId": 2,
+      "savedBounds": { "x": 2200, "y": 120, "width": 1200, "height": 800 },
+      "availableDisplayIds": [1, 3],
+      "expectedDisplayId": 1,
+      "expectedBounds": { "x": 0, "y": 0, "width": 1200, "height": 800 }
+    },
+    {
+      "id": "offscreen-window-clamps-to-work-area",
+      "savedDisplayId": 1,
+      "savedBounds": { "x": 3000, "y": 100, "width": 800, "height": 600 },
+      "availableDisplayIds": [1, 2, 3],
+      "expectedDisplayId": 1,
+      "expectedBounds": { "x": 1120, "y": 0, "width": 800, "height": 600 }
+    },
+    {
+      "id": "oversized-window-fits-work-area",
+      "savedDisplayId": 2,
+      "savedBounds": { "x": 1920, "y": 48, "width": 4000, "height": 3000 },
+      "availableDisplayIds": [1, 2, 3],
+      "expectedDisplayId": 2,
+      "expectedBounds": { "x": 1920, "y": 48, "width": 2560, "height": 1352 }
+    },
+    {
+      "id": "rotated-display-rereads-geometry",
+      "savedDisplayId": 2,
+      "savedBounds": { "x": 2200, "y": 120, "width": 1200, "height": 800 },
+      "availableDisplayIds": [1, 2],
+      "displayOverrides": [
+        {
+          "id": 2,
+          "bounds": { "x": 1920, "y": 0, "width": 1440, "height": 2560 },
+          "workArea": { "x": 1920, "y": 48, "width": 1440, "height": 2472 },
+          "scaleFactor": 1.25,
+          "rotation": 90
+        }
+      ],
+      "expectedDisplayId": 2,
+      "expectedBounds": { "x": 2160, "y": 120, "width": 1200, "height": 800 }
+    },
+    {
+      "id": "dpi-change-keeps-dip-geometry",
+      "savedDisplayId": 2,
+      "savedBounds": { "x": 2200, "y": 120, "width": 1200, "height": 800 },
+      "availableDisplayIds": [1, 2],
+      "displayOverrides": [
+        {
+          "id": 2,
+          "bounds": { "x": 1920, "y": 0, "width": 2560, "height": 1440 },
+          "workArea": { "x": 1920, "y": 48, "width": 2560, "height": 1352 },
+          "scaleFactor": 1.5,
+          "rotation": 0
+        }
+      ],
+      "expectedDisplayId": 2,
+      "expectedBounds": { "x": 2200, "y": 120, "width": 1200, "height": 800 }
+    },
+    {
+      "id": "invalid-bounds-are-rejected",
+      "savedDisplayId": 1,
+      "savedBounds": { "x": 0, "y": 0, "width": 0, "height": 600 },
+      "availableDisplayIds": [1, 2, 3],
+      "expectedError": "INVALID_WINDOW_BOUNDS"
+    }
+  ]
+}

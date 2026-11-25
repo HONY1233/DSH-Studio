@@ -1,0 +1,157 @@
+import { isSystemFilePath } from "@omp-studio/client-contract";
+import { isZh } from "../i18n";
+
+export type FileKind = "text" | "markdown" | "pdf" | "image" | "audio" | "video" | "spreadsheet" | "office";
+export const extension = (name: string) => name.split(".").pop()?.toLowerCase() ?? "";
+export function fileKind(name: string): FileKind {
+  const ext = extension(name);
+  if (["md", "markdown", "mdx"].includes(ext)) return "markdown";
+  if (ext === "pdf") return "pdf";
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"].includes(ext)) return "image";
+  if (["mp4", "m4v", "webm", "mov", "mkv", "avi", "ogv"].includes(ext)) return "video";
+  if (["mp3", "wav", "ogg", "opus", "flac", "m4a", "aac"].includes(ext)) return "audio";
+  if (["xls", "xlsx", "xlsm", "xlsb", "ods", "csv", "tsv"].includes(ext)) return "spreadsheet";
+  if (["doc", "docx", "docm", "odt", "rtf", "ppt", "pptx", "pptm", "odp"].includes(ext)) return "office";
+  return "text";
+}
+export const textEditable = (name: string) => ["text", "markdown"].includes(fileKind(name)) || ["csv", "tsv"].includes(extension(name));
+const LANGUAGES: Record<string, [label: string, badge: string, tone: string]> = {
+  ts: ["TypeScript", "TS", "blue"], tsx: ["TypeScript JSX", "TSX", "blue"], mts: ["TypeScript", "TS", "blue"], cts: ["TypeScript", "TS", "blue"],
+  js: ["JavaScript", "JS", "amber"], jsx: ["JavaScript JSX", "JSX", "amber"], mjs: ["JavaScript", "JS", "amber"], cjs: ["JavaScript", "JS", "amber"],
+  json: ["JSON", "{ }", "amber"], jsonc: ["JSON", "{ }", "amber"], yaml: ["YAML", "YML", "red"], yml: ["YAML", "YML", "red"], toml: ["TOML", "TOML", "red"], ini: ["INI", "INI", "gray"],
+  md: ["Markdown", "MD", "blue"], mdx: ["MDX", "MDX", "blue"], markdown: ["Markdown", "MD", "blue"],
+  py: ["Python", "PY", "blue"], rs: ["Rust", "RS", "amber"], go: ["Go", "GO", "blue"], java: ["Java", "JAVA", "red"], kt: ["Kotlin", "KT", "accent"], swift: ["Swift", "SWF", "amber"],
+  c: ["C", "C", "blue"], h: ["C Header", "H", "blue"], cpp: ["C++", "C++", "blue"], hpp: ["C++ Header", "H++", "blue"], cs: ["C#", "C#", "accent"], rb: ["Ruby", "RB", "red"], php: ["PHP", "PHP", "accent"],
+  sh: ["Shell", "SH", "green"], bash: ["Shell", "SH", "green"], zsh: ["Shell", "SH", "green"], ps1: ["PowerShell", "PS", "blue"], bat: ["Batch", "BAT", "gray"], cmd: ["Batch", "CMD", "gray"],
+  sql: ["SQL", "SQL", "amber"], html: ["HTML", "HTML", "red"], htm: ["HTML", "HTML", "red"], css: ["CSS", "CSS", "blue"], scss: ["SCSS", "SCSS", "accent"], less: ["Less", "LESS", "blue"], xml: ["XML", "XML", "amber"], svg: ["SVG", "SVG", "amber"], vue: ["Vue", "VUE", "green"], svelte: ["Svelte", "SV", "red"],
+  csv: ["CSV", "CSV", "green"], tsv: ["TSV", "TSV", "green"], xls: ["Excel", "XLS", "green"], xlsx: ["Excel", "XLSX", "green"], xlsm: ["Excel", "XLSM", "green"], xlsb: ["Excel", "XLSB", "green"], ods: ["Spreadsheet", "ODS", "green"], pdf: ["PDF", "PDF", "red"],
+  doc: ["Word", "DOC", "blue"], docx: ["Word", "DOCX", "blue"], docm: ["Word", "DOCM", "blue"], odt: ["Document", "ODT", "blue"], rtf: ["RTF", "RTF", "blue"], ppt: ["PowerPoint", "PPT", "amber"], pptx: ["PowerPoint", "PPTX", "amber"], pptm: ["PowerPoint", "PPTM", "amber"], odp: ["Presentation", "ODP", "amber"],
+  txt: ["Plain text", "TXT", "gray"], log: ["Log", "LOG", "gray"], lock: ["Lock", "LOCK", "gray"], env: ["Env", "ENV", "gray"],
+};
+const KIND_BADGE: Record<FileKind, [string, string, string]> = { text: ["Plain text", "TXT", "gray"], markdown: ["Markdown", "MD", "blue"], pdf: ["PDF", "PDF", "red"], image: ["Image", "IMG", "green"], audio: ["Audio", "AUD", "accent"], video: ["Video", "VID", "accent"], spreadsheet: ["Spreadsheet", "XLS", "green"], office: ["Document", "DOC", "blue"] };
+const BADGE_LABEL_ZH: Record<string, string> = {
+  Document: "文档",
+  Presentation: "演示文稿",
+  "Plain text": "纯文本",
+  Log: "日志",
+  Image: "图片",
+  Audio: "音频",
+  Video: "视频",
+  Spreadsheet: "表格",
+};
+/** Short colored badge and human language name for headers and status bars. */
+export function fileBadge(name: string, zh = isZh()): { label: string; badge: string; tone: string } {
+  const base = name.split(/[\\/]/).pop() ?? name;
+  const named = /^(Dockerfile|Makefile)$/i.test(base) ? [base, base === "Makefile" ? "MK" : "DKR", "blue"] as const : /^\.git(ignore|attributes)$/.test(base) ? ["Git", "GIT", "red"] as const : undefined;
+  const [rawLabel, badge, tone] = named ?? LANGUAGES[extension(base)] ?? KIND_BADGE[fileKind(base)];
+  const label = zh ? (BADGE_LABEL_ZH[rawLabel] ?? rawLabel) : rawLabel;
+  return { label, badge, tone };
+}
+export function formatBytes(size: number | undefined): string {
+  if (size === undefined || !Number.isFinite(size)) return "";
+  if (size < 1024) return `${size} B`;
+  const units = ["KB", "MB", "GB"]; let value = size / 1024, unit = 0;
+  while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}
+/** The kinds the transcript links on sight; other slash-separated text waits for the Host verdict. */
+const KNOWN_FILE_EXTENSION = /\.(?:[cm]?js|jsx|tsx?|py|rs|go|java|c|h|cpp|hpp|cs|rb|php|sh|ps1|sql|json|ya?ml|toml|ini|conf|txt|log|md|mdx|markdown|html?|css|scss|xml|csv|tsv|xlsx?|xlsm|xlsb|ods|pdf|png|jpe?g|gif|webp|bmp|avif|svg|mp4|webm|mov|mkv|mp3|wav|ogg|flac|m4a|docx?|docm|pptx?|pptm|odt|odp|rtf)$/i;
+export function hasKnownFileExtension(path: string): boolean {
+  return KNOWN_FILE_EXTENSION.test(path);
+}
+export interface FileReference { path: string; line?: number; column?: number }
+
+function decodeFileUrlPath(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol.toLowerCase() !== "file:") return null;
+    const decoded = decodeURIComponent(parsed.pathname);
+    if (parsed.hostname && parsed.hostname.toLowerCase() !== "localhost") {
+      return `//${parsed.hostname}${decoded}`;
+    }
+    return /^\/[A-Za-z]:\//.test(decoded) ? decoded.slice(1) : decoded;
+  } catch {
+    let fallback = rawUrl.replace(/^file:(?:\/\/(?:localhost)?)?/i, "");
+    try { fallback = decodeURIComponent(fallback); } catch { /* Keep literal percent if malformed. */ }
+    fallback = fallback.replace(/[?#].*$/, "");
+    return /^\/[A-Za-z]:[\\/]/.test(fallback) ? fallback.slice(1) : fallback || null;
+  }
+}
+
+function splitPathRoot(slashPath: string): { root: string; rest: string } {
+  const unc = /^\/\/[^/]+\/[^/]+(?:\/|$)/.exec(slashPath);
+  if (unc) return { root: unc[0].endsWith("/") ? unc[0] : `${unc[0]}/`, rest: slashPath.slice(unc[0].length) };
+  const winSlash = /^\/([A-Za-z]:\/)/.exec(slashPath);
+  if (winSlash) return { root: `/${winSlash[1]}`, rest: slashPath.slice(winSlash[0].length) };
+  const win = /^[A-Za-z]:\//.exec(slashPath);
+  if (win) return { root: win[0], rest: slashPath.slice(win[0].length) };
+  if (slashPath.startsWith("/")) return { root: "/", rest: slashPath.slice(1) };
+  return { root: "", rest: slashPath };
+}
+
+function reduceSegments(segments: readonly string[], rooted: boolean): string[] {
+  const stack: string[] = [];
+  for (const part of segments) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      if (stack.length > 0 && stack[stack.length - 1] !== "..") stack.pop();
+      else if (!rooted) stack.push("..");
+      continue;
+    }
+    stack.push(part);
+  }
+  return stack;
+}
+
+export function normalizeFileIdentityPath(value: string): string {
+  let text = value.trim();
+  if (/^file:/i.test(text)) text = decodeFileUrlPath(text) ?? text;
+  const slash = text.replaceAll("\\", "/");
+  const { root, rest } = splitPathRoot(slash);
+  const canonicalRoot = /^\/[A-Za-z]:\/$/.test(root)
+    ? `${root[1]!.toUpperCase()}:/`
+    : /^[A-Za-z]:\/$/.test(root)
+      ? `${root[0]!.toUpperCase()}:/`
+      : root;
+  const reduced = reduceSegments(rest.split("/"), canonicalRoot.length > 0).join("/");
+  return canonicalRoot ? `${canonicalRoot}${reduced}` : reduced || ".";
+}
+
+export function parseFileReference(value: string, explicitLink = false): FileReference | null {
+  const text = value.trim();
+  if (!text || /^[#?]/.test(text) || /^(?:https?:|mailto:|data:|javascript:|tel:)/i.test(text)) return null;
+  if (/^[a-z][\w+.-]*:/i.test(text) && !/^(?:file:|[a-z]:[\\/])/i.test(text)) return null;
+  const location = /(?::(\d+)(?::(\d+))?|#L(\d+)(?:C(\d+))?(?:-L?\d+)?)$/.exec(text);
+  let path = location ? text.slice(0, location.index) : text;
+  if (/^file:/i.test(path)) {
+    const decodedUrl = decodeFileUrlPath(path);
+    if (!decodedUrl) return null;
+    path = decodedUrl;
+  } else {
+    try { path = decodeURIComponent(path); } catch { /* A literal percent is also a valid filename. */ }
+  }
+  if (!explicitLink && (/[\n\r<>{}=]/.test(path))) return null;
+  if (!explicitLink && !/[/\\]/.test(path)) {
+    const named = ["README", "LICENSE", "Dockerfile", "Makefile", ".gitignore", ".gitattributes", ".env"].includes(path);
+    const formats = hasKnownFileExtension(path);
+    if (!named && (!formats || path.startsWith(".") || !/^[\p{L}\p{N}_ .@+-]+$/u.test(path))) return null;
+  }
+  return { path, ...(location ? { line: Number(location[1] ?? location[3]), ...(location[2] || location[4] ? { column: Number(location[2] ?? location[4]) } : {}) } : {}) };
+}
+export function relativeFileReference(base: string, path: string): string {
+  if (/^file:/i.test(path)) {
+    const decoded = decodeFileUrlPath(path);
+    if (decoded) path = decoded;
+  }
+  if (isSystemFilePath(path)) {
+    // Keep home-relative segments for the Host to resolve after expanding ~.
+    if (path.startsWith("~")) return path;
+    if (!/(?:^|[/\\])\.\.?(?:[/\\]|$)/.test(path)) return path;
+    const { root, rest } = splitPathRoot(path.replaceAll("\\", "/"));
+    return `${root}${reduceSegments(rest.split("/"), root.length > 0).join("/")}`;
+  }
+  const { root, rest: baseRest } = splitPathRoot(base.replaceAll("\\", "/"));
+  const baseDir = baseRest.split("/").slice(0, -1);
+  const combined = reduceSegments([...baseDir, ...path.replaceAll("\\", "/").split("/")], root.length > 0);
+  return `${root}${combined.join("/")}`;
+}

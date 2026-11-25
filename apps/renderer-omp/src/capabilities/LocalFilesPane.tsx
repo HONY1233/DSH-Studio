@@ -1,0 +1,319 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { StudioClient } from "@omp-studio/client-contract";
+import type { LocalResourceResultMap, LocalResourceRow } from "@omp-studio/studio-protocol";
+import { usePreviewMode } from "../preview/PreviewContext";
+import { createPreviewLocalFiles, PREVIEW_LOCAL_ROOT } from "../preview/resourcesPreview";
+import { useI18n } from "../i18n";
+import { hostErrorMessage, waitReceipt } from "../hostError";
+import { useExecutionTarget } from "../workspaces/ExecutionTargets";
+import { Icon } from "../icons";
+import { WorkspaceDialog, WorkspaceEmpty } from "../workspaces/Workspace";
+import { CapabilityEditor } from "./CapabilityEditor";
+import { ResourceTextView } from "./ResourceTextView";
+import "./resources.css";
+
+const MAX_TEXT_BYTES = 512 * 1024;
+type LocalDocument = LocalResourceResultMap["resource.local.open"];
+type PendingNavigation = { kind: "open"; uri: string } | { kind: "refresh" };
+
+function fileSize(bytes: number): string {
+  return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KiB`;
+}
+
+const localFileUri = (name: string) => name.startsWith("local://") ? name : `local://${name}`;
+
+export function resourceLanguage(uri: string): "python" | "markdown" | "cpp" | "text" {
+  return /\.md$/i.test(uri) ? "markdown" : /\.py$/i.test(uri) ? "python" : /\.(?:c|cpp|cc|h|hpp)$/i.test(uri) ? "cpp" : "text";
+}
+
+/** The capability workspace and the conversation's /local window share one editor. */
+export function LocalFilesPane({ client, sessionId, available, initialName, requestId, windowed = false }: {
+  client: StudioClient; sessionId?: string | undefined; available: boolean; initialName?: string | undefined; requestId?: number | undefined; windowed?: boolean;
+}) {
+  const target = useExecutionTarget();
+  const { preview, marks } = usePreviewMode();
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const [files, setFiles] = useState<LocalResourceRow[]>([]);
+  const [truncated, setTruncated] = useState(false);
+  const [localRoot, setLocalRoot] = useState("");
+  const [directoryMessage, setDirectoryMessage] = useState("");
+  const [document, setDocument] = useState<LocalDocument>();
+  const [draft, setDraft] = useState("");
+  const [search, setSearch] = useState("");
+  const [busy, setBusy] = useState<"checking" | "listing" | "opening" | "saving" | null>(null);
+  const [directorySupported, setDirectorySupported] = useState(false);
+  const [supported, setSupported] = useState(false);
+  const [error, setError] = useState("");
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [pending, setPending] = useState<PendingNavigation>();
+  const [narrowView, setNarrowView] = useState<"files" | "editor">(initialName ? "editor" : "files");
+  const epoch = useRef(0);
+  const lock = useRef(false);
+  const previewFiles = useRef(createPreviewLocalFiles(zh));
+  const previewEdits = useRef(new Map<string, (typeof previewFiles.current)[number]>());
+  const request = useMemo(() => ({ name: initialName, requestId }), [initialName, requestId]);
+  const initial = useRef(request);
+  const handledInitial = useRef(request);
+  initial.current = request;
+  const dirty = !!document && draft !== document.text;
+  const draftBytes = useMemo(() => new TextEncoder().encode(draft).byteLength, [draft]);
+  const tooLarge = draftBytes > MAX_TEXT_BYTES;
+  const visibleFiles = files.filter(file => `${file.name} ${file.uri}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+
+  async function listFiles(): Promise<LocalResourceResultMap["resource.local.list"]> {
+    if (preview) return { localRootPath: PREVIEW_LOCAL_ROOT, files: previewFiles.current.map(({ text: _text, version: _version, ...file }) => file), truncated: false };
+    if (!sessionId) throw new Error(zh ? "尚未选择活动会话" : "No active session");
+    const handle = await client.command("resource.local.list", { sessionId });
+    return (await waitReceipt<{ result: LocalResourceResultMap["resource.local.list"] }>(client, handle.requestId)).result;
+  }
+
+  async function readDocument(uri: string): Promise<LocalDocument> {
+    if (preview) {
+      const file = previewFiles.current.find(item => item.uri === uri);
+      if (!file) throw new Error(zh ? "找不到此文件" : "File not found");
+      return { uri: file.uri, version: file.version, text: file.text };
+    }
+    if (!sessionId) throw new Error(zh ? "尚未选择活动会话" : "No active session");
+    const handle = await client.command("resource.local.open", { sessionId, uri });
+    return (await waitReceipt<{ result: LocalDocument }>(client, handle.requestId)).result;
+  }
+
+  function acceptDocument(value: LocalDocument | undefined) {
+    setDocument(value); setDraft(value?.text ?? ""); setSaved(false); setSaveFailed(false);
+  }
+
+  useEffect(() => {
+    const generation = ++epoch.current;
+    setLocalRoot(""); setDirectoryMessage(""); setDirectorySupported(false);
+    lock.current = true;
+    previewEdits.current.clear();
+    previewFiles.current = createPreviewLocalFiles(zh);
+    handledInitial.current = initial.current;
+    setFiles([]); setTruncated(false); acceptDocument(undefined); setSearch(""); setError(""); setPending(undefined); setSupported(false);
+    setBusy(preview || (available && sessionId) ? "checking" : null);
+    void (async () => {
+      try {
+        if (!preview && (!available || !sessionId)) return;
+        const manifest = preview ? undefined : await client.query("capabilities.get", {});
+        if (generation !== epoch.current) return;
+        const supports = (id: string) => preview || manifest?.capabilities.some(cap => cap.id === id && cap.grade !== "unavailable") === true;
+        const canList = supports("resource.local.list");
+        setDirectorySupported(supports("resource.local.ensureDir"));
+        setSupported(canList);
+        if (!canList) return;
+        setBusy("listing");
+        const result = await listFiles();
+        if (generation !== epoch.current) return;
+        setLocalRoot(result.localRootPath ?? ""); setFiles(result.files); setTruncated(result.truncated);
+        handledInitial.current = initial.current;
+        const name = initial.current.name;
+        const uri = name ? localFileUri(name) : result.files.find(file => file.bytes <= MAX_TEXT_BYTES)?.uri;
+        setNarrowView(name ? "editor" : "files");
+        if (uri) {
+          setBusy("opening");
+          const value = await readDocument(uri);
+          if (generation === epoch.current) acceptDocument(value);
+        }
+      } catch (cause) {
+        if (generation === epoch.current) setError(hostErrorMessage(cause, zh ? "无法读取本地会话文件" : "Could not load session-local files"));
+      } finally {
+        if (generation === epoch.current) { lock.current = false; setBusy(null); }
+      }
+    })();
+    return () => { epoch.current++; };
+  }, [client, sessionId, available, preview]);
+
+  const documentRef = useRef(document);
+  documentRef.current = document;
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  useEffect(() => {
+    if (!preview) return;
+    previewFiles.current = createPreviewLocalFiles(zh).map(file => previewEdits.current.get(file.uri) ?? file);
+    setFiles(previewFiles.current.map(({ text: _text, version: _version, ...file }) => file));
+    const current = documentRef.current;
+    if (!current) return;
+    const updated = previewFiles.current.find(item => item.uri === current.uri);
+    if (!updated) return;
+    const wasClean = draftRef.current === current.text;
+    setDocument({ uri: updated.uri, version: updated.version, text: updated.text });
+    if (wasClean) setDraft(updated.text);
+  }, [preview, zh]);
+
+  async function navigate(action: PendingNavigation) {
+    if (lock.current || !supported) return;
+    const generation = epoch.current;
+    lock.current = true; setBusy(action.kind === "refresh" ? "listing" : "opening"); setError(""); setPending(undefined);
+    try {
+      if (action.kind === "open") {
+        const result = await readDocument(action.uri);
+        if (generation === epoch.current) acceptDocument(result);
+      } else {
+        const result = await listFiles();
+        if (generation !== epoch.current) return;
+        setLocalRoot(result.localRootPath ?? ""); setFiles(result.files); setTruncated(result.truncated);
+        const selected = result.files.find(file => file.uri === document?.uri) ?? result.files.find(file => file.bytes <= MAX_TEXT_BYTES);
+        if (selected && selected.bytes <= MAX_TEXT_BYTES) {
+          setBusy("opening");
+          const value = await readDocument(selected.uri);
+          if (generation === epoch.current) acceptDocument(value);
+        } else acceptDocument(undefined);
+      }
+    } catch (cause) {
+      if (generation === epoch.current) setError(hostErrorMessage(cause, zh ? "读取失败，请重试；当前内容已保留" : "Could not read the file. Your current content is preserved."));
+    } finally {
+      if (generation === epoch.current) { lock.current = false; setBusy(null); }
+    }
+  }
+
+  function requestNavigation(action: PendingNavigation) {
+    if (lock.current || pending) return;
+    if (dirty) setPending(action);
+    else void navigate(action);
+  }
+
+  // Changing the /local target is navigation, not a reason to silently reset a draft.
+  useEffect(() => {
+    if (request === handledInitial.current || busy || pending || !supported) return;
+    handledInitial.current = request;
+    setNarrowView(request.name ? "editor" : "files");
+    requestNavigation(request.name ? { kind: "open", uri: localFileUri(request.name) } : { kind: "refresh" });
+  }, [request, busy, pending, supported]);
+
+  async function save() {
+    if (lock.current || pending || !document || !dirty || tooLarge || !supported) return;
+    const generation = epoch.current;
+    const text = draft;
+    lock.current = true; setBusy("saving"); setError(""); setSaved(false); setSaveFailed(false);
+    try {
+      let result: LocalResourceResultMap["resource.local.save"];
+      if (preview) result = { uri: document.uri, version: document.version === "a".repeat(64) ? "b".repeat(64) : "a".repeat(64), saved: true };
+      else {
+        if (!sessionId) throw new Error(zh ? "尚未选择活动会话" : "No active session");
+        const handle = await client.command("resource.local.save", { sessionId, uri: document.uri, version: document.version, text });
+        result = (await waitReceipt<{ result: LocalResourceResultMap["resource.local.save"] }>(client, handle.requestId)).result;
+      }
+      if (generation !== epoch.current) return;
+      setDocument({ uri: result.uri, version: result.version, text }); setSaved(true);
+      if (preview) {
+        previewFiles.current = previewFiles.current.map(file => {
+          if (file.uri !== result.uri) return file;
+          const updated = { ...file, text, version: result.version, bytes: draftBytes, modifiedAt: Date.now() };
+          previewEdits.current.set(file.uri, updated);
+          return updated;
+        });
+        setFiles(previewFiles.current);
+      } else {
+        // The save receipt has no mtime: don't present the renderer's clock as Host truth.
+        try {
+          const listed = await listFiles();
+          if (generation === epoch.current) { setFiles(listed.files); setTruncated(listed.truncated); }
+        } catch { /* The save succeeded; existing metadata stays until the next refresh. */ }
+      }
+    } catch (cause) {
+      if (generation === epoch.current) {
+        setSaveFailed(true);
+        setError(hostErrorMessage(cause, zh ? "保存失败，文件可能已被外部修改" : "Save failed; the file may have changed externally"));
+      }
+    } finally {
+      if (generation === epoch.current) { lock.current = false; setBusy(null); }
+    }
+  }
+
+  const emptyReason = !preview && !sessionId ? (zh ? "选择一个活动会话后查看它的 local:// 文件。" : "Select an active session to view its local:// files.")
+    : !preview && !available ? (zh ? "连接 Runtime 后可以读取和编辑本地会话文件。" : "Connect the Runtime to read and edit session-local files.")
+    : !supported ? (zh ? "当前 Runtime 没有本地文件编辑接口。" : "Local editing is not available in this Runtime.")
+    : zh ? "这些文件属于当前会话，不会复制到工作区。" : "These files belong to this session and are not copied into the workspace.";
+  const chosen = files.find(file => file.uri === document?.uri);
+
+  async function directoryAction(action: "copy" | "open") {
+    const generation = epoch.current;
+    try {
+      let path = PREVIEW_LOCAL_ROOT;
+      if (!preview) {
+        const handle = await client.command("resource.local.ensureDir", { sessionId: sessionId! });
+        path = (await waitReceipt<{ result: { localRootPath: string } }>(client, handle.requestId)).result.localRootPath;
+      }
+      if (generation !== epoch.current) return;
+      setLocalRoot(path);
+      if (action === "copy") {
+        await navigator.clipboard.writeText(path);
+        if (generation === epoch.current) setDirectoryMessage("copied");
+      } else if (preview) {
+        setDirectoryMessage(path);
+      } else {
+        const result = await globalThis.ompStudioChrome?.systemFileOpen({ path });
+        if (generation === epoch.current) setDirectoryMessage(result?.status === "failed" ? result.message : "");
+      }
+    } catch (cause) {
+      if (generation === epoch.current) setDirectoryMessage(hostErrorMessage(cause, zh ? "目录操作失败" : "Directory action failed"));
+    }
+  }
+
+  const discardTitle = zh ? "放弃未保存的修改？" : "Discard unsaved changes?";
+  const editorProps = {
+    label: zh ? "本地文件正文" : "Local file content",
+    readOnly: !!busy || !!pending || !supported,
+    onChange: (value: string) => { if (!lock.current && !pending) { setDraft(value); setSaved(false); } },
+  };
+  const discardActions = pending && <>
+    <p className="resources-confirm-copy">{zh ? "继续后将重新读取文件，当前草稿会被替换。" : "Continuing reloads the file and replaces your current draft."}</p>
+    <code className="resources-confirm-uri">{document?.uri}</code>
+    <div className="resources-confirm-actions">
+      <button type="button" className="btn ghost" autoFocus={windowed} onClick={() => setPending(undefined)}>{zh ? "继续编辑" : "Keep editing"}</button>
+      <button type="button" className="btn primary" onClick={() => void navigate(pending)}>{zh ? "放弃草稿并继续" : "Discard and continue"}</button>
+    </div>
+  </>;
+  return <section className={`resources-local${windowed ? " resources-window" : ""}`} aria-label={zh ? "本地会话文件" : "Session-local files"} data-view={narrowView}
+    onKeyDown={event => { if (windowed && pending && event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setPending(undefined); } }}>
+    {!windowed && <div className="resources-local-intro"><Icon name="folder" /><p>{zh ? "原位编辑会话文件" : "Edit session files in place"}<span>{zh ? "UTF-8 文本 · 最大 512 KiB · 保存校验版本" : "UTF-8 text · up to 512 KiB · version-checked saves"}</span></p>{preview && marks ? <span className="resources-demo">{zh ? "演示" : "Demo"}</span> : null}</div>}
+    {supported && directorySupported && <div className="resources-root">
+      <Icon name="folder" extra="sm" />
+      <span className="resources-root-label">{zh ? "会话目录" : "Session folder"}</span>
+      <code title={localRoot || undefined}><bdi>{localRoot || "local://"}</bdi></code>
+      {directoryMessage && (marks || directoryMessage !== localRoot) ? <span role="status" className={`resources-root-status${directoryMessage === "copied" || directoryMessage === localRoot ? "" : " is-error"}`}>
+        {directoryMessage === "copied" ? <><Icon name="check" extra="xs" />{zh ? "已复制" : "Copied"}</>
+          : directoryMessage === localRoot ? (zh ? "演示：不打开文件管理器" : "Demo: file manager not opened") : directoryMessage}
+      </span> : null}
+      <button type="button" className="icon-btn" aria-label={zh ? "复制目录路径" : "Copy local path"} data-tip={zh ? "复制目录路径" : "Copy local path"} onClick={() => void directoryAction("copy")}><Icon name="copy" /></button>
+      <button type="button" className="icon-btn" aria-label={zh ? "打开目录" : "Open folder"} data-tip={target.kind !== "local" && !preview ? (zh ? "目录位于远端运行环境" : "The directory is on the remote runtime") : (zh ? "在文件管理器中打开" : "Open in file manager")} disabled={!preview && (target.kind !== "local" || !globalThis.ompStudioChrome?.systemFileOpen)} onClick={() => void directoryAction("open")}><Icon name="external" /></button>
+    </div>}
+    {windowed && <div className="resources-view-switch" role="group" aria-label={zh ? "文件视图" : "File view"}>
+      <button type="button" aria-pressed={narrowView === "files"} onClick={() => setNarrowView("files")}><Icon name="folder" extra="sm" />{zh ? "文件列表" : "File list"}</button>
+      <button type="button" aria-pressed={narrowView === "editor"} onClick={() => setNarrowView("editor")}><Icon name="file-code" extra="sm" />{zh ? "编辑器" : "Editor"}</button>
+    </div>}
+    {windowed && pending && <aside className="resources-inline-confirm" role="group" aria-label={discardTitle}><strong>{discardTitle}</strong>{discardActions}</aside>}
+    <div className="resources-split">
+      <aside className="resources-sidebar" aria-label={zh ? "文件导航" : "File navigation"}>
+        <header className="resources-sidebar-head"><h3>{zh ? "本地文件" : "Local files"}</h3>{windowed && preview && marks && <span className="resources-demo">{zh ? "演示" : "Demo"}</span>}<button type="button" className="icon-btn" aria-label={zh ? "刷新本地文件" : "Refresh local files"} data-tip={zh ? "刷新本地文件" : "Refresh local files"} disabled={!!busy || !supported || !!pending} onClick={() => requestNavigation({ kind: "refresh" })}><Icon name="refresh" /></button></header>
+        <div className="resources-search"><Icon name="search" /><input aria-label={zh ? "搜索本地文件" : "Search local files"} placeholder={zh ? "搜索文件名…" : "Search filenames…"} value={search} onChange={event => setSearch(event.target.value)} /></div>
+        <nav className="resources-file-list" aria-label={zh ? "本地文件列表" : "Local file list"}>
+          {visibleFiles.map(file => <button type="button" className={`resources-file${document?.uri === file.uri ? " is-selected" : ""}`} key={file.uri} aria-current={document?.uri === file.uri ? "true" : undefined} disabled={!!busy || !!pending || file.bytes > MAX_TEXT_BYTES} data-tip={file.bytes > MAX_TEXT_BYTES ? (zh ? "超出 512 KiB 文本编辑上限" : "Exceeds the 512 KiB editing limit") : file.uri} onClick={() => { setNarrowView("editor"); if (document?.uri !== file.uri) requestNavigation({ kind: "open", uri: file.uri }); }}>
+            <Icon name="file-code" /><span className="resources-file-info"><strong>{file.name}</strong><span>{fileSize(file.bytes)}<span aria-hidden="true"> · </span><time dateTime={new Date(file.modifiedAt).toISOString()}>{new Date(file.modifiedAt).toLocaleDateString(zh ? "zh-CN" : "en-US", { month: "short", day: "numeric" })}</time></span></span>{document?.uri === file.uri && dirty ? <span className="resources-dirty-dot" aria-label={zh ? "未保存" : "Unsaved"} /> : null}
+          </button>)}
+          {!visibleFiles.length ? <p className="resources-list-empty" role="status">{busy ? (zh ? "正在读取文件…" : "Loading files…") : search ? (zh ? "没有匹配的文件" : "No matching files") : supported ? (zh ? "没有 local:// 文件" : "No local:// files") : emptyReason}</p> : null}
+        </nav>
+        <footer className="resources-sidebar-foot"><code>local://</code><span>{truncated ? (zh ? "仅显示部分文件" : "Partial listing") : (zh ? "当前会话" : "Current session")}</span></footer>
+      </aside>
+      <div className="resources-document" aria-busy={!!busy}>
+        {document ? <>
+          <header className="resources-document-head"><div className="resources-document-title"><Icon name="file-code" /><h3>{chosen?.name ?? document.uri.slice("local://".length)}</h3><span className={`resources-state${dirty ? " is-dirty" : ""}`} role="status">{busy === "saving" ? (zh ? "保存中…" : "Saving…") : dirty ? (zh ? "未保存" : "Unsaved") : saved ? (zh ? "已保存到原文件" : "Saved in place") : (zh ? "已打开" : "Opened")}</span></div><code className="resources-uri">{document.uri}</code></header>
+          {error ? <div className="resources-notice is-error" role="alert"><Icon name="alert-c" /><div><strong>{saveFailed ? (zh ? "保存未完成，草稿已保留" : "Not saved. Your draft is preserved.") : (zh ? "读取未完成" : "Read failed")}</strong><p>{error}</p>{saveFailed ? <p>{zh ? "若文件已被外部修改，请先复制需要保留的草稿，再重新打开最新文件；不会覆盖外部版本。" : "If the file changed externally, copy any draft you need before reopening the latest file. The external version has not been overwritten."}</p> : null}</div></div> : null}
+          {windowed
+            ? <ResourceTextView key={document.uri} uri={document.uri} text={draft} {...editorProps} onSave={() => void save()} />
+            : <CapabilityEditor key={document.uri} value={draft} language={resourceLanguage(document.uri)} {...editorProps} onSubmit={() => void save()} className="resources-text-editor" />}
+          {tooLarge ? <p className="resources-limit" role="alert">{zh ? "草稿超过 512 KiB，请缩短后保存。" : "This draft exceeds 512 KiB. Shorten it before saving."}</p> : null}
+          <div className="resources-editor-actions"><button type="button" className="btn primary" disabled={!!busy || !!pending || !dirty || tooLarge || !supported} onClick={() => void save()}><Icon name="check" />{zh ? "保存到原文件" : "Save in place"}</button><button type="button" className="btn ghost" disabled={!!busy || !!pending || !dirty} onClick={() => { setDraft(document.text); setSaved(false); }}>{zh ? "撤销草稿" : "Revert draft"}</button><button type="button" className="btn ghost" disabled={!!busy || !!pending || !supported} onClick={() => requestNavigation({ kind: "open", uri: document.uri })}><Icon name="refresh" />{zh ? "重新打开" : "Reopen"}</button></div>
+          <footer className="resources-document-foot"><span>UTF-8 <span aria-hidden="true">·</span> {fileSize(draftBytes)}</span><span>{zh ? "版本" : "Version"} <code data-tip={document.version}>{document.version.slice(0, 8)}</code></span>{chosen ? <time dateTime={new Date(chosen.modifiedAt).toISOString()}>{zh ? "修改于 " : "Modified "}{new Date(chosen.modifiedAt).toLocaleString(zh ? "zh-CN" : "en-US")}</time> : null}</footer>
+        </> : <>
+          <WorkspaceEmpty icon="file-code" title={busy ? (zh ? "正在读取会话文件" : "Loading session files") : (zh ? "选择文件，开始编辑" : "Choose a file to edit")}>{emptyReason}</WorkspaceEmpty>
+          {error ? <div className="resources-notice is-error" role="alert"><Icon name="alert-c" /><p>{error}</p></div> : null}
+        </>}
+      </div>
+    </div>
+    {!windowed && pending && <WorkspaceDialog title={discardTitle} onClose={() => setPending(undefined)}>{discardActions}</WorkspaceDialog>}
+  </section>;
+}

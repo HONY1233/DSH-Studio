@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-25",
+  "scope": "apps/renderer-omp/src",
+  "reports": [
+    {
+      "id": "initial-reproduction",
+      "file": "before-fix.json",
+      "success": false,
+      "startTimeEpochMs": 1795581649643,
+      "files": 307,
+      "failedFiles": 228,
+      "suites": 551,
+      "passedSuites": 213,
+      "failedSuites": 338,
+      "tests": 1874,
+      "passed": 829,
+      "failed": 936,
+      "pending": 109
+    },
+    {
+      "id": "source-only-jsdom-probe",
+      "file": "jsdom-src-probe.json",
+      "success": false,
+      "startTimeEpochMs": 1795582162149,
+      "files": 288,
+      "failedFiles": 97,
+      "suites": 534,
+      "passedSuites": 383,
+      "failedSuites": 151,
+      "tests": 1963,
+      "passed": 1631,
+      "failed": 332,
+      "pending": 0
+    },
+    {
+      "id": "pre-final-same-scope",
+      "file": "after-card-column-full.json",
+      "success": false,
+      "startTimeEpochMs": 1795588505789,
+      "files": 288,
+      "failedFiles": 9,
+      "suites": 544,
+      "passedSuites": 531,
+      "failedSuites": 13,
+      "tests": 2132,
+      "passed": 2118,
+      "failed": 14,
+      "pending": 0
+    },
+    {
+      "id": "final",
+      "file": "after-final-full.json",
+      "success": true,
+      "startTimeEpochMs": 1795590190245,
+      "files": 288,
+      "failedFiles": 0,
+      "suites": 544,
+      "passedSuites": 544,
+      "failedSuites": 0,
+      "tests": 2132,
+      "passed": 2132,
+      "failed": 0,
+      "pending": 0
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "strongest-same-test-scope",
+      "from": "pre-final-same-scope",
+      "to": "final",
+      "sameFiles": true,
+      "sameTests": true,
+      "failedBefore": 14,
+      "failedAfter": 0,
+      "passedBefore": 2118,
+      "passedAfter": 2132,
+      "conclusion": "同一 288 文件、544 suites、2,132 tests 范围内，末次修复后 14 项失败清零。"
+    },
+    {
+      "id": "same-file-count-different-test-set",
+      "from": "source-only-jsdom-probe",
+      "to": "final",
+      "sameFiles": true,
+      "sameTests": false,
+      "testsBefore": 1963,
+      "testsAfter": 2132,
+      "failedBefore": 332,
+      "failedAfter": 0,
+      "conclusion": "文件数相同，但测试恢复和收集基础设施变化使测试集合不同；只能作为恢复过程轨迹，不能声称逐项消除了原来的 332 项失败。"
+    },
+    {
+      "id": "initial-reproduction-not-comparable",
+      "from": "initial-reproduction",
+      "to": "final",
+      "sameFiles": false,
+      "sameTests": false,
+      "filesBefore": 307,
+      "filesAfter": 288,
+      "testsBefore": 1874,
+      "testsAfter": 2132,
+      "conclusion": "初始运行包含 node 环境、vendor dist 与缺失 testkit 等收集问题；与最终源测试范围不同，不作为通过率对照。"
+    }
+  ],
+  "baselineLimitations": [
+    "不存在可用的 XG1 修改前 Renderer clean baseline。",
+    "DSH Studio 源码目录不是 Git 仓库，不能提供 Git diff 或 clean-tag 回滚证明。",
+    "初始 307 文件运行与最终 288 文件运行不可直接比较收集范围或通过率。",
+    "source-only probe 与最终运行虽同为 288 文件，但恢复 testkit、setup 与测试修正后测试集合不同。",
+    "Runtime 全仓回归仍有 68 项失败；Renderer 全量通过不能替代 Runtime 全仓、XG0、物理设备或发布验收。"
+  ],
+  "finalConclusion": "Renderer 全量套件于 2026-11-25 通过：288 files、544 suites、2,132 tests、2,132 passed、0 failed、0 skipped。"
+}

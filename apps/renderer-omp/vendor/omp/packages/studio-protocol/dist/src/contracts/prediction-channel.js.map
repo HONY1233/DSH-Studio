@@ -1,0 +1,1 @@
+{"version":3,"file":"prediction-channel.js","sourceRoot":"","sources":["../../../src/contracts/prediction-channel.ts"],"names":[],"mappings":"AAsCA,MAAM,CAAC,MAAM,gBAAgB,GAAG;IAC9B,mBAAmB;IACnB,sBAAsB;IACtB,0BAA0B;IAC1B,4BAA4B;IAC5B,oBAAoB;IACpB,oBAAoB;CACZ,CAAC;AACX,MAAM,UAAU,gBAAgB,CAC9B,IAAY;IAEZ,OAAQ,gBAAsC,CAAC,QAAQ,CAAC,IAAI,CAAC,CAAC;AAChE,CAAC"}

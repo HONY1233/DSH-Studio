@@ -1,0 +1,10 @@
+{"dir":"out","frame":{"jsonrpc":"2.0","id":"req_1","method":"initialize","params":{"cwd":"/home/qtt199/projects/dsh","provider":"deepseek-official","model":"deepseek-flash"}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","id":"req_1","result":{"serverInfo":{"name":"deepseek-harness-sdk-runtime","version":"0.0.1"}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"s1","event":{"type":"turn/start","data":{"turn":1}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"s1","event":{"type":"user/message","data":{"id":"m1","role":"user","content":[{"type":"text","text":"列一下当前目录"}],"source":{"kind":"user"}}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"s1","event":{"type":"user/message","data":{"id":"m2","role":"user","content":[{"type":"text","text":"<system-reminder>注入内容</system-reminder>"}],"source":{"kind":"runtime-context"}}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"s1","event":{"type":"tool/call","data":{"turn":1,"step":1,"callId":"c1","name":"bash","arguments":"{\"command\":\"ls\"}"}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"s1","event":{"type":"tool/result","data":{"turn":1,"step":1,"message":{"id":"t1","role":"tool","toolCallId":"c1","content":[{"type":"text","text":"apps packages"}],"source":{"kind":"tool"}}}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"s1","event":{"type":"assistant/message","data":{"turn":1,"step":1,"message":{"id":"a1","role":"assistant","content":[{"type":"text","text":"当前有 apps 和 packages 两个目录。"}],"source":{"kind":"model"}},"usage":{"inputTokens":120,"outputTokens":18}}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"s1","event":{"type":"turn/end","data":{"turn":1,"reason":{"kind":"completed"}}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"s1","status":"idle"}}}

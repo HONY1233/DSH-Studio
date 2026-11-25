@@ -1,0 +1,12 @@
+{"dir":"out","frame":{"jsonrpc":"2.0","id":"req_1","method":"initialize","params":{"cwd":"/home/qtt199/projects/dsh","provider":"deepseek-official","model":"deepseek-flash","approvalRequests":true}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","id":"req_1","result":{"serverInfo":{"name":"deepseek-harness-sdk-runtime","version":"0.0.1"}}}}
+{"dir":"out","frame":{"jsonrpc":"2.0","id":"req_2","method":"session/query","params":{"sessionId":"spike-mwr2sfj6","contentBlocks":[{"type":"text","text":"/plan off"}]}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"spike-mwr2sfj6","event":{"type":"permission/preset","seq":0,"time":1795305921130,"data":{"preset":"workspace-write"}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"spike-mwr2sfj6","event":{"type":"sandbox/mode","seq":1,"time":1795305921133,"data":{"mode":"workspace-write"}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"spike-mwr2sfj6","event":{"type":"approval/policy","seq":2,"time":1795305921133,"data":{"policy":"ask"}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"spike-mwr2sfj6","event":{"type":"command/run","seq":3,"time":1795305921135,"data":{"commandId":"cmd-cbc1d1f3-1","name":"plan","args":" off","source":{"kind":"user"}}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"spike-mwr2sfj6","event":{"type":"command/done","seq":4,"time":1795305921136,"data":{"commandId":"cmd-cbc1d1f3-1","kind":"success","text":"Plan mode is already inactive."}}}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","method":"session.query.completed","params":{"sessionId":"spike-mwr2sfj6","commandId":"cmd-cbc1d1f3-1","finishReason":"completed","finalResponse":"Plan mode is already inactive."}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","id":"req_2","result":{"kind":"command","execution":{"commandId":"cmd-cbc1d1f3-1","result":{"kind":"success","text":"Plan mode is already inactive."}}}}}
+{"dir":"out","frame":{"jsonrpc":"2.0","id":"req_3","method":"shutdown"}}
+{"dir":"in","frame":{"jsonrpc":"2.0","id":"req_3","result":{}}}

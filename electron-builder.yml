@@ -1,0 +1,62 @@
+appId: com.dsh.studio
+productName: DSH Studio
+copyright: DSH Studio contributors
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - package.json
+  - apps/desktop/package.json
+  - apps/desktop/src/**/*
+  - apps/renderer-omp/dist/**/*
+  - packages/contract/package.json
+  - packages/contract/src/**/*
+  - packages/host-services/package.json
+  - packages/host-services/src/**/*
+  - packages/runtime-client/package.json
+  - packages/runtime-client/src/**/*
+  # Materialize workspace package targets instead of copying npm's symlinks.
+  # This keeps bare imports resolvable inside app.asar on Windows.
+  - from: packages/contract
+    to: node_modules/@dsh-studio/contract
+    filter:
+      - package.json
+      - src/**/*
+  - from: packages/host-services
+    to: node_modules/@dsh-studio/host-services
+    filter:
+      - package.json
+      - src/**/*
+  - from: packages/runtime-client
+    to: node_modules/@dsh-studio/runtime-client
+    filter:
+      - package.json
+      - src/**/*
+
+asar: true
+asarUnpack:
+  - node_modules/node-pty/**/*
+
+npmRebuild: false
+
+win:
+  target:
+    - arch: [x64]
+      target: nsis
+  icon: build/icon.ico
+  artifactName: DSH-Studio-${version}-${arch}-Setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: DSH Studio
+  artifactName: DSH-Studio-${version}-${arch}-Setup.${ext}
+  uninstallDisplayName: DSH Studio
+
+# No update feed is configured until a signed release channel is supplied.
+publish: null

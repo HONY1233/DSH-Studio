@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>trusted IPC probe</title>
+<a id="remote" href="https://evil.test/main-renderer">remote</a>
+<a id="safe-external" href="https://example.com/from-real-click">safe external</a>
+<span id="bad-external">bad external</span>
+<button id="ipc-external" type="button">ipc external</button>
+<script>
+  window.__probeClicks = {};
+  for (const id of ['safe-external', 'bad-external', 'ipc-external']) {
+    document.getElementById(id).addEventListener('click', (event) => {
+      window.__probeClicks[id] = { trusted: event.isTrusted };
+    });
+  }
+  // Mirrors SafeExternalLink: suppress Chromium navigation and ask Main to
+  // revalidate the target before handing it to the operating system.
+  document.getElementById('safe-external').addEventListener('click', (event) => {
+    event.preventDefault();
+    void window.__browserSecurityProbe.openExternal('https://example.com/from-real-click');
+  });
+  document.getElementById('ipc-external').addEventListener('click', () => {
+    void window.__browserSecurityProbe.openExternal('mailto:probe@example.com?subject=DSH%20Studio');
+  });
+</script>

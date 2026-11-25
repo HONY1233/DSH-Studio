@@ -1,0 +1,10 @@
+{
+  "project": "the-snowpear/omp-studio",
+  "version": "0.2.8",
+  "commit": null,
+  "fetched_at": null,
+  "source": "pending",
+  "repo_url": "https://github.com/the-snowpear/omp-studio.git",
+  "note": "上游快照尚未落盘：本机直连 GitHub 会连接重置。请用 scripts/upstream-fetch.ps1 的 -Tarball（离线包）或 -RepoUrl（镜像地址）拉取，并把真实 commit 写回本文件。",
+  "layout_hint": "脚本会自动探测 apps/renderer-omp/src 或 src/main.tsx 作为渲染层根目录。"
+}

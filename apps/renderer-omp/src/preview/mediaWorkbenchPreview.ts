@@ -1,0 +1,227 @@
+import type {
+  ArtifactRecord,
+  MediaDetail,
+  MediaModelChoice,
+} from "@omp-studio/studio-protocol";
+export const PREVIEW_MEDIA_MODELS: MediaModelChoice[] = [
+  {
+    selector: "google/gemini-2.5-flash-image",
+    name: "Image model",
+    kind: "image",
+    api: "openai-images",
+    local: false,
+    parameters: [
+      "prompt",
+      "inputArtifacts",
+      "aspectRatio",
+      "imageSize",
+      "count",
+    ],
+  },
+  {
+    selector: "google/veo-3",
+    name: "Video model",
+    kind: "video",
+    api: "openrouter-video",
+    local: false,
+    parameters: [
+      "prompt",
+      "duration",
+      "resolution",
+      "aspectRatio",
+      "size",
+      "firstFrame",
+      "lastFrame",
+      "references",
+      "generateAudio",
+      "seed",
+      "creativity",
+      "upscaleFactor",
+      "providerOptions",
+    ],
+  },
+  {
+    selector: "openai/gpt-4o-mini-tts",
+    name: "Speech model",
+    kind: "speech",
+    api: "openai-speech",
+    local: false,
+    parameters: ["text", "voice", "format", "speed", "instructions"],
+    formats: ["mp3", "wav", "opus", "flac"],
+  },
+  {
+    selector: "openai/whisper-1",
+    name: "Transcription model",
+    kind: "transcription",
+    api: "openai-transcriptions",
+    local: false,
+    parameters: [
+      "audioArtifact",
+      "language",
+      "prompt",
+      "timestamps",
+      "temperature",
+    ],
+  },
+];
+
+export const PREVIEW_MEDIA_INPUTS: ArtifactRecord[] = [
+  {
+    artifactId: "11111111-1111-4111-8111-111111111111",
+    name: "review-notes.wav",
+    kind: "audio",
+    mimeType: "audio/wav",
+    bytes: 96000,
+    createdAt: "2026-09-25T00:00:00Z",
+    sha256: "0".repeat(64),
+  },
+  {
+    artifactId: "22222222-2222-4222-8222-222222222222",
+    name: "workspace-reference.png",
+    kind: "image",
+    mimeType: "image/png",
+    bytes: 184320,
+    createdAt: "2026-09-25T00:00:00Z",
+    sha256: "0".repeat(64),
+  },
+];
+import { isZh } from "../i18n";
+
+export function getPreviewMediaDetail(zh = isZh()): MediaDetail {
+  return {
+    job: {
+      id: "33333333-3333-4333-8333-333333333333",
+      sessionId: "preview",
+      type: "transcription",
+      state: "completed",
+      createdAt: Date.parse("2026-10-07T06:02:00Z"),
+      updatedAt: Date.parse("2026-10-07T06:02:18Z"),
+      model: "openai/whisper-1",
+      cost: 0.001,
+      canResume: false,
+      outputCount: 0,
+    },
+    request: {
+      type: "transcription",
+      model: "openai/whisper-1",
+      audioArtifact: PREVIEW_MEDIA_INPUTS[0]!.artifactId,
+    },
+    outputs: [],
+    text: zh
+      ? "请检查服务配置保存后不会自动启动，并验证录音结束后麦克风已经释放。"
+      : "Check that saved service config does not auto-start, and verify the microphone is released after recording.",
+  };
+}
+
+export const PREVIEW_MEDIA_DETAIL: MediaDetail = getPreviewMediaDetail();
+
+export function getPreviewMediaDetails(zh = isZh()): MediaDetail[] {
+  return [
+    getPreviewMediaDetail(zh),
+    ...PREVIEW_MEDIA_DETAILS_REST,
+  ];
+}
+
+const PREVIEW_MEDIA_DETAILS_REST: MediaDetail[] = [
+  {
+    job: {
+      id: "44444444-4444-4444-8444-444444444444",
+      sessionId: "preview",
+      type: "image",
+      state: "completed",
+      createdAt: Date.parse("2026-10-07T06:00:00Z"),
+      updatedAt: Date.parse("2026-10-07T06:00:12Z"),
+      model: "google/gemini-2.5-flash-image",
+      cost: 0.02,
+      canResume: false,
+      outputCount: 1,
+    },
+    request: {
+      type: "image",
+      model: "google/gemini-2.5-flash-image",
+      prompt: "A quiet purple landscape",
+    },
+    outputs: [
+      {
+        ...PREVIEW_MEDIA_INPUTS[1]!,
+        artifactId: "55555555-5555-4555-8555-555555555555",
+        kind: "image",
+        name: "landscape.png",
+        mimeType: "image/png",
+        bytes: 10478,
+      },
+    ],
+  },
+  {
+    job: {
+      id: "66666666-6666-4666-8666-666666666666",
+      sessionId: "preview",
+      type: "image",
+      state: "failed",
+      createdAt: Date.parse("2026-10-07T06:03:00Z"),
+      updatedAt: Date.parse("2026-10-07T06:03:04Z"),
+      model: "google/gemini-2.5-flash-image",
+      error: "Selected image size is unsupported",
+      canResume: false,
+      outputCount: 0,
+    },
+    request: {
+      type: "image",
+      model: "google/gemini-2.5-flash-image",
+      prompt: "Landscape variation",
+      imageSize: "4096x4096",
+    },
+    outputs: [],
+  },
+  {
+    job: {
+      id: "77777777-7777-4777-8777-777777777777",
+      sessionId: "preview",
+      type: "video",
+      state: "waiting",
+      createdAt: Date.parse("2026-10-07T06:01:00Z"),
+      updatedAt: Date.parse("2026-10-07T06:01:10Z"),
+      model: "google/veo-3",
+      canResume: true,
+      outputCount: 0,
+    },
+    request: {
+      type: "video",
+      model: "google/veo-3",
+      prompt: "A slow pan over a purple landscape",
+      duration: 5,
+    },
+    outputs: [],
+  },
+  {
+    job: {
+      id: "88888888-8888-4888-8888-888888888888",
+      sessionId: "preview",
+      type: "speech",
+      state: "completed",
+      createdAt: Date.parse("2026-10-07T06:02:00Z"),
+      updatedAt: Date.parse("2026-10-07T06:02:03Z"),
+      model: "openai/gpt-4o-mini-tts",
+      cost: 0.001,
+      canResume: false,
+      outputCount: 1,
+    },
+    request: {
+      type: "speech",
+      model: "openai/gpt-4o-mini-tts",
+      text: "Studio audio preview",
+      format: "wav",
+    },
+    outputs: [
+      {
+        ...PREVIEW_MEDIA_INPUTS[0]!,
+        artifactId: "99999999-9999-4999-8999-999999999999",
+        kind: "audio",
+        name: "preview-tone.wav",
+        bytes: 32044,
+      },
+    ],
+  },
+];
+
+export const PREVIEW_MEDIA_DETAILS: MediaDetail[] = getPreviewMediaDetails();

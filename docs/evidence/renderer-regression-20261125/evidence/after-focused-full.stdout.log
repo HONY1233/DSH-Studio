@@ -1,0 +1,611 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.1.1 [39m[90m/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp[39m
+
+ [31m❯[39m src/capabilities/ResourcesWorkspace.test.tsx [2m([22m[2m10 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2541[2mms[22m[39m
+   [32m✓[39m local resource workspace [2m(6)[22m
+     [33m[2m✓[22m[39m opens the caller's target, searches real files, and saves to the original URI with its version[33m 371[2mms[22m[39m
+     [33m[2m✓[22m[39m confirms switching and refreshing dirty files, and retains the draft on external conflict[33m 546[2mms[22m[39m
+     [32m✓[39m locks editing during save and enforces the UTF-8 byte limit[32m 86[2mms[22m[39m
+     [32m✓[39m isolates a late local open when the session changes[32m 46[2mms[22m[39m
+     [32m✓[39m isolates a late local open when the client changes[32m 32[2mms[22m[39m
+     [32m✓[39m isolates a late local open when the preview changes[32m 47[2mms[22m[39m
+   [31m❯[39m URI resources [2m(4)[22m
+     [32m✓[39m shows ANSI colors across log pages and replaces decorations when rereading[32m 258[2mms[22m[39m
+     [33m[2m✓[22m[39m pages backward and forward against the loaded URI/version, not the edited address[33m 322[2mms[22m[39m
+     [32m✓[39m late reads from a previous session neither pollute the new page nor unlock its request[32m 153[2mms[22m[39m
+[31m     [31m×[31m uses all four preview protocols, preserves local edits, and hides demo copy with marks off without Host calls[39m[33m 678[2mms[22m[39m
+ [31m❯[39m src/App.contextStrip.test.tsx [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 3849[2mms[22m[39m
+   [33m[2m✓[22m[39m hides the whole context strip in a started conversation[33m 1331[2mms[22m[39m
+[31m   [31m×[31m shows the full context strip attached above the composer on a new conversation[39m[33m 915[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps a fresh conversation free of tool cards while typing and restores them on an existing conversation (preview=false)[33m 555[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps a fresh conversation free of tool cards while typing and restores them on an existing conversation (preview=true)[33m 773[2mms[22m[39m
+   [32m✓[39m hides the right tool cards by default on initial launch into a blank session and allows manual toggling[32m 273[2mms[22m[39m
+ [31m❯[39m src/App.composerPerf.test.tsx [2m([22m[2m4 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 4037[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps continuing keystrokes out of AppShell and out of the layout engine[33m 1045[2mms[22m[39m
+   [33m[2m✓[22m[39m publishes the deferred draft once the typing pauses[33m 857[2mms[22m[39m
+[31m   [31m×[31m keeps draft books across execution-target remounts[39m[33m 1675[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps the sent text intact while the draft publish is still pending[33m 459[2mms[22m[39m
+ [31m❯[39m src/agents/AgentDetailPanel.test.tsx [2m([22m[2m6 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2209[2mms[22m[39m
+   [31m❯[39m Agent dock entry points [2m(6)[22m
+[31m     [31m×[31m opens BTW again after the workbench remounts and keeps the previous draft[39m[33m 1332[2mms[22m[39m
+     [32m✓[39m does not locate a pinned agent's delegation in a different parent conversation[32m 67[2mms[22m[39m
+     [32m✓[39m keeps simultaneous agent drafts and content tabs independent across close and reopen[32m 284[2mms[22m[39m
+     [32m✓[39m loads earlier history to restore a saved reading anchor displaced by new messages[32m 61[2mms[22m[39m
+     [32m✓[39m reads a historical child from its own parent and keeps it read-only despite live send capability[32m 32[2mms[22m[39m
+     [33m[2m✓[22m[39m reuses one detail pane and editor when reopened from either entry after docking or hiding[33m 431[2mms[22m[39m
+ [31m❯[39m src/fileBrowser/FileBrowserPanel.test.tsx [2m([22m[2m17 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 7248[2mms[22m[39m
+   [31m❯[39m file browser [2m(17)[22m
+     [33m[2m✓[22m[39m uses English labels for the browser and preview places[33m 458[2mms[22m[39m
+     [32m✓[39m chooses the default view at 380 px[32m 83[2mms[22m[39m
+     [32m✓[39m chooses the default view at 720 px[32m 91[2mms[22m[39m
+     [32m✓[39m chooses the default view at 1120 px[32m 94[2mms[22m[39m
+     [32m✓[39m restores the explicit view after a temporary narrow-window downgrade[32m 179[2mms[22m[39m
+     [33m[2m✓[22m[39m enters a folder and navigates up, back and forward[33m 506[2mms[22m[39m
+[31m     [31m×[31m keeps a column folder selected for F2 and allows keyboard navigation into its children[39m[33m 341[2mms[22m[39m
+     [33m[2m✓[22m[39m uses Alt+Left for history without also navigating to the parent folder[33m 686[2mms[22m[39m
+     [33m[2m✓[22m[39m filters the current folder in narrow tree view[33m 337[2mms[22m[39m
+     [33m[2m✓[22m[39m creates, renames and confirms recycling at 720 px with preview=true and marks=true[33m 966[2mms[22m[39m
+     [33m[2m✓[22m[39m creates, renames and confirms recycling at 720 px with preview=true and marks=false[33m 923[2mms[22m[39m
+     [33m[2m✓[22m[39m creates, renames and confirms recycling at 720 px with preview=false and marks=false[33m 852[2mms[22m[39m
+     [33m[2m✓[22m[39m creates, renames and confirms recycling at 1120 px with preview=true and marks=false[33m 877[2mms[22m[39m
+     [32m✓[39m opens external files with system identity and project files with workspace identity[32m 85[2mms[22m[39m
+     [33m[2m✓[22m[39m disables local shell and recycling for remote files[33m 350[2mms[22m[39m
+     [32m✓[39m keeps the real Host unused when the dock browser is in preview mode[32m 216[2mms[22m[39m
+     [32m✓[39m navigates directory aliases to their canonical location without expanding a cycle[32m 203[2mms[22m[39m
+ [31m❯[39m src/agents/AgentRosterMeter.test.tsx [2m([22m[2m2 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 348[2mms[22m[39m
+   [31m❯[39m Agent status in dock chrome [2m(2)[22m
+[31m     [31m×[31m updates initially folded headers and compact icons without mounting an Agent body[39m[33m 345[2mms[22m[39m
+     [32m✓[39m keeps preview waiting states isolated, and distinguishes loading from an empty roster[32m 3[2mms[22m[39m
+ [31m❯[39m src/conversation/TaskProgressDock.test.tsx [2m([22m[2m3 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 367[2mms[22m[39m
+   [32m✓[39m keeps old blocked todos read-only and lets the native restored pending snapshot replace them without accepting a failed update[32m 236[2mms[22m[39m
+   [32m✓[39m shows only confirmed-applied files and a partial warning, while native empty error results create no dock[32m 57[2mms[22m[39m
+[31m   [31m×[31m keeps preview markings visible while retaining the partial warning and ordinary file-open labels[39m[32m 72[2mms[22m[39m
+ [31m❯[39m src/backgroundTasks/BackgroundTasksDock.test.tsx [2m([22m[2m11 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 1711[2mms[22m[39m
+   [32m✓[39m preserves an explicitly hidden saved background task layout[32m 5[2mms[22m[39m
+   [33m[2m✓[22m[39m publishes collapsed and icon summaries before the body is ever mounted[33m 315[2mms[22m[39m
+   [32m✓[39m refreshes a folded native-window summary while the main document is hidden[32m 46[2mms[22m[39m
+   [32m✓[39m shows an unreadable folded summary for an unavailable session instead of loading[32m 10[2mms[22m[39m
+[31m   [31m×[31m opens selected details beside the retained card and shares service stop state[39m[32m 210[2mms[22m[39m
+   [32m✓[39m switches different tasks inside one right-side page without opening a float[32m 198[2mms[22m[39m
+   [32m✓[39m keeps using the focused other window even though the card click focuses the conversation[32m 255[2mms[22m[39m
+   [32m✓[39m creates a right-side twin instead of moving an unfocused background task window[32m 196[2mms[22m[39m
+   [32m✓[39m always prefers the existing right-side page over a focused float[32m 148[2mms[22m[39m
+   [32m✓[39m reveals and switches the same right-side page when its region is hidden[32m 137[2mms[22m[39m
+   [32m✓[39m does not restore a minimized other window instead of opening the right sidebar[32m 188[2mms[22m[39m
+ [31m❯[39m src/App.dockRegion.test.tsx [2m([22m[2m8 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 8978[2mms[22m[39m
+   [33m[2m✓[22m[39m shows the right sidebar from the View menu in a 640px window[33m 1820[2mms[22m[39m
+   [33m[2m✓[22m[39m re-presents a region whose preference is already on but the narrow window clipped[33m 1384[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps the narrow window's one visible drawer in sync with the menu[33m 2085[2mms[22m[39m
+   [33m[2m✓[22m[39m leaves the conversation rail out of the layout solver[33m 846[2mms[22m[39m
+   [33m[2m✓[22m[39m docks the right sidebar in a wide window without an overlay[33m 918[2mms[22m[39m
+   [33m[2m✓[22m[39m removes the empty left tools area and restores it when a tool returns[33m 459[2mms[22m[39m
+[31m   [31m×[31m keeps left card headers grip-free, including tools moved into the sidebar[39m[33m 674[2mms[22m[39m
+[31m   [31m×[31m keeps the right sidebar to one tab row and puts add next to the last tab[39m[33m 790[2mms[22m[39m
+ [32m✓[39m src/RuntimeSettings.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 4506[2mms[22m[39m
+   [32m✓[39m Runtime settings seam [2m(8)[22m
+     [33m[2m✓[22m[39m shows configured notes separately from effective state and never restarts a Runtime implicitly[33m 578[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps autosave and quota-wait preview controls local[33m 684[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps available settings disabled without a Runtime snapshot[33m 744[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the snapshot and sends only the closed whitelist keys[33m 1004[2mms[22m[39m
+     [33m[2m✓[22m[39m uses the Runtime schema defaults in preview mode[33m 982[2mms[22m[39m
+ [32m✓[39m src/SubagentsPanel.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 5306[2mms[22m[39m
+   [32m✓[39m SubagentsPanel create editor [2m(4)[22m
+     [33m[2m✓[22m[39m shows a required-field error on the viewport when save is clicked with an empty draft[33m 448[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects names that the Host cannot store, without calling upsert[33m 376[2mms[22m[39m
+     [33m[2m✓[22m[39m writes a new definition through agents.definition.upsert[33m 624[2mms[22m[39m
+     [33m[2m✓[22m[39m adds a preview draft to the local list on save[33m 567[2mms[22m[39m
+   [32m✓[39m SubagentsPanel editor model picker [2m(5)[22m
+     [33m[2m✓[22m[39m adds a role through the composer model menu[33m 455[2mms[22m[39m
+     [33m[2m✓[22m[39m reorders model pills with the move buttons[33m 860[2mms[22m[39m
+     [33m[2m✓[22m[39m persists reordered models through agents.definition.upsert[33m 569[2mms[22m[39m
+     [33m[2m✓[22m[39m persists the disabled state through agents.definition.configure[33m 473[2mms[22m[39m
+ [32m✓[39m src/SettingsPage.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 4072[2mms[22m[39m
+   [32m✓[39m settings navigation and real preferences [2m(13)[22m
+     [33m[2m✓[22m[39m searches by English and configuration key, then opens and highlights the actual control[33m 396[2mms[22m[39m
+     [33m[2m✓[22m[39m finds and opens lighting from search (language=zh, preview=false)[33m 373[2mms[22m[39m
+   [32m✓[39m Runtime settings and preview isolation [2m(7)[22m
+     [33m[2m✓[22m[39m keeps preview changes in the preview after moving between categories[33m 363[2mms[22m[39m
+ [32m✓[39m src/App.modelSelection.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 8821[2mms[22m[39m
+   [33m[2m✓[22m[39m updates disabled slash-command copy when the workbench language changes and preserves the draft[33m 1902[2mms[22m[39m
+   [33m[2m✓[22m[39m rejects /btw why the rename? at the workbench boundary without sending a prompt and preserves the draft[33m 834[2mms[22m[39m
+   [33m[2m✓[22m[39m rejects /computer status at the workbench boundary without sending a prompt and preserves the draft[33m 602[2mms[22m[39m
+   [32m✓[39m model selection in a cold conversation [2m(2)[22m
+     [33m[2m✓[22m[39m selects before the first prompt, keeps the draft, and sends two prompts to that session[33m 3866[2mms[22m[39m
+     [33m[2m✓[22m[39m resumes a saved conversation using the selected model without creating a different session[33m 1614[2mms[22m[39m
+ [32m✓[39m src/models/AgentAccountRules.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 3900[2mms[22m[39m
+   [33m[2m✓[22m[39m edits the selected agent, keeps account drafts across providers and the list, and saves preview locally[33m 2220[2mms[22m[39m
+   [33m[2m✓[22m[39m does not silently turn an empty selected-account draft into a blocked provider[33m 774[2mms[22m[39m
+   [33m[2m✓[22m[39m saving only account changes does not rewrite the agent definition or its other overrides[33m 811[2mms[22m[39m
+ [32m✓[39m src/App.navigation.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 4281[2mms[22m[39m
+   [33m[2m✓[22m[39m a named session refreshes history once instead of looping after the result commits[33m 1004[2mms[22m[39m
+   [33m[2m✓[22m[39m blocks secondary navigation and forward when model configuration is dirty[33m 1645[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps the application appearance authoritative when the active shell is in another document[33m 691[2mms[22m[39m
+   [33m[2m✓[22m[39m theme changes use a window dissolve unless reduced motion is active (false)[33m 524[2mms[22m[39m
+   [33m[2m✓[22m[39m theme changes use a window dissolve unless reduced motion is active (true)[33m 415[2mms[22m[39m
+ [31m❯[39m src/conversationWorkspace/residency.test.tsx [2m([22m[2m8 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 19148[2mms[22m[39m
+   [33m[2m✓[22m[39m honors Home on launch, then shows an explicitly opened offline archive (restored workspace=false)[33m 2704[2mms[22m[39m
+   [33m[2m✓[22m[39m honors Home on launch, then shows an explicitly opened offline archive (restored workspace=true)[33m 2817[2mms[22m[39m
+   [33m[2m✓[22m[39m opens a conversation from History instead of restoring its page route (released=false)[33m 1757[2mms[22m[39m
+   [33m[2m✓[22m[39m opens a conversation from History instead of restoring its page route (released=true)[33m 2616[2mms[22m[39m
+[31m   [31m×[31m keeps only the displayed conversation engine and closes replaced contexts while offline[39m[33m 4124[2mms[22m[39m
+   [33m[2m✓[22m[39m restores the latest draft after releasing its view, without reusing its old editor DOM[33m 2190[2mms[22m[39m
+[31m   [31m×[31m releases a context even when switching away before its bootstrap completes[39m[33m 1317[2mms[22m[39m
+   [33m[2m✓[22m[39m preserves sidebar scroll across a context switch while the incoming composer waits for bootstrap[33m 1621[2mms[22m[39m
+ [32m✓[39m src/DiagnosticsPage.test.tsx [2m([22m[2m31 tests[22m[2m)[22m[33m 3473[2mms[22m[39m
+   [32m✓[39m Runtime installation handoff [2m(6)[22m
+     [33m[2m✓[22m[39m installs an imported stable artifact using its verified channel[33m 337[2mms[22m[39m
+ [32m✓[39m src/composer/useWordPrediction.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 3456[2mms[22m[39m
+   [33m[2m✓[22m[39m inserts word and alternative message predictions into the draft without submitting[33m 633[2mms[22m[39m
+   [33m[2m✓[22m[39m does not overlay a suggestion on text after the caret[33m 397[2mms[22m[39m
+   [33m[2m✓[22m[39m restores an available suggestion immediately after the draft is cleared[33m 383[2mms[22m[39m
+   [33m[2m✓[22m[39m replaces an expired channel and recovers after the replacement closes[33m 326[2mms[22m[39m
+   [33m[2m✓[22m[39m ignores late suggestions during composition and after dismissal[33m 831[2mms[22m[39m
+ [32m✓[39m src/agents/deck/AgentDeck.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 2029[2mms[22m[39m
+   [32m✓[39m Agents deck [2m(16)[22m
+     [33m[2m✓[22m[39m selects on click, opens on double-click, and the lead returns to the main conversation[33m 422[2mms[22m[39m
+ [32m✓[39m src/contextViewer/ContextInspector.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[33m 2703[2mms[22m[39m
+   [32m✓[39m ContextInspector [2m(10)[22m
+     [33m[2m✓[22m[39m opens a snapshot, previews the first entry and releases on unmount[33m 356[2mms[22m[39m
+     [33m[2m✓[22m[39m narrows the list to a tool-output group, and widens it again while searching[33m 410[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the source identity rather than the first entry and keeps native caveats visible[33m 419[2mms[22m[39m
+     [33m[2m✓[22m[39m reloads the preview entries when the displayed conversation changes[33m 418[2mms[22m[39m
+     [33m[2m✓[22m[39m releases the old snapshot and replaces it when the session changes[33m 355[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the snapshot while resizing, then refreshes and releases it on close[33m 394[2mms[22m[39m
+ [32m✓[39m src/embed/websiteEmbed.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 2858[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps full shell chrome without preview-switch, switches routes without echo or confirm, and reports internal navigation[33m 1452[2mms[22m[39m
+   [33m[2m✓[22m[39m forwards SettingsPage theme changes through AppShell and emits theme-changed[33m 1392[2mms[22m[39m
+ [32m✓[39m src/deck/PlanEditor.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 3006[2mms[22m[39m
+   [32m✓[39m plan split editing [2m(14)[22m
+     [33m[2m✓[22m[39m previews the unsaved draft and preserves history, notes, layout and caret across view, collapse and language switches[33m 532[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps edits on save failure, retries from the compact card, and does not exit on a cancelled save-as[33m 309[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps a note on its section after insert/rename/delete/undo and submits a pending annotation draft[33m 332[2mms[22m[39m
+ [32m✓[39m src/models/ModelCompactionPane.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 2386[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps an unavailable role model selected until the user chooses a replacement[33m 563[2mms[22m[39m
+   [33m[2m✓[22m[39m prefills the role's model threshold and keeps the saved value when switching models[33m 382[2mms[22m[39m
+   [33m[2m✓[22m[39m saves through native compaction and re-reads the effective settings before reporting completion[33m 703[2mms[22m[39m
+   [33m[2m✓[22m[39m requires the native extended-window confirmation and drops it when the input changes[33m 614[2mms[22m[39m
+ [32m✓[39m src/git/GitQuickCard.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 1912[2mms[22m[39m
+   [33m[2m✓[22m[39m shares preview staging and commit drafts with the full view and adds a PR reference without Host writes[33m 814[2mms[22m[39m
+   [33m[2m✓[22m[39m loads only the chosen list, prioritizes branch PRs, and discards a late result from the previous remote[33m 313[2mms[22m[39m
+   [33m[2m✓[22m[39m opens the requested PR and follows a subsequent remote selection for references[33m 365[2mms[22m[39m
+ [32m✓[39m src/dock/railBehavior.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 2654[2mms[22m[39m
+ [32m✓[39m src/conversation/SubagentHoverPreview.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 2221[2mms[22m[39m
+   [32m✓[39m subagent hover preview [2m(17)[22m
+     [33m[2m✓[22m[39m waits 300ms before reading, renders Markdown, and clicking opens the original agent[33m 311[2mms[22m[39m
+ [32m✓[39m src/dock/lifetime.test.tsx [2m([22m[2m37 tests[22m[2m)[22m[33m 2656[2mms[22m[39m
+ [32m✓[39m src/HistoryPage.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[33m 2264[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps lease status while filtering the catalog without repeated lease reads or lease commands[33m 313[2mms[22m[39m
+   [33m[2m✓[22m[39m loads archive pages independently and keeps only failures selected after a partial batch[33m 1049[2mms[22m[39m
+ [32m✓[39m src/models/ModelParameterEditor.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 1969[2mms[22m[39m
+   [33m[2m✓[22m[39m saves gray recommendations as effective values and preserves manual overrides when recommendations are reapplied[33m 489[2mms[22m[39m
+   [33m[2m✓[22m[39m ignores a response for an earlier model identity[33m 401[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps saved automatic parameters fixed when only the display name changes[33m 633[2mms[22m[39m
+ [32m✓[39m src/lux/workbenchLight.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 2549[2mms[22m[39m
+   [33m[2m✓[22m[39m lights a real Plan review as waiting without a pending interaction[33m 972[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps preview Plan and Ask cards lit while they await a response[33m 1576[2mms[22m[39m
+ [32m✓[39m src/App.followUpQueue.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1923[2mms[22m[39m
+   [32m✓[39m native streaming queue dispatch [2m(3)[22m
+     [33m[2m✓[22m[39m queues streaming Enter through queue.enqueue without an optimistic user bubble[33m 1066[2mms[22m[39m
+     [33m[2m✓[22m[39m fails closed and preserves the draft when native queueing is unsupported[33m 556[2mms[22m[39m
+ [32m✓[39m src/ModelConfigPage.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 23833[2mms[22m[39m
+   [33m[2m✓[22m[39m reorders filtered provider cards while preserving hidden providers and keeping the order local[33m 534[2mms[22m[39m
+   [33m[2m✓[22m[39m configures OpenCode Go from the provider editor and keeps a saved key when the catalog needs a retry[33m 1490[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps the OpenCode Zen key draft through a live language switch in preview[33m 2168[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps an unavailable role model editable and saves its replacement through the native role command[33m 578[2mms[22m[39m
+   [33m[2m✓[22m[39m clears an explicit role assignment to native auto-selection[33m 471[2mms[22m[39m
+   [33m[2m✓[22m[39m searches and replaces an unavailable preview model with the keyboard without writing to Host[33m 4023[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps catalog updates local and visibly marked in preview mode[33m 1046[2mms[22m[39m
+   [33m[2m✓[22m[39m manages search credentials only in the provider library and keeps preview local[33m 740[2mms[22m[39m
+   [32m✓[39m ModelConfigPage 自动获取模型 [2m(7)[22m
+     [33m[2m✓[22m[39m applies gray recommendations to the model draft and the provider YAML save, including provenance[33m 1113[2mms[22m[39m
+     [33m[2m✓[22m[39m probes the wire API without a discovery type and imports picked models into the draft[33m 826[2mms[22m[39m
+     [33m[2m✓[22m[39m select-all can include models that already exist[33m 960[2mms[22m[39m
+     [33m[2m✓[22m[39m surfaces a Host failure without opening the checklist[33m 681[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the button disabled until the provider has an id and a base url[33m 703[2mms[22m[39m
+     [33m[2m✓[22m[39m uses fixtures and never calls the Host in preview mode[33m 3438[2mms[22m[39m
+     [33m[2m✓[22m[39m lets the user disambiguate catalog matches, switch choices, and filter discovered models[33m 1030[2mms[22m[39m
+   [32m✓[39m ModelConfigPage YAML 卡片随表单实时更新 [2m(4)[22m
+     [33m[2m✓[22m[39m 表单改动不保存就出现在 models.yml 切片里，且卡片转为只读[33m 669[2mms[22m[39m
+     [33m[2m✓[22m[39m 表单改动后保存会带上完整切片，而不是空文档[33m 875[2mms[22m[39m
+     [33m[2m✓[22m[39m 角色编辑器换主模型时 config.yml 卡片同步变化[33m 1369[2mms[22m[39m
+     [33m[2m✓[22m[39m 清空 Base URL 后切片与保存都不再携带 baseUrl[33m 856[2mms[22m[39m
+ [32m✓[39m src/deck/FormCard.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 2105[2mms[22m[39m
+   [33m[2m✓[22m[39m preserves field DOM and edits through fieldset navigation, collapse, expansion and metadata refresh[33m 717[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps transient drafts after a Deck host remount but starts fresh on a new lease[33m 301[2mms[22m[39m
+   [33m[2m✓[22m[39m does not remount a visited form's input while paging to another queued form[33m 315[2mms[22m[39m
+ [32m✓[39m src/SettingsSecondBatch.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1281[2mms[22m[39m
+   [33m[2m✓[22m[39m finds a new key and saves the chosen edit mode to user configuration[33m 472[2mms[22m[39m
+   [33m[2m✓[22m[39m shows only the selected memory backend in preview without writing real settings[33m 405[2mms[22m[39m
+ [32m✓[39m src/HomePage.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 1441[2mms[22m[39m
+   [32m✓[39m HomePage identity [2m(4)[22m
+     [33m[2m✓[22m[39m shows the greeting with the local name, omp is ready, and a single user avatar[33m 303[2mms[22m[39m
+ [32m✓[39m src/settings/ConversationWidthGeneral.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1943[2mms[22m[39m
+   [32m✓[39m Appearance conversation width integration [2m(3)[22m
+     [33m[2m✓[22m[39m supports standalone SettingsPage without a global provider and resets real width preferences[33m 628[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps standalone preview edits in memory and General reset restores the demo defaults[33m 513[2mms[22m[39m
+     [33m[2m✓[22m[39m shares the demo draft with a sibling menu across SettingsPage remounts and General resets[33m 796[2mms[22m[39m
+ [32m✓[39m src/TerminalPane.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 1448[2mms[22m[39m
+   [33m[2m✓[22m[39m asks before closing a tmux window, hides without killing, and can restore it[33m 485[2mms[22m[39m
+ [32m✓[39m src/CapabilitiesPage.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 1765[2mms[22m[39m
+   [32m✓[39m CapabilitiesPage [2m(7)[22m
+     [33m[2m✓[22m[39m updates MCP instructions through the owning scope and disables old Host records[33m 348[2mms[22m[39m
+     [33m[2m✓[22m[39m reveals a skill directory and probes MCP in real mode[33m 316[2mms[22m[39m
+     [33m[2m✓[22m[39m does not send MCP or slash Host commands from preview actions[33m 406[2mms[22m[39m
+ [32m✓[39m src/models/WebSearchPanel.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 1211[2mms[22m[39m
+   [33m[2m✓[22m[39m uses Runtime credential receipts, removes the selected key and keeps an unsaved search draft[33m 364[2mms[22m[39m
+   [33m[2m✓[22m[39m adds a library engine to the draft, selects a grounded model and saves one native search chain[33m 398[2mms[22m[39m
+ [32m✓[39m src/composer/ChipComposer.test.tsx [2m([22m[2m52 tests[22m[2m)[22m[33m 1670[2mms[22m[39m
+ [32m✓[39m src/history/SessionPickers.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 1276[2mms[22m[39m
+   [33m[2m✓[22m[39m uses the native default once, previews the selection and resumes the resolved continuing copy[33m 392[2mms[22m[39m
+ [32m✓[39m src/WebSearchPanel.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 1253[2mms[22m[39m
+   [32m✓[39m WebSearchPanel [2m(11)[22m
+     [33m[2m✓[22m[39m reorders priority providers upward and sends the new order only on save[33m 328[2mms[22m[39m
+ [32m✓[39m src/git/GitHubPanel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 795[2mms[22m[39m
+   [33m[2m✓[22m[39m previews PR discussion and selected diffs as a reference without invoking the real client[33m 510[2mms[22m[39m
+ [32m✓[39m src/composer/ImagePreview.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1074[2mms[22m[39m
+   [32m✓[39m ImagePreview [2m(16)[22m
+     [33m[2m✓[22m[39m keeps legacy base64 subjects and the copy/save context menu working[33m 324[2mms[22m[39m
+ [32m✓[39m src/sidebar/AppSidebar.threadRowMenu.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 995[2mms[22m[39m
+   [32m✓[39m AppSidebar thread row more menu [2m(6)[22m
+     [33m[2m✓[22m[39m opens the top-bar thread actions on a history row and routes the pick to onThreadRowAction[33m 368[2mms[22m[39m
+ [32m✓[39m src/conversation/advisorTranscript.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 969[2mms[22m[39m
+   [33m[2m✓[22m[39m preserves the expanded preview batch when its conversation engine changes language[33m 403[2mms[22m[39m
+ [32m✓[39m src/conversation/ContextCard.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 376[2mms[22m[39m
+ [32m✓[39m src/capabilities/RuntimeCatalogPanes.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1028[2mms[22m[39m
+   [33m[2m✓[22m[39m previews template expansion and MCP fixtures without Host or automatic sends[33m 642[2mms[22m[39m
+   [33m[2m✓[22m[39m loads a template immediately, prepares the selected native version, and invalidates the expansion when arguments change[33m 315[2mms[22m[39m
+ [32m✓[39m src/media/AudioCapturePane.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 286[2mms[22m[39m
+ [32m✓[39m src/diagnostics/NativeMaintenancePane.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 1012[2mms[22m[39m
+   [33m[2m✓[22m[39m previews cleanup, confirms it explicitly, and exports locally without any real writes[33m 400[2mms[22m[39m
+ [32m✓[39m src/onboarding/OnboardingTour.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 877[2mms[22m[39m
+   [32m✓[39m workbench onboarding tour [2m(3)[22m
+     [33m[2m✓[22m[39m first run cannot be dismissed until every step has been shown[33m 610[2mms[22m[39m
+ [32m✓[39m src/diagnostics/WorkspaceRecoveryPane.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 653[2mms[22m[39m
+   [33m[2m✓[22m[39m recovers through the root client when the saved conversation is unusable, with live language switching[33m 593[2mms[22m[39m
+ [32m✓[39m src/deck/AskImages.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 734[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps uploads, pasted images, thumbnail previews and removal in their owning field[33m 526[2mms[22m[39m
+ [32m✓[39m src/highlight/markdownWorker.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 365[2mms[22m[39m
+ [32m✓[39m src/composer/PromptHistory.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 671[2mms[22m[39m
+ [32m✓[39m src/dock/railPresentation.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 937[2mms[22m[39m
+   [32m✓[39m rail title menus and context presentation [2m(6)[22m
+     [33m[2m✓[22m[39m opens panel actions on title right-click without toggling the card[33m 444[2mms[22m[39m
+ [32m✓[39m src/conversation/ToolBody.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 617[2mms[22m[39m
+   [32m✓[39m ToolBody: 按行渲染的 DOM 上限 [2m(4)[22m
+     [33m[2m✓[22m[39m Read 预览超过上限时只铺 TOOL_ROWS_MAX 行，并说明省略了多少[33m 337[2mms[22m[39m
+ [32m✓[39m src/SkillsDrawer.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 643[2mms[22m[39m
+ [32m✓[39m src/files/spreadsheet.worker.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 599[2mms[22m[39m
+   [32m✓[39m spreadsheet worker [2m(1)[22m
+     [33m[2m✓[22m[39m reads and copies populated cells beyond row 500,000[33m 597[2mms[22m[39m
+ [32m✓[39m src/deck/AskAnswerFlow.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 803[2mms[22m[39m
+   [33m[2m✓[22m[39m makes a typed single answer visibly replace the selected option[33m 307[2mms[22m[39m
+ [32m✓[39m src/conversation/conversationReveal.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 854[2mms[22m[39m
+   [33m[2m✓[22m[39m mounts an offscreen virtual row before revealing the delegation and reports unloaded sources[33m 463[2mms[22m[39m
+   [33m[2m✓[22m[39m preserves an advisor batch choice when offscreen navigation unmounts and remounts its virtual row[33m 389[2mms[22m[39m
+ [31m❯[39m src/files/fileLinks.test.tsx [2m([22m[2m12 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 657[2mms[22m[39m
+   [32m✓[39m decodes local Markdown image paths and retains an explicit local source in a remote chat[32m 44[2mms[22m[39m
+   [32m✓[39m switches conversation images to fixtures in preview mode and releases the real file[32m 23[2mms[22m[39m
+   [32m✓[39m drops the link once the workspace reports the path is gone[32m 50[2mms[22m[39m
+   [32m✓[39m waits for the workspace before linking text that only looks like a path[32m 53[2mms[22m[39m
+   [32m✓[39m reveals a workspace directory in Explorer and opens a classified file[32m 70[2mms[22m[39m
+   [32m✓[39m opens absolute files on the chat's Host and redirects absolute directories to the browser[32m 53[2mms[22m[39m
+   [32m✓[39m finishes later batches and retries a failed batch once[32m 264[2mms[22m[39m
+   [32m✓[39m retries only the omitted paths and leaves the queue idle after a second omission[32m 14[2mms[22m[39m
+   [32m✓[39m drops the old in-flight result when a resolver unmounts and is replaced[32m 6[2mms[22m[39m
+   [32m✓[39m recovers from a missing file on the bounded retry or on a later remount[32m 13[2mms[22m[39m
+[31m   [31m×[31m classifies and opens markdown links relative to the file on its own Host[39m[32m 54[2mms[22m[39m
+   [32m✓[39m defers a network file URL or UNC directory to an explicit click[32m 10[2mms[22m[39m
+ [32m✓[39m src/settings/FontSettings.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 696[2mms[22m[39m
+ [32m✓[39m src/judgments/JudgmentsPane.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 594[2mms[22m[39m
+   [33m[2m✓[22m[39m preview creates and retries local fixture batches without calling Host[33m 475[2mms[22m[39m
+ [32m✓[39m src/AppUpdateDialog.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 639[2mms[22m[39m
+ [32m✓[39m src/ComposerModePicker.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 898[2mms[22m[39m
+ [32m✓[39m src/background/BackgroundSettingsPane.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 720[2mms[22m[39m
+   [32m✓[39m BackgroundSettingsPane [2m(3)[22m
+     [33m[2m✓[22m[39m does not persist while dragging and writes once on release[33m 426[2mms[22m[39m
+ [32m✓[39m src/InteractionDeck.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 811[2mms[22m[39m
+ [32m✓[39m src/capabilities/ResourceTextView.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 688[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps the draft, caret and undo history when previewing a session Markdown file[33m 686[2mms[22m[39m
+ [32m✓[39m src/conversation/streamingFrameCost.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 473[2mms[22m[39m
+   [32m✓[39m streaming frame cost [2m(1)[22m
+     [33m[2m✓[22m[39m keeps a published frame independent of how much output the live tool has produced[33m 471[2mms[22m[39m
+ [32m✓[39m src/workspaces/ExecutionTargets.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 751[2mms[22m[39m
+ [32m✓[39m src/conversation/ConversationPane.switch.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 641[2mms[22m[39m
+ [32m✓[39m src/composer/prediction.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 737[2mms[22m[39m
+   [33m[2m✓[22m[39m composition never queries or submits, and late results cannot overwrite a newer document[33m 454[2mms[22m[39m
+ [32m✓[39m src/Runtime18132.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 659[2mms[22m[39m
+   [33m[2m✓[22m[39m keeps budget and local-file demo edits off the Host[33m 511[2mms[22m[39m
+ [32m✓[39m src/composer/sessionReference.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 906[2mms[22m[39m
+   [33m[2m✓[22m[39m reads excerpts in the remote project's context and preserves the selection after disconnect and restore[33m 319[2mms[22m[39m
+ [32m✓[39m src/sidebar/AppSidebar.provisional.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 363[2mms[22m[39m
+ [32m✓[39m src/conversation/JobInspector.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 687[2mms[22m[39m
+ [32m✓[39m src/conversation/ConversationMinimap.test.tsx [2m([22m[2m28 tests[22m[2m)[22m[33m 612[2mms[22m[39m
+ [32m✓[39m src/deck/PlanSaveAndQuit.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 578[2mms[22m[39m
+ [32m✓[39m src/git/useGitRepository.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 471[2mms[22m[39m
+ [32m✓[39m src/workspaces/SessionWorktreesPane.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 434[2mms[22m[39m
+ [32m✓[39m src/ExplorerTree.test.tsx [2m([22m[2m22 tests[22m[2m)[22m[33m 806[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksPanel.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 648[2mms[22m[39m
+ [32m✓[39m src/models/ModelSystemTemplates.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 651[2mms[22m[39m
+   [33m[2m✓[22m[39m reopens an editable template after hiding an in-flight file read and ignores its late body[33m 368[2mms[22m[39m
+ [32m✓[39m src/NavRail.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 594[2mms[22m[39m
+ [32m✓[39m src/CapabilitiesPage.command-manifest.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1015[2mms[22m[39m
+   [32m✓[39m CapabilitiesPage command manifest [2m(3)[22m
+     [33m[2m✓[22m[39m queries and renders only Runtime manifest commands, including dynamic commands[33m 487[2mms[22m[39m
+ [32m✓[39m src/settings/ConversationWidthSettings.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 643[2mms[22m[39m
+ [32m✓[39m src/dock/hosts.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 439[2mms[22m[39m
+ [32m✓[39m src/models/AccountStatusPane.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 533[2mms[22m[39m
+   [33m[2m✓[22m[39m preview sign-out requires confirmation and never removes a native credential[33m 357[2mms[22m[39m
+ [32m✓[39m src/AppSelect.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 482[2mms[22m[39m
+ [32m✓[39m src/files/FileDockInstances.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 509[2mms[22m[39m
+   [33m[2m✓[22m[39m adds workspace-owned file context to the current conversation, then follows a changed owner[33m 479[2mms[22m[39m
+ [32m✓[39m src/deck/AskInlineImages.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 508[2mms[22m[39m
+   [33m[2m✓[22m[39m inserts image capsules at the caret, keeps thumbnails, and submits their original text positions after remount[33m 370[2mms[22m[39m
+ [32m✓[39m src/SlidingTabs.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 403[2mms[22m[39m
+ [32m✓[39m src/conversation/conversation.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 541[2mms[22m[39m
+ [32m✓[39m src/agents/TaskAssignmentEditor.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 443[2mms[22m[39m
+ [32m✓[39m src/settings/Runtime18202Settings.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 466[2mms[22m[39m
+ [32m✓[39m src/files/SpreadsheetPane.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 558[2mms[22m[39m
+   [33m[2m✓[22m[39m navigates with arrows, extends a range, exposes the active cell, and copies its TSV values[33m 557[2mms[22m[39m
+ [32m✓[39m src/history/TimeTravel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 538[2mms[22m[39m
+   [33m[2m✓[22m[39m requires a risk confirmation before enabling from the conversation entry[33m 313[2mms[22m[39m
+ [32m✓[39m src/agents/AgentRosterPanel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 364[2mms[22m[39m
+   [32m✓[39m Agent roster density [2m(3)[22m
+     [33m[2m✓[22m[39m keeps the selected density after remounting and shows the actual model in single-line rows[33m 305[2mms[22m[39m
+ [32m✓[39m src/files/FilePane.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 444[2mms[22m[39m
+   [33m[2m✓[22m[39m releases hidden PDF views, stops their reads, and reopens them on reveal[33m 381[2mms[22m[39m
+ [32m✓[39m src/models/BenchmarkPane.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 297[2mms[22m[39m
+ [32m✓[39m src/Runtime18104.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 591[2mms[22m[39m
+ [32m✓[39m src/RuntimeUpgrade.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 381[2mms[22m[39m
+   [33m[2m✓[22m[39m preview import creates only a local result and does not open a real session[33m 341[2mms[22m[39m
+ [32m✓[39m src/background/AppBackgroundLayer.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 290[2mms[22m[39m
+ [32m✓[39m src/services/ServicesPane.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 431[2mms[22m[39m
+   [33m[2m✓[22m[39m preview creates and controls demo services without calling Host or desktop storage[33m 376[2mms[22m[39m
+ [32m✓[39m src/settings/PredictionSettingsPane.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 356[2mms[22m[39m
+ [32m✓[39m src/conversation/SessionChanges.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 282[2mms[22m[39m
+ [32m✓[39m src/media/MediaWorkbench.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 379[2mms[22m[39m
+   [33m[2m✓[22m[39m reviews demo media requests, inserts transcription only on click, and never calls Host[33m 378[2mms[22m[39m
+ [32m✓[39m src/models/SessionModelRecovery.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 252[2mms[22m[39m
+ [32m✓[39m src/panels/panels.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 241[2mms[22m[39m
+ [32m✓[39m src/agents/TaskStepsView.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 337[2mms[22m[39m
+ [32m✓[39m src/settings/DesktopUpdateRecovery.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 340[2mms[22m[39m
+ [32m✓[39m src/composer/RuntimeQueueBar.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 421[2mms[22m[39m
+   [33m[2m✓[22m[39m edits submitted preview entries locally and prevents changing in-flight input[33m 391[2mms[22m[39m
+ [32m✓[39m src/ComposerModelPicker.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 344[2mms[22m[39m
+   [33m[2m✓[22m[39m excludes a Judge model from role shortcuts as well as the full chat model list[33m 343[2mms[22m[39m
+ [32m✓[39m src/skillshare/SkillsharePane.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 404[2mms[22m[39m
+   [33m[2m✓[22m[39m demo install requires script review and never performs Host or registry mutations[33m 315[2mms[22m[39m
+ [32m✓[39m src/conversation/SessionCompactionInput.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 308[2mms[22m[39m
+ [32m✓[39m src/media/LiveAudioPane.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 291[2mms[22m[39m
+ [32m✓[39m src/conversation/CommandBlock.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 418[2mms[22m[39m
+ [32m✓[39m src/conversation/ShellView.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 287[2mms[22m[39m
+ [32m✓[39m src/graphics/GraphicPreview.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 244[2mms[22m[39m
+ [32m✓[39m src/models/SessionOptionsPane.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 352[2mms[22m[39m
+ [32m✓[39m src/environment/environmentCard.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 331[2mms[22m[39m
+ [32m✓[39m src/conversation/BatchChain.expand.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[32m 275[2mms[22m[39m
+ [32m✓[39m src/conversation/subagentConversationEngine.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 323[2mms[22m[39m
+ [32m✓[39m src/git/GitPatch.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 208[2mms[22m[39m
+ [32m✓[39m src/settings/PredictionSettings.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 232[2mms[22m[39m
+ [32m✓[39m src/settings/MemoryCredentialPane.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 323[2mms[22m[39m
+ [32m✓[39m src/DeferredPanel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 292[2mms[22m[39m
+ [32m✓[39m src/composer/ServiceTierPicker.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 225[2mms[22m[39m
+ [32m✓[39m src/models/AgentModelDetails.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 214[2mms[22m[39m
+ [32m✓[39m src/conversation/ChangeFileIcons.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 213[2mms[22m[39m
+ [32m✓[39m src/conversation/useConversation.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 322[2mms[22m[39m
+ [32m✓[39m src/RuntimeLossBanner.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 224[2mms[22m[39m
+ [32m✓[39m src/files/FileCloseDialog.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 191[2mms[22m[39m
+ [32m✓[39m src/tmux/TmuxWindowView.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 166[2mms[22m[39m
+ [32m✓[39m src/settings/NativePreferencesPane.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 285[2mms[22m[39m
+ [32m✓[39m src/history/NativeArchivePane.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 387[2mms[22m[39m
+   [33m[2m✓[22m[39m preserves the preview search across hiding the pane without reading or opening real history[33m 369[2mms[22m[39m
+ [32m✓[39m src/conversation/jobs.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 211[2mms[22m[39m
+ [32m✓[39m src/conversation/conversationProtocolPlaceholder.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 246[2mms[22m[39m
+ [32m✓[39m src/conversation/ExtensionLinks.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 233[2mms[22m[39m
+ [32m✓[39m src/dock/ownership.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 220[2mms[22m[39m
+ [32m✓[39m src/conversation/ActivityLine.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 190[2mms[22m[39m
+ [32m✓[39m src/conversationWorkspace/client.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 205[2mms[22m[39m
+ [32m✓[39m src/conversation/ConversationEmpty.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 241[2mms[22m[39m
+ [32m✓[39m src/conversation/streamingLayoutBudget.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 226[2mms[22m[39m
+ [32m✓[39m src/composer/command-manifest-wire.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 156[2mms[22m[39m
+ [32m✓[39m src/composer/nativeQueue.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 225[2mms[22m[39m
+ [32m✓[39m src/telemetry/useViewedSessionTelemetry.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 161[2mms[22m[39m
+ [32m✓[39m src/deck/SecondaryInteractionDeck.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 196[2mms[22m[39m
+ [32m✓[39m src/conversation/markdown.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 195[2mms[22m[39m
+ [32m✓[39m src/usage/TokenUsagePanel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 277[2mms[22m[39m
+ [32m✓[39m src/runtimeUpgrade.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 183[2mms[22m[39m
+ [32m✓[39m src/dock/MinimizedCapsule.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 221[2mms[22m[39m
+ [32m✓[39m src/lux/lux.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 192[2mms[22m[39m
+ [32m✓[39m src/recordings/RecordingPlayer.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 274[2mms[22m[39m
+ [32m✓[39m src/settings/TaskDelegationSettings.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 282[2mms[22m[39m
+ [32m✓[39m src/layout/useReadingColumn.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 202[2mms[22m[39m
+ [32m✓[39m src/composer/ComposerSpeedControl.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 268[2mms[22m[39m
+ [32m✓[39m src/dock/NativeFloat.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 199[2mms[22m[39m
+ [32m✓[39m src/history/useSessionTitles.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 143[2mms[22m[39m
+ [32m✓[39m src/highlight/pool.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 165[2mms[22m[39m
+ [32m✓[39m src/files/OfficePane.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 213[2mms[22m[39m
+ [32m✓[39m src/models/providerYaml.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 118[2mms[22m[39m
+ [32m✓[39m src/terminalSessions.test.tsx [2m([22m[2m45 tests[22m[2m)[22m[32m 148[2mms[22m[39m
+ [32m✓[39m src/conversation/BatchChain.subagent-start.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 237[2mms[22m[39m
+ [32m✓[39m src/dock/store.test.ts [2m([22m[2m43 tests[22m[2m)[22m[32m 155[2mms[22m[39m
+ [32m✓[39m src/conversation/markdownBlocks.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+ [32m✓[39m src/conversation/useSessionCompaction.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 126[2mms[22m[39m
+ [32m✓[39m src/graphics/graphic-parser.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 112[2mms[22m[39m
+ [32m✓[39m src/conversation/useConversationReading.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 148[2mms[22m[39m
+ [32m✓[39m src/conversation/useToolCardFollowScroll.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/conversationWorkspace/projectReads.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 134[2mms[22m[39m
+ [32m✓[39m src/workspaces/SshPasswordDialog.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 132[2mms[22m[39m
+ [32m✓[39m src/composer/RuntimeQueue.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 107[2mms[22m[39m
+ [32m✓[39m src/layout/useWorkbenchLayout.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 86[2mms[22m[39m
+ [32m✓[39m src/recordings/TerminalRecordingControls.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/models/useModelAuth.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 140[2mms[22m[39m
+ [32m✓[39m src/git/useGitSummary.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 147[2mms[22m[39m
+ [32m✓[39m src/highlight/compute.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 84[2mms[22m[39m
+ [32m✓[39m src/composer/dictationEditor.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 80[2mms[22m[39m
+ [32m✓[39m src/themeTransition.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 130[2mms[22m[39m
+ [32m✓[39m src/WorkbenchHealth.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/workbench/sessionActions.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 112[2mms[22m[39m
+ [32m✓[39m src/ModelDelegationList.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m src/conversation/ReadMarkdown.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 70[2mms[22m[39m
+ [32m✓[39m src/dock/NativeFloat.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 82[2mms[22m[39m
+ [32m✓[39m src/composer/richPaste.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m src/dock/model.test.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+ [32m✓[39m src/dock/windows.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 116[2mms[22m[39m
+ [32m✓[39m src/conversation/conversationStore.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m src/graphics/native-figures.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m src/layout/useBottomPanelMotion.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m src/conversation/UserMessageBody.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 61[2mms[22m[39m
+ [32m✓[39m src/sidebar/useProjectHistories.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/useBackgroundTasks.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 120[2mms[22m[39m
+ [32m✓[39m src/preview/PreviewContext.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/media/webrtcCapture.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m src/conversation/textChunks.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/i18n/i18n.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 69[2mms[22m[39m
+ [32m✓[39m src/models/config/commands.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/composer/useComposerDraft.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m src/dock/pins.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m src/dock/multiAgentDock.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/composer/dictationKeyboard.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m src/conversation/useConversationScroll.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m src/explorer-types.test.ts [2m([22m[2m60 tests[22m[2m)[22m[32m 106[2mms[22m[39m
+ [32m✓[39m src/hostError.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m src/conversationWorkspace/workspace.test.tsx [2m([22m[2m24 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/conversation/useSubagentComposer.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 53[2mms[22m[39m
+ [32m✓[39m src/dock/conversationPanels.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/conversation/conversationReflow.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/rendererPerformance.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/sessionSwitchPerformance.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/composer/dictationSession.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/dock/fileViews.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/dock/scrollChain.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/shellModelLoader.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/conversation/mermaidQueue.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/composer/mentions.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/media/microphoneAccess.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/settings/updates.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/conversation/backgroundPublishing.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/contextViewer/contextViewMath.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/files/fileDocuments.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/diagnosticsModel.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/background/backgroundSettings.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/settings/appUpdate.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/deck/FormSession.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/models/useModelConnection.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/usage/usagePolling.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/sessionLifecycle.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/conversation/userImageBudget.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/background/backgroundTint.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/composer/serialize.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/perf/tiers.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/conversation/conversationSwitchPhase.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/composer/dispatch.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/performanceTimelineCleanup.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/git/GitDockMeter.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/conversation/rowHeightCache.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/media/audio.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/sidebar/provisionalThread.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/perf/tierControl.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/conversation/SubagentMetrics.duration.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/background/backgroundImport.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/conversation/sessionDiff.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/dock/toolGroups.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/backgroundTasksModel.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/conversation/conversationViews.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/sidebar/expandMemory.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/composer/command-manifest.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/conversationWorkspace/hosts.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/conversation/activityStatus.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/pageIntents.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/models/fetchedModels.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/files/fileTypes.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/conversationWorkspace/snap.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/workspaces/remoteTransport.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/deck/planSections.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/conversation/toolMeta.subagent-start.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/performanceOptions.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/conversation/bashDisplay.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/media/liveCapture.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/deck/askContent.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/conversation/persistedSessionAgents.merge.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/layout/workbenchLayout.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/agents/deck/comms.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/workspaceActionQueue.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/conversation/conversationViewModel.tool-lifecycle.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/deck/approvalContent.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/files/gitMarks.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/conversation/userMessageRestore.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/conversation/ChangesDockMeter.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/conversation/agentTestRuns.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/files/logDisplay.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/keyboard/shortcuts.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/composer/browserReference.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/git/treeStatus.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/recordings/format.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/background/backgroundLibrary.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/App.runtime-mirror.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/conversation/ConversationVirtualList.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/sidebar/sessionTitle.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/conversation/welcomeGate.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/graphics/graphic-pool.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/graphics/graphic-texture.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/extensibilityMap.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [31m❯[39m src/conversationWorkspace/Workspace.integration.test.tsx [2m([22m[2m50 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[33m 103192[2mms[22m[39m
+   [31m❯[39m conversation windows [2m(50)[22m
+     [33m[2m✓[22m[39m keeps shared sidebar, right and bottom sizes locked for keyboard and double-click resizing[33m 2934[2mms[22m[39m
+     [33m[2m✓[22m[39m opens two dragged conversations with animations enabled and preserves the original draft (preview=false)[33m 2156[2mms[22m[39m
+     [33m[2m✓[22m[39m opens two dragged conversations with animations enabled and preserves the original draft (preview=true)[33m 2919[2mms[22m[39m
+     [33m[2m✓[22m[39m previews an unopened sidebar conversation over left tools, cancels and floats it (preview=false)[33m 1725[2mms[22m[39m
+     [33m[2m✓[22m[39m previews an unopened sidebar conversation over left tools, cancels and floats it (preview=true)[33m 2103[2mms[22m[39m
+     [33m[2m✓[22m[39m floats over the conversation directory and drags again without docking or jumping (preview=false)[33m 1055[2mms[22m[39m
+     [33m[2m✓[22m[39m floats over the conversation directory and drags again without docking or jumping (preview=true)[33m 1361[2mms[22m[39m
+     [33m[2m✓[22m[39m opens a sidebar conversation directly in a tool region and preserves the main conversation[33m 2643[2mms[22m[39m
+     [33m[2m✓[22m[39m docks and detaches the same conversation through the left tool region (preview=false)[33m 1139[2mms[22m[39m
+     [33m[2m✓[22m[39m docks and detaches the same conversation through the left tool region (preview=true)[33m 1326[2mms[22m[39m
+     [33m[2m✓[22m[39m docks and detaches the same conversation through the right tool region (preview=false)[33m 1061[2mms[22m[39m
+     [33m[2m✓[22m[39m docks and detaches the same conversation through the right tool region (preview=true)[33m 1457[2mms[22m[39m
+     [33m[2m✓[22m[39m docks and detaches the same conversation through the bottom tool region (preview=false)[33m 1172[2mms[22m[39m
+     [33m[2m✓[22m[39m docks and detaches the same conversation through the bottom tool region (preview=true)[33m 1599[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps independent pages free of workbench chrome and restores the same draft (preview=false, floating=false)[33m 1136[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps independent pages free of workbench chrome and restores the same draft (preview=true, floating=false)[33m 1493[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps independent pages free of workbench chrome and restores the same draft (preview=false, floating=true)[33m 1444[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps independent pages free of workbench chrome and restores the same draft (preview=true, floating=true)[33m 1589[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps dragging a tool card when the window preview replaces its source with a compact rail (preview=false)[33m 2763[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps dragging a tool card when the window preview replaces its source with a compact rail (preview=true)[33m 4491[2mms[22m[39m
+     [33m[2m✓[22m[39m previews and docks the context viewer beside a full-height main conversation without recreating it (preview=false)[33m 1764[2mms[22m[39m
+     [33m[2m✓[22m[39m previews and docks the context viewer beside a full-height main conversation without recreating it (preview=true)[33m 2832[2mms[22m[39m
+     [33m[2m✓[22m[39m preserves the opposite quarter during left full-height drag preview, cancellation and drop[33m 2535[2mms[22m[39m
+     [33m[2m✓[22m[39m preserves the opposite quarter during right full-height drag preview, cancellation and drop[33m 2267[2mms[22m[39m
+     [33m[2m✓[22m[39m snaps conversations and tool windows well inside the edge and retains previews through pointer drift[33m 4133[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the full canvas when a tool is dragged to maximize (preview=false)[33m 941[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the full canvas when a tool is dragged to maximize (preview=true)[33m 1057[2mms[22m[39m
+     [33m[2m✓[22m[39m returns from a window preview to the conversation tools under the pointer[33m 1805[2mms[22m[39m
+     [33m[2m✓[22m[39m restores the expanded rail before hit-testing a drag from the right sidebar (preview=false)[33m 5363[2mms[22m[39m
+     [33m[2m✓[22m[39m restores the expanded rail before hit-testing a drag from the right sidebar (preview=true)[33m 9864[2mms[22m[39m
+     [33m[2m✓[22m[39m opens a sidebar conversation in another window without replacing the focused body (preview=false)[33m 1230[2mms[22m[39m
+     [33m[2m✓[22m[39m opens a sidebar conversation in another window without replacing the focused body (preview=true)[33m 1739[2mms[22m[39m
+     [33m[2m✓[22m[39m offers a workspace launcher that brings the existing conversation back without recreating its editor[33m 1153[2mms[22m[39m
+[31m     [31m×[31m keeps the shell and cached directory present during delayed context loading without reconnecting on focus[39m[33m 1392[2mms[22m[39m
+     [33m[2m✓[22m[39m maximizes the last visible conversation back to the ordinary main area with the same editor[33m 1281[2mms[22m[39m
+     [33m[2m✓[22m[39m retains the original single conversation chrome without a second title or layout toolbar[33m 698[2mms[22m[39m
+[31m     [31m×[31m drags an original sidebar row into a float while keeping one shared left, right and bottom region[39m[33m 2314[2mms[22m[39m
+     [33m[2m✓[22m[39m expands, collapses and re-expands the active project from its sidebar row[33m 836[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the original preview project and conversation rows when opening and focusing floats[33m 2267[2mms[22m[39m
+     [33m[2m✓[22m[39m drags the main title into the shared window frame and restores the same editor[33m 1610[2mms[22m[39m
+     [33m[2m✓[22m[39m borrows the body and complete floating header once and restores them on Escape[33m 2214[2mms[22m[39m
+     [33m[2m✓[22m[39m reuses the current conversation when its original sidebar row is dragged out[33m 1074[2mms[22m[39m
+     [33m[2m✓[22m[39m drags main A while the shared title represents B, cancels to B and disables dragging when main is empty[33m 2403[2mms[22m[39m
+     [33m[2m✓[22m[39m snaps B and automatically places main A beside it, resizes together and restores after maximizing[33m 3202[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps title-menu keyboard input, drag cancellation and window controls independent[33m 1124[2mms[22m[39m
+     [33m[2m✓[22m[39m restores the most recently used visible window after close and minimize without reacting to hover[33m 2464[2mms[22m[39m
+[31m     [31m×[31m moves the breadcrumb into window title rows and lists conversation tabs only once the main area is empty[39m[33m 1422[2mms[22m[39m
+     [33m[2m✓[22m[39m restores, focuses and closes conversation windows from the tabs without capsules or a replacement draft[33m 1411[2mms[22m[39m
+[31m     [31m×[31m keeps the tabs usable while a new conversation window is still loading[39m[33m 1283[2mms[22m[39m
+     [33m[2m✓[22m[39m lists tool windows beside conversations and opens a tool or a conversation from the tab bar's +[33m 1947[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m12 failed[39m[22m[2m | [22m[1m[32m276 passed[39m[22m[90m (288)[39m
+[2m      Tests [22m [1m[31m17 failed[39m[22m[2m | [22m[1m[32m2115 passed[39m[22m[90m (2132)[39m
+[2m   Start at [22m 14:16:06
+[2m   Duration [22m 106.82s[2m (tests 50%, environment 35%, import 10%, transform 3%, setup 1%)[22m
+
+[2mEnvironment [22m [33mjsdom was created 288 times[39m[2m · 224.54s total, 35% of tracked time[22m
+[2m            [22m [2mcreate it once per worker with [22m[33mpool: 'vmThreads'[39m[2m (keeps per-file isolation) or [22m[33misolate: false[39m[2m (shares it across files)[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-environments[22m
+
+JSON report written to /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/.vitest/json/output.json

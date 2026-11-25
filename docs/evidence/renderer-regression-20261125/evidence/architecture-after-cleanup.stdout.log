@@ -1,0 +1,9 @@
+[arch] PASS · 扫描 1162 个文件，8 组规则
+  apps/renderer: 禁 electron、禁 @dsh-studio/runtime-client、禁 @dsh-studio/host-services
+  packages/contract: 禁 electron、禁 react
+  packages/runtime-client: 禁 electron、禁 react
+  packages/host-services: 禁 electron、禁 react
+  packages/studio-ui: 禁 electron、禁 @dsh-studio/runtime-client、禁 @dsh-studio/host-services
+  packages/workbench-core: 禁 electron、禁 react、禁 react-dom、禁 @dsh-studio/runtime-client、禁 @dsh-studio/host-services
+  apps/desktop: 禁 react、禁 react-dom
+  apps/renderer-omp: 禁 electron、禁 @dsh-studio/runtime-client、禁 @dsh-studio/host-services

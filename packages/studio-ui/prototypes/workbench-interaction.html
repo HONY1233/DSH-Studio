@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DSH Studio — Workbench Interaction Prototype</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0e1116;
+      --surface-1: #151a21;
+      --surface-2: #1c222b;
+      --surface-3: #242c37;
+      --border: #2a323e;
+      --border-strong: #3a4452;
+      --text: #e8ebf0;
+      --text-2: #a7b0bd;
+      --text-3: #717d8c;
+      --accent: #8b7cf6;
+      --accent-soft: rgba(139, 124, 246, .14);
+      --accent-line: rgba(139, 124, 246, .55);
+      --cyan: #56c7d9;
+      --green: #69c99a;
+      --amber: #e5b567;
+      --red: #e47d86;
+      --radius: 7px;
+      --titlebar: 42px;
+      --statusbar: 28px;
+      --rail: 52px;
+      --dock: 54px;
+      --ease: cubic-bezier(.2, .8, .2, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--bg); }
+    body { font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--text); font-size: 13px; }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+    .icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+    .icon.sm { width: 15px; height: 15px; }
+    .icon.xs { width: 13px; height: 13px; }
+    .muted { color: var(--text-2); }
+    .dim { color: var(--text-3); }
+    .mono { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; }
+
+    #app { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--bg); }
+    .titlebar { height: var(--titlebar); flex: 0 0 var(--titlebar); display: flex; align-items: center; gap: 12px; padding: 0 10px 0 14px; border-bottom: 1px solid var(--border); background: #11151b; user-select: none; z-index: 30; }
+    .brand { display: flex; align-items: center; gap: 9px; font-weight: 650; letter-spacing: .01em; }
+    .brand-mark { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 6px; color: #fff; background: linear-gradient(145deg, #a79bff, #7161e8); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+    .brand-mark svg { width: 15px; height: 15px; }
+    .breadcrumb { display: flex; align-items: center; gap: 7px; color: var(--text-3); font-size: 12px; }
+    .breadcrumb strong { color: var(--text-2); font-weight: 500; }
+    .title-spacer { flex: 1; }
+    .prototype-badge { padding: 3px 7px; border: 1px solid rgba(139,124,246,.35); border-radius: 999px; color: #bdb4ff; background: var(--accent-soft); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .title-actions { display: flex; align-items: center; gap: 4px; }
+    .icon-button { width: 28px; height: 28px; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-2); cursor: pointer; }
+    .icon-button:hover { color: var(--text); background: var(--surface-2); border-color: var(--border); }
+    .zoom-readout { min-width: 48px; text-align: center; color: var(--text-2); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .window-controls { display: flex; gap: 2px; margin-left: 4px; }
+    .window-controls .icon-button { width: 30px; }
+    .window-controls .close:hover { background: #a83f49; color: white; }
+
+    .app-body { flex: 1; min-height: 0; display: flex; overflow: hidden; background: var(--bg); }
+    .activity-rail { width: var(--rail); flex: 0 0 var(--rail); display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 0 10px; border-right: 1px solid var(--border); background: #11151b; }
+    .rail-button { position: relative; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--text-3); cursor: pointer; }
+    .rail-button:hover { color: var(--text); background: var(--surface-2); }
+    .rail-button.active { color: #c9c1ff; background: var(--accent-soft); }
+    .rail-button.active::before { content: ""; position: absolute; left: -8px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--accent); }
+    .rail-spacer { flex: 1; }
+
+    .sidebar { width: 250px; flex: 0 0 250px; min-width: 208px; max-width: 360px; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--surface-1); overflow: hidden; }
+    .sidebar-top { padding: 15px 14px 12px; }
+    .project-switcher { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+    .project-glyph { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 5px; background: #303846; color: #c9d1dc; }
+    .project-name { flex: 1; font-weight: 600; }
+    .search-box { margin-top: 12px; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 9px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-3); background: #11161c; }
+    .search-box input { width: 100%; border: 0; outline: 0; color: var(--text); background: transparent; font-size: 12px; }
+    .search-box input::placeholder { color: var(--text-3); }
+    .primary-button { width: 100%; height: 34px; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(255,255,255,.08); border-radius: 6px; color: white; background: #7969e8; cursor: pointer; box-shadow: 0 1px 0 rgba(255,255,255,.08) inset; }
+    .primary-button:hover { background: #8676f2; }
+    .session-list { flex: 1; min-height: 0; overflow: auto; padding: 2px 8px 12px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+    .session-section { margin: 12px 6px 6px; color: var(--text-3); font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; }
+    .session-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid transparent; border-radius: 6px; color: var(--text-2); background: transparent; text-align: left; cursor: pointer; }
+    .session-item:hover { background: var(--surface-2); color: var(--text); }
+    .session-item.active { color: #e5e1ff; border-color: rgba(139,124,246,.22); background: var(--accent-soft); }
+    .session-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .session-dot { width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 0 3px rgba(86,199,217,.08); }
+    .sidebar-footer { padding: 11px 14px; border-top: 1px solid var(--border); color: var(--text-3); font-size: 11px; }
+
+    .splitter { position: relative; flex: 0 0 6px; z-index: 8; background: transparent; touch-action: none; }
+    .splitter::after { content: ""; position: absolute; background: transparent; transition: background 120ms var(--ease); }
+    .splitter.v::after { top: 0; bottom: 0; left: 2px; width: 2px; }
+    .splitter.h::after { left: 0; right: 0; top: 2px; height: 2px; }
+    .splitter.v { cursor: col-resize; }
+    .splitter.h { cursor: row-resize; }
+    .splitter:hover::after, .splitter.dragging::after { background: var(--accent); }
+    .splitter.v:hover, .splitter.v.dragging { box-shadow: -3px 0 0 rgba(139,124,246,.08), 3px 0 0 rgba(139,124,246,.08); }
+    .splitter.h:hover, .splitter.h.dragging { box-shadow: 0 -3px 0 rgba(139,124,246,.08), 0 3px 0 rgba(139,124,246,.08); }
+
+    .workbench { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .workbench-header { height: 51px; flex: 0 0 51px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--border); background: var(--surface-1); }
+    .workbench-title { min-width: 0; }
+    .workbench-title h1 { margin: 0; overflow: hidden; color: var(--text); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .workbench-title p { margin: 3px 0 0; color: var(--text-3); font-size: 10.5px; }
+    .header-spacer { flex: 1; }
+    .pill { display: inline-flex; align-items: center; gap: 5px; height: 23px; padding: 0 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-2); background: var(--surface-2); font-size: 10.5px; }
+    .pill.running { color: #9edce5; border-color: rgba(86,199,217,.22); background: rgba(86,199,217,.08); }
+    .pill .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .panes { flex: 1; min-height: 0; display: flex; padding-bottom: var(--dock); }
+    .panel { min-width: 0; min-height: 0; background: var(--bg); }
+    .main-pane { flex: 0 0 64%; display: flex; flex-direction: column; overflow: hidden; }
+    .conversation-scroll { flex: 1; min-height: 0; overflow: auto; padding: 20px clamp(18px, 3vw, 42px) 12px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+    .conversation-inner { width: 100%; max-width: 860px; margin: 0 auto; }
+    .message { display: flex; gap: 11px; margin-bottom: 19px; }
+    .avatar { width: 27px; height: 27px; flex: 0 0 27px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 7px; color: var(--text-2); background: var(--surface-2); }
+    .avatar.assistant { color: #d7d0ff; border-color: rgba(139,124,246,.3); background: var(--accent-soft); }
+    .message-content { min-width: 0; flex: 1; }
+    .message-meta { display: flex; align-items: baseline; gap: 8px; margin: 1px 0 7px; }
+    .message-meta strong { font-size: 12px; font-weight: 600; }
+    .message-meta span { color: var(--text-3); font-size: 10px; }
+    .user-bubble { padding: 11px 13px; border: 1px solid var(--border); border-radius: 9px; color: #dce1e8; background: var(--surface-1); line-height: 1.55; }
+    .assistant-copy { color: var(--text-2); line-height: 1.6; }
+    .tool-card { margin-top: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); overflow: hidden; }
+    .tool-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid rgba(42,50,62,.75); color: var(--text-2); font-size: 11px; }
+    .tool-label { color: #c9c1ff; font-weight: 600; }
+    .tool-path { min-width: 0; flex: 1; overflow: hidden; color: var(--text-3); text-overflow: ellipsis; white-space: nowrap; }
+    .tool-result { display: flex; align-items: center; gap: 8px; padding: 8px 10px; color: var(--text-2); font-size: 11px; }
+    .diff-stat { color: var(--green); font-family: "Cascadia Code", Consolas, monospace; }
+    .test-card { margin-top: 10px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); }
+    .test-row { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 11px; }
+    .test-row + .test-row { margin-top: 6px; }
+    .test-row .ok { color: var(--green); }
+
+    .composer-wrap { flex: 0 0 auto; padding: 8px clamp(14px, 2.4vw, 30px) 15px; background: linear-gradient(to bottom, rgba(14,17,22,0), var(--bg) 22%); }
+    .approval { display: flex; align-items: center; gap: 9px; max-width: 860px; margin: 0 auto 9px; padding: 8px 10px; border: 1px solid rgba(229,181,103,.22); border-radius: var(--radius); background: rgba(229,181,103,.06); }
+    .approval .approval-text { flex: 1; color: #d8c39e; font-size: 11px; }
+    .small-button { height: 26px; padding: 0 9px; border: 1px solid var(--border-strong); border-radius: 5px; color: var(--text-2); background: var(--surface-2); cursor: pointer; }
+    .small-button:hover { color: var(--text); background: var(--surface-3); }
+    .small-button.allow { color: white; border-color: #7969e8; background: #7969e8; }
+    .composer { max-width: 860px; margin: 0 auto; padding: 10px 11px 9px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-1); box-shadow: 0 8px 22px rgba(0,0,0,.16); }
+    .composer textarea { width: 100%; height: 34px; resize: none; border: 0; outline: 0; color: var(--text); background: transparent; line-height: 1.45; }
+    .composer textarea::placeholder { color: var(--text-3); }
+    .composer-tools { display: flex; align-items: center; gap: 4px; margin-top: 5px; }
+    .composer-model { display: flex; align-items: center; gap: 6px; margin-left: 4px; color: var(--text-3); font-size: 10.5px; }
+    .send-button { width: 29px; height: 29px; display: grid; place-items: center; margin-left: auto; border: 1px solid rgba(255,255,255,.08); border-radius: 7px; color: white; background: #7969e8; cursor: pointer; }
+
+    .inspector-pane { flex: 1; min-width: 300px; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--surface-1); overflow: hidden; }
+    .inspector-tabs { height: 40px; flex: 0 0 40px; display: flex; align-items: stretch; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--border); background: var(--surface-1); }
+    .inspector-tab { position: relative; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; color: var(--text-3); background: transparent; font-size: 11px; cursor: pointer; }
+    .inspector-tab:hover { color: var(--text-2); }
+    .inspector-tab.active { color: #d7d0ff; }
+    .inspector-tab.active::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+    .count-badge { min-width: 17px; height: 17px; display: grid; place-items: center; padding: 0 4px; border-radius: 999px; color: #bdb4ff; background: var(--accent-soft); font-size: 9px; }
+    .diff-pane { flex: 0 0 62%; display: flex; flex-direction: column; overflow: hidden; }
+    .file-tree { flex: 0 0 auto; padding: 8px 10px 9px; border-bottom: 1px solid var(--border); color: var(--text-3); font-size: 10.5px; }
+    .tree-row { display: flex; align-items: center; gap: 6px; height: 20px; padding-left: var(--indent, 0); }
+    .tree-row.file { color: var(--text-2); }
+    .tree-row.active { color: #d7d0ff; }
+    .diff-view { flex: 1; min-height: 0; overflow: auto; padding: 8px 0; background: #10141a; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+    .diff-file { display: flex; align-items: center; gap: 7px; height: 29px; padding: 0 10px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--text-2); background: var(--surface-1); font-size: 10.5px; }
+    .code-row { display: grid; grid-template-columns: 34px 18px minmax(0, 1fr); min-height: 20px; align-items: center; color: #aeb8c5; font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; font-size: 10.5px; white-space: pre; }
+    .code-row .ln { color: #596474; text-align: right; padding-right: 7px; user-select: none; }
+    .code-row .sign { color: var(--text-3); text-align: center; }
+    .code-row.add { color: #b7dfc8; background: rgba(69,153,106,.13); }
+    .code-row.add .sign { color: var(--green); }
+    .code-row.del { color: #dfb3b8; background: rgba(166,70,79,.13); }
+    .code-row.del .sign { color: var(--red); }
+    .code-row .kw { color: #b7a7ff; }
+    .code-row .type { color: #83c7d5; }
+    .code-row .str { color: #b8d99a; }
+    .terminal-slot { flex: 1; min-height: 120px; display: flex; border-top: 1px solid var(--border); background: #10141a; }
+    .terminal-panel { width: 100%; display: flex; flex-direction: column; background: #10141a; overflow: hidden; }
+    .terminal-panel.floating { width: 100%; height: 100%; border: 0; }
+    .panel-head { height: 35px; flex: 0 0 35px; display: flex; align-items: center; gap: 7px; padding: 0 9px; border-bottom: 1px solid var(--border); color: var(--text-2); background: var(--surface-1); font-size: 10.5px; user-select: none; }
+    .panel-head .grow { flex: 1; }
+    .drag-grip { width: 22px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 4px; color: var(--text-3); background: transparent; cursor: grab; touch-action: none; }
+    .drag-grip:hover { color: var(--text); background: var(--surface-3); }
+    .drag-grip:active { cursor: grabbing; }
+    .terminal-body { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px; color: #aeb8c5; font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; font-size: 11px; line-height: 1.65; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+    .term-line { white-space: pre-wrap; }
+    .term-path { color: #8fc7d2; }
+    .term-git { color: #b7a7ff; }
+    .term-ok { color: var(--green); }
+    .term-dim { color: var(--text-3); }
+    .terminal-placeholder { flex: 1; display: grid; place-items: center; color: var(--text-3); border: 1px dashed var(--border-strong); margin: 10px; border-radius: var(--radius); font-size: 11px; }
+
+    .dock { position: absolute; left: 50%; bottom: 11px; z-index: 20; display: flex; align-items: center; gap: 4px; height: 44px; padding: 5px 7px; border: 1px solid var(--border-strong); border-radius: 12px; background: rgba(24,30,38,.96); box-shadow: 0 10px 28px rgba(0,0,0,.28); transform: translateX(-50%); backdrop-filter: blur(12px); }
+    .dock-button { position: relative; width: 33px; height: 33px; display: grid; place-items: center; border: 0; border-radius: 8px; color: var(--text-3); background: transparent; cursor: pointer; }
+    .dock-button:hover { color: var(--text); background: var(--surface-3); }
+    .dock-button.active { color: #d7d0ff; background: var(--accent-soft); }
+    .dock-button.active::after { content: ""; position: absolute; left: 11px; right: 11px; bottom: -4px; height: 2px; border-radius: 2px; background: var(--accent); }
+    .dock-button .running-dot { position: absolute; right: 4px; bottom: 4px; width: 6px; height: 6px; border: 2px solid #181e26; border-radius: 50%; background: var(--cyan); }
+    .dock-button .badge { position: absolute; right: 1px; top: 0; min-width: 14px; height: 14px; display: grid; place-items: center; padding: 0 3px; border: 2px solid #181e26; border-radius: 999px; color: white; background: #7969e8; font-size: 8px; }
+    .dock-separator { width: 1px; height: 20px; margin: 0 3px; background: var(--border-strong); }
+
+    .statusbar { height: var(--statusbar); flex: 0 0 var(--statusbar); display: flex; align-items: center; gap: 0; padding: 0 8px; border-top: 1px solid var(--border); background: #11151b; user-select: none; z-index: 30; }
+    .status-segment { height: 20px; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid var(--border); color: var(--text-3); font-size: 10px; }
+    .status-segment:first-child { border-left: 1px solid var(--border); }
+    .status-segment.accent { color: #bdb4ff; }
+    .status-segment.cyan { color: #93d5de; }
+    .status-spacer { flex: 1; }
+    .attention-badge { width: 18px; height: 18px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--text-3); background: var(--surface-2); }
+
+    #floatLayer { position: fixed; inset: var(--titlebar) 0 var(--statusbar); z-index: 40; pointer-events: none; }
+    .float-window { position: absolute; display: flex; flex-direction: column; border: 1px solid var(--border-strong); border-radius: 9px; background: #10141a; box-shadow: 0 18px 48px rgba(0,0,0,.42); overflow: hidden; pointer-events: auto; }
+    .float-window.maximized { border-radius: 7px; }
+    .float-header { height: 36px; flex: 0 0 36px; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 10px; border-bottom: 1px solid var(--border); background: var(--surface-1); cursor: move; user-select: none; touch-action: none; }
+    .float-title { flex: 1; font-size: 11px; font-weight: 600; }
+    .float-hint { color: var(--text-3); font-size: 9px; }
+    .float-body { flex: 1; min-height: 0; display: flex; }
+    .float-resize { position: absolute; right: 0; bottom: 0; width: 17px; height: 17px; cursor: nwse-resize; touch-action: none; }
+    .float-resize::after { content: ""; position: absolute; right: 4px; bottom: 4px; width: 7px; height: 7px; border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3); }
+    .snap-overlay { position: absolute; border: 2px solid var(--accent-line); border-radius: 9px; background: rgba(139,124,246,.1); box-shadow: inset 0 0 0 1px rgba(139,124,246,.12); opacity: 0; transition: opacity 120ms var(--ease); }
+    .snap-overlay.visible { opacity: 1; }
+    .snap-label { position: absolute; left: 50%; top: 50%; padding: 5px 9px; border: 1px solid var(--accent-line); border-radius: 999px; color: #d7d0ff; background: #211e33; transform: translate(-50%,-50%); font-size: 10px; }
+    .drag-ghost { position: fixed; z-index: 100; width: 180px; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--accent-line); border-radius: 7px; color: #d7d0ff; background: rgba(33,30,51,.96); box-shadow: 0 10px 30px rgba(0,0,0,.35); pointer-events: none; transform: translate(-50%,-50%); }
+    .drop-hint { position: fixed; z-index: 90; left: 50%; top: 50%; padding: 10px 14px; border: 1px dashed var(--accent-line); border-radius: 9px; color: #d7d0ff; background: rgba(20,18,32,.92); transform: translate(-50%,-50%); pointer-events: none; }
+    .terminal-slot.drop-target { outline: 2px solid var(--accent); outline-offset: -3px; background: rgba(139,124,246,.08); }
+
+    .controls-toggle { position: fixed; right: 12px; top: 55px; z-index: 60; height: 30px; display: flex; align-items: center; gap: 7px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 7px; color: var(--text-2); background: rgba(24,30,38,.96); box-shadow: 0 6px 20px rgba(0,0,0,.2); cursor: pointer; }
+    .controls-toggle:hover { color: var(--text); border-color: var(--accent-line); }
+    .controls-drawer { position: fixed; top: var(--titlebar); right: 0; bottom: var(--statusbar); z-index: 55; width: min(380px, 92vw); display: flex; flex-direction: column; border-left: 1px solid var(--border-strong); background: #141920; box-shadow: -16px 0 44px rgba(0,0,0,.28); transform: translateX(102%); transition: transform 180ms var(--ease); }
+    .controls-drawer.open { transform: translateX(0); }
+    .drawer-head { display: flex; align-items: center; gap: 8px; padding: 13px 13px 11px; border-bottom: 1px solid var(--border); }
+    .drawer-head h2 { margin: 0; font-size: 13px; }
+    .drawer-head .icon-button { margin-left: auto; }
+    .drawer-scroll { flex: 1; min-height: 0; overflow: auto; padding: 13px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+    .question-card { padding: 11px 12px; border: 1px solid rgba(139,124,246,.24); border-radius: 8px; color: #c9c1f7; background: var(--accent-soft); font-size: 11.5px; line-height: 1.55; }
+    .drawer-section { margin-top: 16px; }
+    .drawer-section h3 { margin: 0 0 8px; color: var(--text-3); font-size: 10px; letter-spacing: .09em; text-transform: uppercase; }
+    .state-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .state-cell { padding: 8px 9px; border: 1px solid var(--border); border-radius: 6px; background: #10151b; }
+    .state-cell label { display: block; margin-bottom: 4px; color: var(--text-3); font-size: 9.5px; }
+    .state-cell strong { display: block; overflow: hidden; color: var(--text-2); font-size: 11px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+    .last-action { margin-top: 8px; padding: 8px 9px; border-left: 2px solid var(--accent); color: var(--text-2); background: rgba(139,124,246,.06); font-size: 10.5px; }
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .action-button { min-height: 31px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-2); background: var(--surface-2); font-size: 10.5px; cursor: pointer; }
+    .action-button:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-3); }
+    .action-button.accent { color: #d7d0ff; border-color: rgba(139,124,246,.3); background: var(--accent-soft); }
+    .scenario-tabs { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 4px; }
+    .scenario-tab { flex: 0 0 auto; height: 27px; padding: 0 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-3); background: transparent; font-size: 10px; cursor: pointer; }
+    .scenario-tab.active { color: #d7d0ff; border-color: var(--accent-line); background: var(--accent-soft); }
+    .scenario-desc { margin: 9px 0; color: var(--text-2); font-size: 11px; line-height: 1.55; }
+    .scenario-steps { display: flex; flex-direction: column; gap: 6px; }
+    .step-button { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-2); background: var(--surface-2); text-align: left; font-size: 10.5px; cursor: pointer; }
+    .step-button:hover { border-color: var(--accent-line); }
+    .step-button.done { color: var(--green); border-color: rgba(105,201,154,.2); background: rgba(105,201,154,.06); }
+    .step-number { width: 18px; height: 18px; display: grid; place-items: center; flex: 0 0 18px; border-radius: 50%; color: var(--text-3); background: #10151b; font-size: 9px; }
+    .prototype-note { margin-top: 16px; padding-top: 11px; border-top: 1px solid var(--border); color: var(--text-3); font-size: 10px; line-height: 1.55; }
+    .toast { position: fixed; left: 50%; bottom: 44px; z-index: 80; max-width: min(460px, 88vw); padding: 9px 13px; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--text); background: #202731; box-shadow: 0 10px 30px rgba(0,0,0,.3); opacity: 0; transform: translate(-50%, 8px); transition: opacity 160ms var(--ease), transform 160ms var(--ease); pointer-events: none; font-size: 11px; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 1050px) {
+      .prototype-badge, .breadcrumb { display: none; }
+      .inspector-pane { min-width: 270px; }
+      .conversation-scroll { padding-left: 16px; padding-right: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-logo" viewBox="0 0 24 24"><path d="M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5z" fill="currentColor" stroke="none"/><path d="M13 13h6v6h-6z" fill="currentColor" opacity=".55" stroke="none"/></symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 15a3 3 0 0 1-3 3H9l-5 3V7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3z"/><path d="M8 9h8M8 13h5"/></symbol>
+      <symbol id="i-files" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 10h18"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></symbol>
+      <symbol id="i-git" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="7" r="2"/><path d="M6 7v10M8 15c5 0 4-8 8-8"/></symbol>
+      <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A7 7 0 0 0 15 6l-.3-2.5h-4L10.4 6a7 7 0 0 0-1.5 1.1l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1A7 7 0 0 0 10.4 18l.3 2.5h4L15 18a7 7 0 0 0 1.5-1.1l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+      <symbol id="i-max" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1"/></symbol>
+      <symbol id="i-min" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+      <symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="7" r="1" fill="currentColor"/><circle cx="15" cy="7" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="17" r="1" fill="currentColor"/><circle cx="15" cy="17" r="1" fill="currentColor"/></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="m4 4 17 8-17 8 3-8z"/><path d="M7 12h14"/></symbol>
+      <symbol id="i-attach" viewBox="0 0 24 24"><path d="m8 13 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l8-8"/></symbol>
+      <symbol id="i-command" viewBox="0 0 24 24"><path d="M9 9V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+      <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 3l-4 18"/></symbol>
+      <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M9 14h12"/></symbol>
+      <symbol id="i-mouse" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="6"/><path d="M12 2v7M6 9h12"/></symbol>
+      <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4M8 10.5h5M10.5 8v5"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></symbol>
+    </defs>
+  </svg>
+
+  <div id="app">
+    <header class="titlebar">
+      <div class="brand"><span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span><span>DSH Studio</span></div>
+      <div class="breadcrumb"><strong>dsh-studio</strong><span>/</span><span>Native workbench</span></div>
+      <span class="prototype-badge">Interaction prototype</span>
+      <div class="title-spacer"></div>
+      <div class="title-actions" aria-label="界面缩放">
+        <button class="icon-button" id="zoomOut" title="缩小界面（Ctrl+-）" aria-label="缩小界面"><svg class="icon sm"><use href="#i-minus"/></svg></button>
+        <span class="zoom-readout" id="zoomReadout">100%</span>
+        <button class="icon-button" id="zoomIn" title="放大界面（Ctrl+=）" aria-label="放大界面"><svg class="icon sm"><use href="#i-plus"/></svg></button>
+        <button class="icon-button" id="zoomReset" title="重置缩放（Ctrl+0）" aria-label="重置缩放"><svg class="icon sm"><use href="#i-zoom"/></svg></button>
+      </div>
+      <div class="window-controls" aria-hidden="true">
+        <button class="icon-button" tabindex="-1"><svg class="icon xs"><use href="#i-min"/></svg></button>
+        <button class="icon-button" tabindex="-1"><svg class="icon xs"><use href="#i-max"/></svg></button>
+        <button class="icon-button close" tabindex="-1"><svg class="icon xs"><use href="#i-close"/></svg></button>
+      </div>
+    </header>
+
+    <div class="app-body" id="appBody">
+      <nav class="activity-rail" aria-label="活动栏">
+        <button class="rail-button active" title="会话"><svg class="icon"><use href="#i-chat"/></svg></button>
+        <button class="rail-button" title="文件"><svg class="icon"><use href="#i-files"/></svg></button>
+        <button class="rail-button" title="搜索"><svg class="icon"><use href="#i-search"/></svg></button>
+        <button class="rail-button" title="Git"><svg class="icon"><use href="#i-git"/></svg></button>
+        <button class="rail-button" title="终端"><svg class="icon"><use href="#i-terminal"/></svg></button>
+        <div class="rail-spacer"></div>
+        <button class="rail-button" id="railControls" title="原型控制"><svg class="icon"><use href="#i-layout"/></svg></button>
+        <button class="rail-button" title="设置"><svg class="icon"><use href="#i-settings"/></svg></button>
+      </nav>
+
+      <aside class="sidebar" id="sidebar" aria-label="项目与会话">
+        <div class="sidebar-top">
+          <div class="project-switcher"><span class="project-glyph"><svg class="icon sm"><use href="#i-folder"/></svg></span><span class="project-name">dsh-studio</span><svg class="icon xs dim"><use href="#i-chevron"/></svg></div>
+          <label class="search-box"><svg class="icon sm"><use href="#i-search"/></svg><input placeholder="Search sessions" aria-label="搜索会话"></label>
+          <button class="primary-button" id="newSession"><svg class="icon sm"><use href="#i-plus"/></svg>New session</button>
+        </div>
+        <div class="session-list">
+          <div class="session-section">Today</div>
+          <button class="session-item"><svg class="icon sm"><use href="#i-chat"/></svg><span>Refactor runtime adapter</span><i class="session-dot"></i></button>
+          <button class="session-item active"><svg class="icon sm"><use href="#i-chat"/></svg><span>Layout persistence tests</span><i class="session-dot"></i></button>
+          <button class="session-item"><svg class="icon sm"><use href="#i-chat"/></svg><span>Window IPC review</span></button>
+          <div class="session-section">Previous 7 days</div>
+          <button class="session-item"><svg class="icon sm"><use href="#i-chat"/></svg><span>Migrate legacy workspace</span></button>
+          <button class="session-item"><svg class="icon sm"><use href="#i-chat"/></svg><span>Terminal lifecycle cleanup</span></button>
+          <button class="session-item"><svg class="icon sm"><use href="#i-chat"/></svg><span>Snap geometry edge cases</span></button>
+        </div>
+        <div class="sidebar-footer">Mock workspace · no Runtime connected</div>
+      </aside>
+
+      <div class="splitter v" id="sidebarSplitter" role="separator" aria-label="调整侧栏宽度" aria-orientation="vertical" aria-valuemin="208" aria-valuemax="360" aria-valuenow="250" tabindex="0"></div>
+
+      <main class="workbench" aria-label="工作台">
+        <div class="workbench-header">
+          <div class="workbench-title"><h1>Refactor runtime adapter</h1><p>Native workbench · mock session</p></div>
+          <div class="header-spacer"></div>
+          <span class="pill running"><i class="dot"></i>Running</span>
+          <span class="pill">main</span>
+          <button class="icon-button" id="saveLayoutTop" title="保存当前布局"><svg class="icon sm"><use href="#i-layout"/></svg></button>
+        </div>
+
+        <div class="panes" id="panes">
+          <section class="panel main-pane" id="mainPane" aria-label="对话主区">
+            <div class="conversation-scroll">
+              <div class="conversation-inner">
+                <div class="message">
+                  <div class="avatar"><svg class="icon sm"><use href="#i-mouse"/></svg></div>
+                  <div class="message-content">
+                    <div class="message-meta"><strong>You</strong><span>10:24</span></div>
+                    <div class="user-bubble">Extract the workbench layout core and keep desktop and web on the same model.</div>
+                  </div>
+                </div>
+                <div class="message">
+                  <div class="avatar assistant"><svg class="icon sm"><use href="#i-logo"/></svg></div>
+                  <div class="message-content">
+                    <div class="message-meta"><strong>DSH</strong><span>10:24</span></div>
+                    <div class="assistant-copy">I’ll isolate the pure layout core first, then adapt the desktop and Web Host to it.</div>
+                    <div class="tool-card">
+                      <div class="tool-head"><svg class="icon xs"><use href="#i-files"/></svg><span class="tool-label">Read</span><span class="tool-path mono">packages/studio-ui/src/workbench/layout.ts</span><svg class="icon xs" style="color:var(--green)"><use href="#i-check"/></svg></div>
+                      <div class="tool-result"><span class="dim">128 lines</span><span class="dim">·</span><span>layout identity and panel tree found</span></div>
+                    </div>
+                    <div class="tool-card">
+                      <div class="tool-head"><svg class="icon xs"><use href="#i-code"/></svg><span class="tool-label">Edit</span><span class="tool-path mono">packages/workbench-core/src/model.ts</span><svg class="icon xs dim"><use href="#i-chevron"/></svg></div>
+                      <div class="tool-result"><span class="diff-stat">+42</span><span class="dim">-8</span><span class="dim">·</span><span>pure model extracted</span></div>
+                    </div>
+                    <div class="test-card">
+                      <div class="test-row"><svg class="icon xs"><use href="#i-terminal"/></svg><span class="mono">vitest run</span><span class="ok">18 tests passed</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="composer-wrap">
+              <div class="approval"><svg class="icon sm" style="color:var(--amber)"><use href="#i-info"/></svg><span class="approval-text">Allow command: <span class="mono">npm test</span></span><button class="small-button" id="denyCommand">Deny</button><button class="small-button allow" id="allowCommand">Allow</button></div>
+              <div class="composer">
+                <textarea placeholder="Ask DSH to build, debug, or explain…" aria-label="消息输入"></textarea>
+                <div class="composer-tools">
+                  <button class="icon-button" title="附件"><svg class="icon sm"><use href="#i-attach"/></svg></button>
+                  <button class="icon-button" title="命令"><svg class="icon sm"><use href="#i-command"/></svg></button>
+                  <span class="composer-model"><svg class="icon xs"><use href="#i-chevron"/></svg>DSH Runtime</span>
+                  <button class="send-button" title="发送"><svg class="icon sm"><use href="#i-send"/></svg></button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="splitter v" id="mainSplitter" role="separator" aria-label="调整主区与检查器宽度" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="78" aria-valuenow="64" tabindex="0"></div>
+
+          <aside class="inspector-pane" id="inspectorPane" aria-label="文件检查器">
+            <div class="inspector-tabs">
+              <button class="inspector-tab">Files</button>
+              <button class="inspector-tab active">Changes <span class="count-badge">6</span></button>
+              <button class="inspector-tab">Terminal</button>
+            </div>
+            <section class="diff-pane" id="diffPane" aria-label="代码变更">
+              <div class="file-tree mono">
+                <div class="tree-row"><svg class="icon xs"><use href="#i-chevron"/></svg><svg class="icon xs"><use href="#i-folder"/></svg>src</div>
+                <div class="tree-row" style="--indent:15px"><svg class="icon xs"><use href="#i-chevron"/></svg><svg class="icon xs"><use href="#i-folder"/></svg>components</div>
+                <div class="tree-row" style="--indent:15px"><svg class="icon xs"><use href="#i-chevron"/></svg><svg class="icon xs"><use href="#i-folder"/></svg>workbench</div>
+                <div class="tree-row file" style="--indent:30px"><svg class="icon xs"><use href="#i-code"/></svg>model.ts</div>
+                <div class="tree-row file" style="--indent:30px"><svg class="icon xs"><use href="#i-code"/></svg>ops.ts</div>
+                <div class="tree-row file" style="--indent:30px"><svg class="icon xs"><use href="#i-code"/></svg>persistence.ts</div>
+              </div>
+              <div class="diff-view mono">
+                <div class="diff-file"><svg class="icon xs"><use href="#i-code"/></svg>model.ts<span class="dim">+42 -8</span></div>
+                <div class="code-row"><span class="ln">1</span><span class="sign"></span><span><span class="kw">export type</span> <span class="type">PanelRef</span> = {</span></div>
+                <div class="code-row"><span class="ln">2</span><span class="sign"></span><span>  kind: <span class="str">'panel'</span>;</span></div>
+                <div class="code-row del"><span class="ln">3</span><span class="sign">-</span><span>  instance: string;</span></div>
+                <div class="code-row add"><span class="ln">3</span><span class="sign">+</span><span>  instanceId: string;</span></div>
+                <div class="code-row"><span class="ln">4</span><span class="sign"></span><span>};</span></div>
+                <div class="code-row"><span class="ln">5</span><span class="sign"></span><span></span></div>
+                <div class="code-row"><span class="ln">6</span><span class="sign"></span><span><span class="kw">export type</span> <span class="type">LayoutNode</span> =</span></div>
+                <div class="code-row"><span class="ln">7</span><span class="sign"></span><span>  | SplitNode | PanelNode;</span></div>
+              </div>
+            </section>
+            <div class="splitter h" id="terminalSplitter" role="separator" aria-label="调整终端高度" aria-orientation="horizontal" aria-valuemin="25" aria-valuemax="80" aria-valuenow="62" tabindex="0"></div>
+            <div class="terminal-slot" id="terminalSlot">
+              <section class="panel terminal-panel" id="terminalPanel" aria-label="终端面板">
+                <div class="panel-head"><button class="drag-grip" id="terminalGrip" title="拖动终端成为浮窗" aria-label="拖动终端成为浮窗"><svg class="icon sm"><use href="#i-grip"/></svg></button><svg class="icon sm"><use href="#i-terminal"/></svg><span>Terminal</span><span class="grow"></span><span class="dim">zsh</span><button class="icon-button" id="terminalMore" title="终端操作"><svg class="icon xs"><use href="#i-chevron"/></svg></button></div>
+                <div class="terminal-body">
+                  <div class="term-line"><span class="term-path">~/projects/dsh-studio</span> <span class="term-git">git:(feat/native-workbench)</span></div>
+                  <div class="term-line"><span class="term-path">❯</span> npm test</div>
+                  <div class="term-line term-dim">RUN  v5.1.1  /dsh-studio</div>
+                  <div class="term-line term-ok">✓ 18 passed (42)</div>
+                  <div class="term-line term-dim">Done in 2.4s</div>
+                </div>
+              </section>
+              <div class="terminal-placeholder" id="terminalPlaceholder" hidden>Drop Terminal here to reattach</div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="dock" id="dock" aria-label="应用 Dock">
+          <button class="dock-button active" title="会话"><svg class="icon"><use href="#i-chat"/></svg></button>
+          <button class="dock-button" title="文件"><svg class="icon"><use href="#i-files"/></svg></button>
+          <button class="dock-button" title="搜索"><svg class="icon"><use href="#i-search"/></svg></button>
+          <span class="dock-separator"></span>
+          <button class="dock-button" id="dockTerminal" title="浮出或还原终端"><svg class="icon"><use href="#i-terminal"/></svg><i class="running-dot"></i></button>
+          <button class="dock-button" id="dockGit" title="Git 变更"><svg class="icon"><use href="#i-git"/></svg><i class="badge">6</i></button>
+          <span class="dock-separator"></span>
+          <button class="dock-button" id="dockControls" title="原型控制"><svg class="icon"><use href="#i-settings"/></svg></button>
+        </div>
+      </main>
+    </div>
+
+    <div id="floatLayer">
+      <div class="snap-overlay" id="snapOverlay"><span class="snap-label" id="snapLabel">Snap</span></div>
+      <section class="float-window" id="floatWindow" aria-label="浮动的终端窗口" hidden>
+        <header class="float-header" id="floatHeader">
+          <svg class="icon sm"><use href="#i-terminal"/></svg><span class="float-title">Terminal</span><span class="float-hint">Drag to edge to snap · Double-click to maximize</span>
+          <button class="icon-button" id="floatMax" title="最大化或还原"><svg class="icon sm"><use href="#i-max"/></svg></button>
+          <button class="icon-button" id="floatClose" title="还原到检查器"><svg class="icon sm"><use href="#i-close"/></svg></button>
+        </header>
+        <div class="float-body" id="floatBody"></div>
+        <div class="float-resize" id="floatResize" title="拖动调整浮窗大小"></div>
+      </section>
+    </div>
+
+    <footer class="statusbar">
+      <span class="status-segment accent"><svg class="icon xs"><use href="#i-folder"/></svg>dsh-studio</span>
+      <span class="status-segment"><svg class="icon xs"><use href="#i-git"/></svg>feat/native-workbench</span>
+      <span class="status-segment">Git +12 ~4</span>
+      <span class="status-segment cyan"><i class="session-dot"></i>Runtime Running</span>
+      <span class="status-segment">Exit 0 · 2.4s</span>
+      <span class="status-spacer"></span>
+      <span class="attention-badge" title="Attention"><svg class="icon xs"><use href="#i-info"/></svg></span>
+    </footer>
+
+    <button class="controls-toggle" id="controlsToggle"><svg class="icon sm"><use href="#i-layout"/></svg>原型控制</button>
+    <aside class="controls-drawer" id="controlsDrawer" aria-label="原型控制面板">
+      <div class="drawer-head"><svg class="icon sm"><use href="#i-layout"/></svg><h2>交互原型</h2><button class="icon-button" id="drawerClose" title="关闭"><svg class="icon sm"><use href="#i-close"/></svg></button></div>
+      <div class="drawer-scroll">
+        <div class="question-card"><strong>验证问题：</strong>面板能否像 OMP Studio 一样拖动、缩放和放大，同时在拖乱后快速恢复？</div>
+        <section class="drawer-section">
+          <h3>当前状态</h3>
+          <div class="state-grid">
+            <div class="state-cell"><label>侧栏宽度</label><strong id="stateSidebar">250 px</strong></div>
+            <div class="state-cell"><label>主区占比</label><strong id="stateMain">64%</strong></div>
+            <div class="state-cell"><label>终端高度</label><strong id="stateTerminal">62%</strong></div>
+            <div class="state-cell"><label>界面缩放</label><strong id="stateZoom">100%</strong></div>
+            <div class="state-cell"><label>终端位置</label><strong id="stateLocation">检查器内</strong></div>
+            <div class="state-cell"><label>浮窗吸附</label><strong id="stateSnap">无</strong></div>
+            <div class="state-cell"><label>浮窗尺寸</label><strong id="stateFloat">560 × 320</strong></div>
+            <div class="state-cell"><label>布局快照</label><strong id="stateSaved">未保存</strong></div>
+          </div>
+          <div class="last-action" id="lastAction">就绪。可直接拖动面板、分隔条，或按 Ctrl + 滚轮缩放。</div>
+        </section>
+        <section class="drawer-section">
+          <h3>自由操作</h3>
+          <div class="action-grid">
+            <button class="action-button" data-action="sidebar-small">缩小侧栏</button>
+            <button class="action-button" data-action="sidebar-large">加宽侧栏</button>
+            <button class="action-button" data-action="main-wide">加宽主区</button>
+            <button class="action-button" data-action="terminal-tall">拉高终端</button>
+            <button class="action-button accent" data-action="float-terminal">浮出终端</button>
+            <button class="action-button" data-action="snap-right">吸附到右侧</button>
+            <button class="action-button" data-action="maximize-float">最大化浮窗</button>
+            <button class="action-button" data-action="dock-terminal">还原终端</button>
+            <button class="action-button" data-action="zoom-in">放大到 110%</button>
+            <button class="action-button" data-action="zoom-reset">缩放回到 100%</button>
+            <button class="action-button" data-action="save-layout">保存布局</button>
+            <button class="action-button" data-action="restore-layout">恢复布局</button>
+            <button class="action-button" data-action="reset">重置演示</button>
+          </div>
+        </section>
+        <section class="drawer-section">
+          <h3>引导场景</h3>
+          <div class="scenario-tabs" id="scenarioTabs"></div>
+          <p class="scenario-desc" id="scenarioDesc"></p>
+          <div class="scenario-steps" id="scenarioSteps"></div>
+        </section>
+        <div class="prototype-note">PROTOTYPE · 独立单文件，仅使用模拟数据。布局只保存在当前页面内存中，刷新即重置；不连接 Runtime、不写入产品存储、不新增依赖。</div>
+      </div>
+    </aside>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script>
+    'use strict';
+
+    // Pure, DOM-free interaction model. This is the part worth lifting into the real workbench core.
+    const WorkbenchModel = (() => {
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+      const copy = value => JSON.parse(JSON.stringify(value));
+
+      function createInitialState() {
+        return {
+          sidebar: 250,
+          mainRatio: 0.64,
+          terminalRatio: 0.62,
+          zoom: 1,
+          terminal: 'docked',
+          float: { x: 720, y: 150, w: 560, h: 320, maximized: false, restore: null, snap: null },
+          saved: null,
+          lastAction: '就绪。可直接拖动面板、分隔条，或按 Ctrl + 滚轮缩放。'
+        };
+      }
+
+      function snapshot(state) {
+        return {
+          sidebar: state.sidebar,
+          mainRatio: state.mainRatio,
+          terminalRatio: state.terminalRatio,
+          zoom: state.zoom,
+          terminal: state.terminal,
+          float: copy(state.float)
+        };
+      }
+
+      function reduce(state, action) {
+        const next = { ...state, float: { ...state.float }, lastAction: action.label || state.lastAction };
+        switch (action.type) {
+          case 'SET_SIDEBAR':
+            next.sidebar = clamp(Math.round(action.value), 208, 360);
+            break;
+          case 'SET_MAIN_RATIO':
+            next.mainRatio = clamp(action.value, 0.35, 0.78);
+            break;
+          case 'SET_TERMINAL_RATIO':
+            next.terminalRatio = clamp(action.value, 0.25, 0.8);
+            break;
+          case 'SET_ZOOM':
+            next.zoom = clamp(Math.round(action.value * 100) / 100, 0.8, 1.3);
+            break;
+          case 'FLOAT_PANEL':
+            next.terminal = 'floating';
+            next.float = {
+              x: clamp(Math.round(action.rect.x), 8, Math.max(8, action.viewport.w - action.rect.w - 8)),
+              y: clamp(Math.round(action.rect.y), 48, Math.max(48, action.viewport.h - action.rect.h - 34)),
+              w: clamp(Math.round(action.rect.w), 360, Math.max(360, action.viewport.w - 16)),
+              h: clamp(Math.round(action.rect.h), 220, Math.max(220, action.viewport.h - 82)),
+              maximized: false,
+              restore: null,
+              snap: null
+            };
+            break;
+          case 'MOVE_FLOAT':
+            next.float = {
+              ...next.float,
+              x: Math.round(action.x),
+              y: Math.round(action.y),
+              maximized: false,
+              restore: null,
+              snap: null
+            };
+            break;
+          case 'RESIZE_FLOAT':
+            next.float = {
+              ...next.float,
+              w: clamp(Math.round(action.w), 360, Math.max(360, action.viewport.w - next.float.x - 8)),
+              h: clamp(Math.round(action.h), 220, Math.max(220, action.viewport.h - next.float.y - 34)),
+              maximized: false,
+              restore: null,
+              snap: null
+            };
+            break;
+          case 'SNAP_FLOAT':
+            next.float = { ...action.rect, maximized: action.zone === 'top', restore: null, snap: action.zone };
+            break;
+          case 'TOGGLE_MAXIMIZE':
+            if (next.float.maximized && next.float.restore) {
+              next.float = { ...next.float.restore, maximized: false, restore: null, snap: next.float.restore.snap || null };
+            } else {
+              const rect = action.rect || {
+                x: 8,
+                y: 48,
+                w: Math.max(360, (action.viewport?.w || next.float.x + next.float.w + 8) - 16),
+                h: Math.max(220, (action.viewport?.h || next.float.y + next.float.h + 34) - 82)
+              };
+              next.float = { ...rect, maximized: true, restore: copy(next.float), snap: 'top' };
+            }
+            break;
+          case 'DOCK_PANEL':
+            next.terminal = 'docked';
+            next.float = { ...next.float, maximized: false, restore: null, snap: null };
+            break;
+          case 'SAVE_LAYOUT':
+            next.saved = snapshot(state);
+            break;
+          case 'RESTORE_LAYOUT':
+            if (state.saved) Object.assign(next, copy(state.saved));
+            break;
+          case 'RESET':
+            return createInitialState();
+          default:
+            return state;
+        }
+        return next;
+      }
+
+      return { createInitialState, reduce, snapshot, clamp };
+    })();
+
+    const $ = id => document.getElementById(id);
+    const els = {
+      appBody: $('appBody'), sidebar: $('sidebar'), sidebarSplitter: $('sidebarSplitter'),
+      panes: $('panes'), mainPane: $('mainPane'), mainSplitter: $('mainSplitter'),
+      inspectorPane: $('inspectorPane'), diffPane: $('diffPane'), terminalSplitter: $('terminalSplitter'),
+      terminalSlot: $('terminalSlot'), terminalPanel: $('terminalPanel'), terminalPlaceholder: $('terminalPlaceholder'),
+      terminalGrip: $('terminalGrip'), floatLayer: $('floatLayer'), floatWindow: $('floatWindow'),
+      floatHeader: $('floatHeader'), floatBody: $('floatBody'), floatResize: $('floatResize'),
+      snapOverlay: $('snapOverlay'), snapLabel: $('snapLabel'), dock: $('dock'), dockTerminal: $('dockTerminal'),
+      controlsDrawer: $('controlsDrawer'), controlsToggle: $('controlsToggle'), toast: $('toast')
+    };
+
+    let state = WorkbenchModel.createInitialState();
+    let toastTimer = 0;
+    let currentScenario = 0;
+    let scenarioStep = 0;
+
+    const scenarios = [
+      {
+        name: '面板缩放',
+        desc: '先改变侧栏、主区和终端的高度，观察内容是否合理重排，分隔条是否保持最小尺寸。',
+        steps: [
+          { label: '缩小侧栏到 208px', action: { type: 'SET_SIDEBAR', value: 208, label: '侧栏已缩小到最小宽度。' } },
+          { label: '把主区加宽到 72%', action: { type: 'SET_MAIN_RATIO', value: 0.72, label: '主区已加宽，检查器同步收窄。' } },
+          { label: '把终端拉高到 76%', action: { type: 'SET_TERMINAL_RATIO', value: 0.76, label: '终端已拉高，代码区仍保留可读高度。' } }
+        ]
+      },
+      {
+        name: '浮窗吸附',
+        desc: '把终端拖出检查器，再移动到窗口右侧边缘。观察吸附预览和释放后的布局。',
+        steps: [
+          { label: '浮出终端', action: { type: 'FLOAT_PANEL', rect: { x: 640, y: 170, w: 560, h: 320 }, viewport: { w: innerWidth, h: innerHeight }, label: '终端已成为独立浮窗。' } },
+          { label: '吸附到右侧', action: { type: 'SNAP_FLOAT', zone: 'right', rect: { x: Math.round(innerWidth / 2 + 6), y: 50, w: Math.round(innerWidth / 2 - 18), h: innerHeight - 86, maximized: false, restore: null, snap: 'right' }, label: '终端已吸附到右半屏。' } },
+          { label: '还原到检查器', action: { type: 'DOCK_PANEL', label: '终端已还原到检查器。' } }
+        ]
+      },
+      {
+        name: '界面放大',
+        desc: '放大整个工作台，再恢复 100%。标题栏、状态栏和原型控制抽屉保持独立。',
+        steps: [
+          { label: '放大到 110%', action: { type: 'SET_ZOOM', value: 1.1, label: '工作台已放大到 110%。' } },
+          { label: '回到 100%', action: { type: 'SET_ZOOM', value: 1, label: '工作台已恢复 100%。' } }
+        ]
+      },
+      {
+        name: '布局恢复',
+        desc: '保存当前布局，打乱面板尺寸和位置，再恢复快照，验证“随意操作后可回退”。',
+        steps: [
+          { label: '保存当前布局', action: { type: 'SAVE_LAYOUT', label: '当前布局已保存到内存快照。' } },
+          { label: '打乱布局', action: { type: 'SET_SIDEBAR', value: 330, label: '布局已改变，准备验证恢复。' } },
+          { label: '恢复已保存布局', action: { type: 'RESTORE_LAYOUT', label: '已恢复保存的布局。' } }
+        ]
+      }
+    ];
+
+    function dispatch(action) {
+      state = WorkbenchModel.reduce(state, action);
+      render();
+      if (action.type === 'SAVE_LAYOUT') showToast('布局快照已保存（仅当前页面内存）');
+      if (action.type === 'RESTORE_LAYOUT') showToast(state.saved ? '已恢复保存的布局' : '还没有保存过布局');
+      if (action.type === 'RESET') showToast('演示已重置');
+    }
+
+    function render() {
+      els.sidebar.style.width = state.sidebar + 'px';
+      els.sidebar.style.flexBasis = state.sidebar + 'px';
+      els.sidebarSplitter.setAttribute('aria-valuenow', String(state.sidebar));
+
+      els.mainPane.style.flexBasis = `calc(${state.mainRatio * 100}% - 3px)`;
+      els.mainSplitter.setAttribute('aria-valuenow', String(Math.round(state.mainRatio * 100)));
+
+      els.diffPane.style.flexBasis = `calc(${state.terminalRatio * 100}% - 3px)`;
+      els.terminalSplitter.setAttribute('aria-valuenow', String(Math.round(state.terminalRatio * 100)));
+
+      els.appBody.style.zoom = state.zoom;
+      $('zoomReadout').textContent = Math.round(state.zoom * 100) + '%';
+
+      const floating = state.terminal === 'floating';
+      els.floatWindow.hidden = !floating;
+      els.terminalPlaceholder.hidden = !floating;
+      els.dockTerminal.classList.toggle('active', floating);
+      if (floating && els.terminalPanel.parentElement !== els.floatBody) els.floatBody.appendChild(els.terminalPanel);
+      if (!floating && els.terminalPanel.parentElement !== els.terminalSlot) els.terminalSlot.insertBefore(els.terminalPanel, els.terminalPlaceholder);
+      els.terminalPanel.classList.toggle('floating', floating);
+      els.terminalGrip.hidden = floating;
+
+      Object.assign(els.floatWindow.style, {
+        left: state.float.x + 'px', top: state.float.y + 'px',
+        width: state.float.w + 'px', height: state.float.h + 'px'
+      });
+      els.floatWindow.classList.toggle('maximized', state.float.maximized);
+      els.floatResize.hidden = state.float.maximized;
+
+      $('stateSidebar').textContent = state.sidebar + ' px';
+      $('stateMain').textContent = Math.round(state.mainRatio * 100) + '%';
+      $('stateTerminal').textContent = Math.round(state.terminalRatio * 100) + '%';
+      $('stateZoom').textContent = Math.round(state.zoom * 100) + '%';
+      $('stateLocation').textContent = floating ? '独立浮窗' : '检查器内';
+      $('stateSnap').textContent = state.float.snap ? ({ left: '左半屏', right: '右半屏', top: '最大化' }[state.float.snap] || state.float.snap) : '无';
+      $('stateFloat').textContent = state.float.w + ' × ' + state.float.h;
+      $('stateSaved').textContent = state.saved ? '已保存' : '未保存';
+      $('lastAction').textContent = state.lastAction;
+    }
+
+    function showToast(message) {
+      clearTimeout(toastTimer);
+      els.toast.textContent = message;
+      els.toast.classList.add('show');
+      toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2200);
+    }
+
+    function setDrawer(open) {
+      els.controlsDrawer.classList.toggle('open', open);
+      els.controlsToggle.setAttribute('aria-expanded', String(open));
+    }
+
+    function viewport() { return { w: innerWidth, h: innerHeight }; }
+    function maximizedRect() { return { x: 10, y: 49, w: innerWidth - 20, h: innerHeight - 85, maximized: true, restore: null, snap: 'top' }; }
+    function rightSnapRect() { return { x: Math.round(innerWidth / 2 + 6), y: 49, w: Math.round(innerWidth / 2 - 16), h: innerHeight - 85, maximized: false, restore: null, snap: 'right' }; }
+    function leftSnapRect() { return { x: 10, y: 49, w: Math.round(innerWidth / 2 - 16), h: innerHeight - 85, maximized: false, restore: null, snap: 'left' }; }
+
+    function showSnap(zone) {
+      const layerRect = els.floatLayer.getBoundingClientRect();
+      const rect = zone === 'left' ? leftSnapRect() : zone === 'right' ? rightSnapRect() : maximizedRect();
+      Object.assign(els.snapOverlay.style, {
+        left: rect.x + 'px', top: (rect.y - layerRect.top) + 'px', width: rect.w + 'px', height: rect.h + 'px'
+      });
+      els.snapLabel.textContent = zone === 'top' ? 'Maximize' : 'Snap ' + zone;
+      els.snapOverlay.classList.add('visible');
+    }
+
+    function hideSnap() { els.snapOverlay.classList.remove('visible'); }
+    function detectSnap(x, y) {
+      if (y <= 58) return 'top';
+      if (x <= 18) return 'left';
+      if (x >= innerWidth - 18) return 'right';
+      return null;
+    }
+
+    function bindSplitter(element, kind) {
+      let dragging = false;
+      element.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return;
+        dragging = true;
+        element.classList.add('dragging');
+        element.setPointerCapture(event.pointerId);
+        event.preventDefault();
+      });
+      element.addEventListener('pointermove', event => {
+        if (!dragging) return;
+        if (kind === 'sidebar') {
+          const rect = els.sidebar.getBoundingClientRect();
+          const cssX = (event.clientX - rect.left) / state.zoom;
+          dispatch({ type: 'SET_SIDEBAR', value: cssX, label: '正在调整侧栏宽度。' });
+        } else if (kind === 'main') {
+          const rect = els.panes.getBoundingClientRect();
+          dispatch({ type: 'SET_MAIN_RATIO', value: (event.clientX - rect.left) / rect.width, label: '正在调整主区与检查器宽度。' });
+        } else {
+          const rect = els.inspectorPane.getBoundingClientRect();
+          const tabsHeight = 40;
+          dispatch({ type: 'SET_TERMINAL_RATIO', value: (event.clientY - rect.top - tabsHeight) / (rect.height - tabsHeight), label: '正在调整终端高度。' });
+        }
+      });
+      const end = event => {
+        if (!dragging) return;
+        dragging = false;
+        element.classList.remove('dragging');
+        try { element.releasePointerCapture(event.pointerId); } catch (_) {}
+      };
+      element.addEventListener('pointerup', end);
+      element.addEventListener('pointercancel', end);
+      element.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        event.preventDefault();
+        if (kind === 'sidebar') dispatch({ type: 'SET_SIDEBAR', value: state.sidebar + (['ArrowRight', 'ArrowDown'].includes(event.key) ? 10 : -10), label: '已用键盘调整侧栏宽度。' });
+        if (kind === 'main') dispatch({ type: 'SET_MAIN_RATIO', value: state.mainRatio + (['ArrowRight', 'ArrowDown'].includes(event.key) ? .02 : -.02), label: '已用键盘调整主区宽度。' });
+        if (kind === 'terminal') dispatch({ type: 'SET_TERMINAL_RATIO', value: state.terminalRatio + (['ArrowDown', 'ArrowRight'].includes(event.key) ? .04 : -.04), label: '已用键盘调整终端高度。' });
+      });
+    }
+
+    bindSplitter(els.sidebarSplitter, 'sidebar');
+    bindSplitter(els.mainSplitter, 'main');
+    bindSplitter(els.terminalSplitter, 'terminal');
+
+    $('zoomIn').addEventListener('click', () => dispatch({ type: 'SET_ZOOM', value: state.zoom + .1, label: '工作台界面已放大。' }));
+    $('zoomOut').addEventListener('click', () => dispatch({ type: 'SET_ZOOM', value: state.zoom - .1, label: '工作台界面已缩小。' }));
+    $('zoomReset').addEventListener('click', () => dispatch({ type: 'SET_ZOOM', value: 1, label: '工作台界面已恢复 100%。' }));
+    els.appBody.addEventListener('wheel', event => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      dispatch({ type: 'SET_ZOOM', value: state.zoom + (event.deltaY < 0 ? .05 : -.05), label: '正在用 Ctrl + 滚轮缩放工作台。' });
+    }, { passive: false });
+    document.addEventListener('keydown', event => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      if (event.key === '=' || event.key === '+') { event.preventDefault(); dispatch({ type: 'SET_ZOOM', value: state.zoom + .1, label: '工作台界面已放大。' }); }
+      if (event.key === '-') { event.preventDefault(); dispatch({ type: 'SET_ZOOM', value: state.zoom - .1, label: '工作台界面已缩小。' }); }
+      if (event.key === '0') { event.preventDefault(); dispatch({ type: 'SET_ZOOM', value: 1, label: '工作台界面已恢复 100%。' }); }
+    });
+
+    function floatTerminalAt(x, y) {
+      const w = 560, h = 320;
+      dispatch({ type: 'FLOAT_PANEL', rect: { x: x - w / 2, y: y - 18, w, h }, viewport: viewport(), label: '终端已拖出检查器，成为独立浮窗。' });
+    }
+
+    els.terminalGrip.addEventListener('pointerdown', event => {
+      if (state.terminal !== 'docked' || event.button !== 0) return;
+      event.preventDefault();
+      const start = { x: event.clientX, y: event.clientY };
+      let active = false;
+      let ghost = null;
+      const grip = els.terminalGrip;
+      grip.setPointerCapture(event.pointerId);
+
+      const move = moveEvent => {
+        if (!active && Math.hypot(moveEvent.clientX - start.x, moveEvent.clientY - start.y) < 7) return;
+        if (!active) {
+          active = true;
+          ghost = document.createElement('div');
+          ghost.className = 'drag-ghost';
+          ghost.innerHTML = '<svg class="icon sm"><use href="#i-terminal"/></svg><span>Terminal</span>';
+          document.body.appendChild(ghost);
+          const hint = document.createElement('div');
+          hint.className = 'drop-hint';
+          hint.id = 'panelDropHint';
+          hint.textContent = '拖出面板区域以浮出终端';
+          document.body.appendChild(hint);
+        }
+        ghost.style.left = moveEvent.clientX + 'px';
+        ghost.style.top = moveEvent.clientY + 'px';
+        const slotRect = els.terminalSlot.getBoundingClientRect();
+        els.terminalSlot.classList.toggle('drop-target', moveEvent.clientX >= slotRect.left && moveEvent.clientX <= slotRect.right && moveEvent.clientY >= slotRect.top && moveEvent.clientY <= slotRect.bottom);
+      };
+      const up = upEvent => {
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', up);
+        grip.removeEventListener('pointercancel', up);
+        try { grip.releasePointerCapture(event.pointerId); } catch (_) {}
+        els.terminalSlot.classList.remove('drop-target');
+        if (ghost) ghost.remove();
+        const hint = $('panelDropHint');
+        if (hint) hint.remove();
+        if (!active) return;
+        const slotRect = els.terminalSlot.getBoundingClientRect();
+        const inside = upEvent.clientX >= slotRect.left && upEvent.clientX <= slotRect.right && upEvent.clientY >= slotRect.top && upEvent.clientY <= slotRect.bottom;
+        if (!inside) floatTerminalAt(upEvent.clientX, upEvent.clientY);
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+    });
+
+    let floatDrag = null;
+    els.floatHeader.addEventListener('pointerdown', event => {
+      if (event.target.closest('button') || state.float.maximized || event.button !== 0) return;
+      floatDrag = { x: event.clientX, y: event.clientY, left: state.float.x, top: state.float.y, zone: null };
+      els.floatHeader.setPointerCapture(event.pointerId);
+    });
+    els.floatHeader.addEventListener('pointermove', event => {
+      if (!floatDrag) return;
+      const x = floatDrag.left + event.clientX - floatDrag.x;
+      const y = floatDrag.top + event.clientY - floatDrag.y;
+      const zone = detectSnap(event.clientX, event.clientY);
+      floatDrag.zone = zone;
+      if (zone) showSnap(zone); else hideSnap();
+      dispatch({ type: 'MOVE_FLOAT', x, y, label: zone ? '已进入吸附预览区域。' : '正在移动终端浮窗。' });
+    });
+    const endFloatDrag = event => {
+      if (!floatDrag) return;
+      const zone = floatDrag.zone;
+      floatDrag = null;
+      hideSnap();
+      try { els.floatHeader.releasePointerCapture(event.pointerId); } catch (_) {}
+      if (zone === 'left') dispatch({ type: 'SNAP_FLOAT', zone, rect: leftSnapRect(), label: '浮窗已吸附到左半屏。' });
+      else if (zone === 'right') dispatch({ type: 'SNAP_FLOAT', zone, rect: rightSnapRect(), label: '浮窗已吸附到右半屏。' });
+      else if (zone === 'top') dispatch({ type: 'SNAP_FLOAT', zone, rect: maximizedRect(), label: '浮窗已最大化。' });
+      else dispatch({ type: 'MOVE_FLOAT', x: WorkbenchModel.clamp(state.float.x, 8, innerWidth - state.float.w - 8), y: WorkbenchModel.clamp(state.float.y, 48, innerHeight - state.float.h - 34), label: '浮窗已移动。' });
+    };
+    els.floatHeader.addEventListener('pointerup', endFloatDrag);
+    els.floatHeader.addEventListener('pointercancel', endFloatDrag);
+    els.floatHeader.addEventListener('dblclick', event => {
+      if (event.target.closest('button')) return;
+      dispatch({ type: 'TOGGLE_MAXIMIZE', rect: maximizedRect(), label: state.float.maximized ? '浮窗已还原。' : '浮窗已最大化。' });
+    });
+
+    let floatResize = null;
+    els.floatResize.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || state.float.maximized) return;
+      event.preventDefault();
+      floatResize = { x: event.clientX, y: event.clientY, w: state.float.w, h: state.float.h };
+      els.floatResize.setPointerCapture(event.pointerId);
+    });
+    els.floatResize.addEventListener('pointermove', event => {
+      if (!floatResize) return;
+      dispatch({ type: 'RESIZE_FLOAT', w: floatResize.w + event.clientX - floatResize.x, h: floatResize.h + event.clientY - floatResize.y, viewport: viewport(), label: '正在调整浮窗大小。' });
+    });
+    const endFloatResize = event => {
+      if (!floatResize) return;
+      floatResize = null;
+      try { els.floatResize.releasePointerCapture(event.pointerId); } catch (_) {}
+    };
+    els.floatResize.addEventListener('pointerup', endFloatResize);
+    els.floatResize.addEventListener('pointercancel', endFloatResize);
+
+    $('floatMax').addEventListener('click', () => dispatch({ type: 'TOGGLE_MAXIMIZE', rect: maximizedRect(), label: state.float.maximized ? '浮窗已还原。' : '浮窗已最大化。' }));
+    $('floatClose').addEventListener('click', () => dispatch({ type: 'DOCK_PANEL', label: '终端已还原到检查器。' }));
+    els.dockTerminal.addEventListener('click', () => {
+      if (state.terminal === 'floating') dispatch({ type: 'DOCK_PANEL', label: '终端已还原到检查器。' });
+      else floatTerminalAt(innerWidth * .68, innerHeight * .42);
+    });
+
+    [els.controlsToggle, $('railControls'), $('dockControls')].forEach(button => button.addEventListener('click', () => setDrawer(!els.controlsDrawer.classList.contains('open'))));
+    $('drawerClose').addEventListener('click', () => setDrawer(false));
+    $('saveLayoutTop').addEventListener('click', () => dispatch({ type: 'SAVE_LAYOUT', label: '当前布局已保存到内存快照。' }));
+
+    function runFreeAction(name) {
+      const actions = {
+        'sidebar-small': { type: 'SET_SIDEBAR', value: 208, label: '侧栏已缩小到 208px。' },
+        'sidebar-large': { type: 'SET_SIDEBAR', value: 330, label: '侧栏已加宽到 330px。' },
+        'main-wide': { type: 'SET_MAIN_RATIO', value: .72, label: '主区已加宽到 72%。' },
+        'terminal-tall': { type: 'SET_TERMINAL_RATIO', value: .76, label: '终端高度已调整为 76%。' },
+        'float-terminal': { type: 'FLOAT_PANEL', rect: { x: 620, y: 150, w: 560, h: 320 }, viewport: viewport(), label: '终端已浮出。' },
+        'snap-right': { type: 'SNAP_FLOAT', zone: 'right', rect: rightSnapRect(), label: '浮窗已吸附到右半屏。' },
+        'maximize-float': { type: 'TOGGLE_MAXIMIZE', rect: maximizedRect(), label: '浮窗最大化状态已切换。' },
+        'dock-terminal': { type: 'DOCK_PANEL', label: '终端已还原到检查器。' },
+        'zoom-in': { type: 'SET_ZOOM', value: 1.1, label: '工作台已放大到 110%。' },
+        'zoom-reset': { type: 'SET_ZOOM', value: 1, label: '工作台已恢复 100%。' },
+        'save-layout': { type: 'SAVE_LAYOUT', label: '当前布局已保存到内存快照。' },
+        'restore-layout': { type: 'RESTORE_LAYOUT', label: '已恢复保存的布局。' },
+        'reset': { type: 'RESET', label: '演示已重置。' }
+      };
+      dispatch(actions[name]);
+    }
+    document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => runFreeAction(button.dataset.action)));
+
+    function renderScenarios() {
+      const tabs = $('scenarioTabs');
+      tabs.innerHTML = '';
+      scenarios.forEach((scenario, index) => {
+        const button = document.createElement('button');
+        button.className = 'scenario-tab' + (index === currentScenario ? ' active' : '');
+        button.textContent = scenario.name;
+        button.addEventListener('click', () => startScenario(index));
+        tabs.appendChild(button);
+      });
+      const scenario = scenarios[currentScenario];
+      $('scenarioDesc').textContent = scenario.desc;
+      const steps = $('scenarioSteps');
+      steps.innerHTML = '';
+      scenario.steps.forEach((step, index) => {
+        const button = document.createElement('button');
+        button.className = 'step-button' + (index < scenarioStep ? ' done' : '');
+        const number = document.createElement('span');
+        number.className = 'step-number';
+        number.textContent = index < scenarioStep ? '✓' : String(index + 1);
+        const text = document.createElement('span');
+        text.textContent = step.label;
+        button.append(number, text);
+        button.addEventListener('click', () => {
+          dispatch(step.action);
+          scenarioStep = Math.max(scenarioStep, index + 1);
+          renderScenarios();
+        });
+        steps.appendChild(button);
+      });
+      if (scenarioStep >= scenario.steps.length) {
+        const done = document.createElement('div');
+        done.className = 'last-action';
+        done.textContent = '场景完成。可以继续自由操作，或切换到其他场景。';
+        steps.appendChild(done);
+      }
+    }
+
+    function startScenario(index) {
+      currentScenario = index;
+      scenarioStep = 0;
+      dispatch({ type: 'RESET', label: '引导场景已重置到初始状态。' });
+      renderScenarios();
+    }
+
+    $('newSession').addEventListener('click', () => showToast('原型模式：新建会话仅演示，不连接 Runtime'));
+    $('denyCommand').addEventListener('click', () => showToast('已模拟拒绝命令'));
+    $('allowCommand').addEventListener('click', () => showToast('已模拟允许命令，不会真实执行'));
+    $('dockGit').addEventListener('click', () => showToast('模拟 Git 变更：6 个文件'));
+    $('terminalMore').addEventListener('click', () => showToast('拖动终端左侧手柄可浮出；拖到屏幕边缘可吸附'));
+
+    renderScenarios();
+    render();
+    setTimeout(() => showToast('提示：拖动分隔条缩放，拖动终端手柄浮出，Ctrl + 滚轮放大'), 500);
+  </script>
+</body>
+</html>

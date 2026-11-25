@@ -1,0 +1,52 @@
+.session-model-recovery {
+  flex: none;
+  max-height: min(260px, 35vh);
+  overflow: auto;
+  margin: 8px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  font-size: var(--fs-12);
+}
+.session-model-recovery p {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+.session-model-recovery .chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.session-recovery-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.session-recovery-actions .app-select {
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 200px;
+}
+.session-recovery-confirm {
+  padding: 10px 0 0;
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.session-recovery-confirm .btn + .btn {
+  margin-inline-start: 8px;
+}
+
+/* minimap 与停靠工具栏都浮在 .convo-wrap 内，恢复卡片须同时让出两侧。 */
+.session-model-recovery {
+  min-width: 0;
+  margin-left: calc(var(--sp-16) + var(--minimap-w) + 8px);
+}
+.convo-wrap:has(> .dock-rail-expanded) > .session-model-recovery {
+  margin-right: calc(var(--dock-rail-w, 320px) + var(--sp-12) + var(--sp-16));
+}
+.convo-wrap:has(> .dock-rail-compact) > .session-model-recovery {
+  margin-right: calc(48px + var(--sp-16));
+}

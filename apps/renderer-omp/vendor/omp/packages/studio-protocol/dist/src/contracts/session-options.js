@@ -1,0 +1,3 @@
+export const SESSION_OPTIONS_KINDS = ["session.budget.get", "session.budget.set", "session.budget.clearOverride", "session.speed.get", "session.speed.set", "session.warming.get", "session.warming.set", "models.presets.list", "models.presets.save", "models.presets.apply", "models.presets.delete"];
+export function isSessionOptionsKind(kind) { return SESSION_OPTIONS_KINDS.includes(kind); }
+//# sourceMappingURL=session-options.js.map

@@ -1,0 +1,235 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  ACESFilmicToneMapping,
+  AmbientLight,
+  Box3,
+  BufferAttribute,
+  BufferGeometry,
+  DirectionalLight,
+  Group,
+  LineBasicMaterial,
+  LineSegments,
+  Matrix4,
+  Mesh,
+  MeshStandardMaterial,
+  PerspectiveCamera,
+  Points,
+  PointsMaterial,
+  Scene,
+  Texture,
+  TextureSource,
+  Vector3,
+  WebGLRenderer,
+} from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import type { GraphicResult } from "./graphic-types";
+import { graphicTexture } from "./graphic-texture";
+import { useI18n } from "../i18n";
+export default function GraphicScene({
+  data, onFailure, onPoster,
+}: {
+  data: Extract<GraphicResult, { kind: "scene" }>;
+  onFailure: (reason: string) => void;
+  onPoster: (blob: Blob) => void;
+}) {
+  const mount = useRef<HTMLDivElement>(null);
+  const fit = useRef(() => {});
+  const [error, setError] = useState("");
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const zhRef = useRef(zh);
+  zhRef.current = zh;
+  useEffect(() => {
+    if (!mount.current) return;
+    const host = mount.current;
+    let renderer: WebGLRenderer | undefined;
+    let controls: OrbitControls | undefined;
+    let observer: ResizeObserver | undefined;
+    let onContextLost: ((event: Event) => void) | undefined;
+    let frame = 0;
+    let active = true;
+    let needsPoster = true;
+    const geometries: BufferGeometry[] = [];
+    const materials: Array<
+      MeshStandardMaterial | LineBasicMaterial | PointsMaterial
+    > = [];
+    const textures: Texture[] = [];
+    try {
+      renderer = new WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: "low-power",
+      });
+      renderer.toneMapping = ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 0.8;
+      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+      renderer.setClearColor(0x000000, 0);
+      onContextLost = (event: Event) => {
+        event.preventDefault();
+        if (active) setError(zhRef.current ? "WebGL 上下文已丢失" : "WebGL context lost");
+      };
+      renderer.domElement.addEventListener("webglcontextlost", onContextLost);
+      host.append(renderer.domElement);
+      const scene = new Scene();
+      const group = new Group();
+      const camera = new PerspectiveCamera(40, 1, 0.01, 10000);
+      let lastWidth = Math.max(1, host.clientWidth || 600);
+      let lastHeight = Math.max(1, host.clientHeight || 380);
+      renderer.setSize(Math.min(lastWidth, 1600), Math.min(lastHeight, 1000), false);
+      camera.aspect = lastWidth / lastHeight;
+      camera.updateProjectionMatrix();
+      scene.add(group);
+      scene.add(new AmbientLight(0xffffff, 0.8));
+      const light = new DirectionalLight(0xffffff, 2);
+      light.position.set(3, 5, 4);
+      scene.add(light);
+      // Three shares the WebGL allocation for a source and sampler settings.
+      // Each material can still use its own UV transform.
+      const textureSources = data.images.map(bitmap => new TextureSource(bitmap));
+      for (const item of data.meshes) {
+        const geometry = new BufferGeometry();
+        geometries.push(geometry);
+        geometry.setAttribute(
+          "position",
+          new BufferAttribute(item.position, 3),
+        );
+        if (item.index) geometry.setIndex(new BufferAttribute(item.index, 1));
+        if (item.normal)
+          geometry.setAttribute("normal", new BufferAttribute(item.normal, 3));
+        else if (item.kind === "mesh") geometry.computeVertexNormals();
+        if (item.uv)
+          geometry.setAttribute("uv", new BufferAttribute(item.uv, 2));
+        if (item.color)
+          geometry.setAttribute("color", new BufferAttribute(item.color, 3));
+        for (const part of item.groups)
+          geometry.addGroup(part.start, part.count, part.materialIndex);
+        const material = item.materials.map((value) => {
+          const source = value.map === undefined ? undefined : textureSources[value.map];
+          const map = item.kind === "mesh" && source ? graphicTexture(source, value) : undefined;
+          if (map) textures.push(map);
+          const shared = {
+            color: value.color,
+            opacity: value.opacity,
+            transparent: value.opacity < 1,
+            vertexColors: !!item.color,
+          };
+          const result =
+            item.kind === "points"
+              ? new PointsMaterial({ ...shared, size: 0.012 })
+              : item.kind === "lines"
+                ? new LineBasicMaterial(shared)
+                : new MeshStandardMaterial({
+                    ...shared,
+                    metalness: value.metalness,
+                    roughness: value.roughness,
+                    ...(map ? { map } : {}),
+                  });
+          materials.push(result);
+          return result;
+        });
+        const node =
+          item.kind === "points"
+            ? new Points(geometry, material[0] as PointsMaterial)
+            : item.kind === "lines"
+              ? new LineSegments(geometry, material[0] as LineBasicMaterial)
+              : new Mesh(
+                  geometry,
+                  material.length === 1
+                    ? (material[0] as MeshStandardMaterial)
+                    : (material as MeshStandardMaterial[]),
+                );
+        node.applyMatrix4(new Matrix4().fromArray(item.matrix));
+        group.add(node);
+      }
+      const bounds = new Box3().setFromObject(group);
+      const center = bounds.getCenter(new Vector3());
+      const span = Math.max(bounds.getSize(new Vector3()).length(), 0.01);
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = false;
+      controls.target.copy(center);
+      const draw = () => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          renderer?.render(scene, camera);
+          if (needsPoster && renderer) {
+            needsPoster = false;
+            const source = renderer.domElement;
+            const poster = host.ownerDocument.createElement("canvas");
+            const scale = Math.min(1, 720 / source.width);
+            poster.width = Math.max(1, Math.round(source.width * scale));
+            poster.height = Math.max(1, Math.round(source.height * scale));
+            poster.getContext("2d")!.drawImage(source, 0, 0, poster.width, poster.height);
+            poster.toBlob(blob => { if (active && blob) onPoster(blob); }, "image/webp", 0.8);
+          }
+        });
+      };
+      fit.current = () => {
+        needsPoster = true;
+        camera.position.copy(center).add(new Vector3(span, span * 0.65, span));
+        camera.near = Math.max(span / 10000, 0.0001);
+        camera.far = span * 100;
+        camera.updateProjectionMatrix();
+        controls?.target.copy(center);
+        controls?.update();
+        draw();
+      };
+      controls.addEventListener("change", draw);
+      controls.addEventListener("end", () => { needsPoster = true; draw(); });
+      fit.current();
+      const ObserverCtor = host.ownerDocument?.defaultView?.ResizeObserver ?? globalThis.ResizeObserver;
+      if (typeof ObserverCtor !== "undefined") {
+        observer = new ObserverCtor(() => {
+          const width = Math.max(1, host.clientWidth),
+            height = Math.max(1, host.clientHeight);
+          if (width === lastWidth && height === lastHeight) return;
+          lastWidth = width;
+          lastHeight = height;
+          renderer?.setSize(Math.min(width, 1600), Math.min(height, 1000), false);
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+          needsPoster = true;
+          draw();
+        });
+        observer.observe(host);
+      }
+      setError("");
+    } catch (cause) {
+      onFailure(cause instanceof Error ? cause.message : String(cause));
+    }
+    return () => {
+      active = false;
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      controls?.dispose();
+      for (const texture of textures) texture.dispose();
+      for (const material of materials) material.dispose();
+      for (const geometry of geometries) geometry.dispose();
+      if (renderer && onContextLost) {
+        renderer.domElement.removeEventListener("webglcontextlost", onContextLost);
+      }
+      renderer?.dispose();
+      renderer?.forceContextLoss();
+      renderer?.domElement.remove();
+      fit.current = () => {};
+    };
+  }, [data, onFailure, onPoster]);
+  return (
+    <div className="graphic-scene">
+      <div
+        ref={mount}
+        className="graphic-canvas"
+        aria-label={zh ? "三维模型预览" : "3D model preview"}
+      />
+      <div className="graphic-controls">
+        <span>
+          {zh ? "拖动旋转 · 滚轮缩放" : "Drag to orbit · Scroll to zoom"}
+        </span>
+        <button type="button" className="btn small outline" onClick={() => fit.current()}>
+          {zh ? "适配视图" : "Fit view"}
+        </button>
+      </div>
+      {error ? <p role="alert">{error}</p> : null}
+    </div>
+  );
+}

@@ -1,0 +1,1746 @@
+import type { JsonValue } from "@omp-studio/client-contract";
+import type { TreeGitStatus } from "../git/treeStatus";
+import type { JobActionsView } from "@omp-studio/studio-protocol";
+import { actionsViewFromData } from "./jobActionsModel";
+import type { IconName } from "../icons";
+import { fileTypeOf, iconNameFor, isSensitive, type FileTypeId } from "../explorer-types";
+import { jsonRecord, jsonString, type AssistantSegment, type TimelineRow, type ToolStatus, type ToolView } from "./conversationViewModel";
+import { isZh } from "../i18n";
+
+export type ToolKind = string;
+
+export type ThinkView = {
+  readonly key: string;
+  readonly text: string;
+  readonly truncated?: boolean;
+};
+
+export type SubagentView = {
+  readonly name: string;
+  readonly status: string;
+  readonly toolCallId: string;
+  readonly agentId?: string;
+  readonly task?: string;
+  readonly activity?: string;
+  readonly currentTool?: string;
+  readonly latestActivity?: string;
+  readonly dur?: string;
+  readonly tokens?: string;
+  readonly tools?: string | number;
+  readonly requests?: string | number;
+  readonly files?: string | number;
+  readonly cost?: string;
+};
+
+export type SubagentHubTarget = {
+  readonly agentId: string;
+  readonly displayName?: string;
+  readonly resolvedModel?: string;
+  /** Present only when opened from an actual delegation, never fabricated by a roster. */
+  readonly toolCallId?: string;
+  readonly parentSessionId?: string;
+  readonly task?: string;
+  readonly tokens?: string;
+  readonly tools?: string | number;
+  readonly requests?: string | number;
+  readonly files?: string | number;
+  readonly cost?: string;
+};
+
+/**
+ * Registry identities from Runtime `AgentOutputManager`: the task label
+ * (`deps`, `Anna-2`) or a nested child (`Anna.Bob`). Preview/Hub fixtures also
+ * use `agent-<ulid>`. `Main` is the parent session, not a child card.
+ * A display-only `name` without an `id`/`agentId` field is not an identity.
+ */
+export function isRealSubagentId(value: string): boolean {
+  if (value.length === 0 || value.length > 512) return false;
+  if (/^main$/i.test(value)) return false;
+  return /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(value);
+}
+
+export function resolveSubagentHubTarget(agent: SubagentView): SubagentHubTarget | undefined {
+  if (agent.agentId === undefined || !isRealSubagentId(agent.agentId)) return undefined;
+  return {
+    agentId: agent.agentId,
+    displayName: agent.name,
+    toolCallId: agent.toolCallId,
+    ...(agent.task === undefined ? {} : { task: agent.task }),
+    ...(agent.tokens === undefined ? {} : { tokens: agent.tokens }),
+    ...(agent.tools === undefined ? {} : { tools: agent.tools }),
+    ...(agent.requests === undefined ? {} : { requests: agent.requests }),
+    ...(agent.files === undefined ? {} : { files: agent.files }),
+    ...(agent.cost === undefined ? {} : { cost: agent.cost }),
+  };
+}
+
+export function subagentCardKey(agent: SubagentView): string {
+  return `${agent.toolCallId}:${agent.agentId ?? agent.name}`;
+}
+
+export const KIND_ICON: Record<string, IconName> = {
+  find: "search", wait: "clock", process: "terminal", agent_message: "message", documentation: "book",
+  think: "brain",
+  read: "file",
+  write: "file-plus",
+  edit: "pencil",
+  bash: "terminal",
+  grep: "search",
+  glob: "folder",
+  ast_grep: "search",
+  ast_edit: "pencil",
+  ask: "message",
+  askuser: "message",
+  debug: "bug",
+  eval: "flask",
+  github: "commit",
+  lsp: "cpu",
+  inspect_image: "image",
+  browser: "globe",
+  computer: "monitor",
+  checkpoint: "commit",
+  rewind: "rewind",
+  security_scan: "shield",
+  task: "bot",
+  hub: "network",
+  todo: "check",
+  web_search: "globe",
+  web: "globe",
+  retain: "archive",
+  recall: "search",
+  reflect: "brain",
+  memory_edit: "pencil",
+  learn: "book",
+  manage_skill: "sparkles",
+  yield: "export",
+  goal: "pin",
+  generate_image: "image",
+  tts: "pulse",
+  vibe: "zap",
+  mcp: "plug",
+  report_issue: "bug",
+  resolve: "check",
+  propose: "file-code",
+};
+
+export const KIND_LABEL: Record<string, string> = {
+  find: "Find", wait: "Wait", process: "Process", agent_message: "Agent Message", documentation: "Documentation",
+  think: "Think",
+  read: "Read",
+  write: "Write",
+  edit: "Edit",
+  bash: "Bash",
+  grep: "Grep",
+  glob: "Glob",
+  ast_grep: "AST Grep",
+  ast_edit: "AST Edit",
+  ask: "Ask",
+  askuser: "Ask",
+  debug: "Debug",
+  eval: "Eval",
+  github: "GitHub",
+  lsp: "LSP",
+  inspect_image: "Inspect",
+  browser: "Browser",
+  computer: "Computer",
+  checkpoint: "Checkpoint",
+  rewind: "Rewind",
+  security_scan: "Security Scan",
+  task: "Task",
+  hub: "Hub",
+  todo: "Todo",
+  web_search: "Web Search",
+  retain: "Retain",
+  recall: "Recall",
+  reflect: "Reflect",
+  memory_edit: "Memory Edit",
+  learn: "Learn",
+  manage_skill: "Manage Skill",
+  yield: "Submit Result",
+  goal: "Goal",
+  generate_image: "GenerateImage",
+  tts: "Speech Generation",
+  vibe: "Vibe",
+  mcp: "MCP",
+  report_issue: "Report Issue",
+  resolve: "Resolve",
+  propose: "Propose Plan",
+};
+
+export const NAME_TO_KIND: Record<string, string> = {
+  inspect: "inspect_image",
+  generateimage: "generate_image",
+  "speech generation": "tts",
+  "vibe wait": "vibe",
+  "submit result": "yield",
+};
+
+const PATH_KINDS = new Set(["read", "write", "edit", "inspect_image", "glob", "generate_image", "tts"]);
+
+const STATUS_LABEL_PAIRS: Record<ToolStatus, readonly [string, string]> = {
+  queued: ["等待", "Queued"],
+  running: ["运行中", "Running"],
+  succeeded: ["完成", "Done"],
+  failed: ["失败", "Failed"],
+  aborted: ["已中止", "Aborted"],
+  missing: ["结果缺失", "Missing result"],
+};
+
+const MCP_NAME_PREFIX = "mcp__";
+
+function isMcpToolName(name: string): boolean {
+  return name.startsWith(MCP_NAME_PREFIX);
+}
+
+/**
+ * `mcp__<server>_<tool>` → `<server>.<tool>`, split at the first underscore the
+ * way upstream `parseMCPToolName` does: server names are sanitized to
+ * `[a-z_]`, so the first separator is the only reliable boundary.
+ */
+function mcpNameBody(name: string): string {
+  const rest = name.slice(MCP_NAME_PREFIX.length);
+  const separator = rest.indexOf("_");
+  if (separator <= 0) return rest;
+  return `${rest.slice(0, separator)}.${rest.slice(separator + 1)}`;
+}
+
+function xdevEnvelope(tool: ToolView): { readonly [key: string]: JsonValue } | undefined {
+  return jsonRecord(jsonRecord(tool.result?.data)?.xdev);
+}
+
+export function xdevToolName(tool: ToolView): string | undefined {
+  return jsonString(xdevEnvelope(tool)?.tool);
+}
+
+function xdevOutput(inner: { readonly [key: string]: JsonValue }): string | undefined {
+  const result = jsonString(inner.result);
+  if (result !== undefined) return result;
+  const raw = inner.rawContent;
+  if (!Array.isArray(raw)) return undefined;
+  const text = raw
+    .map((entry) => jsonString(jsonRecord(entry)?.text))
+    .filter((entry): entry is string => entry !== undefined)
+    .join("\n");
+  return text || undefined;
+}
+
+/** Native result fields only. Submitted arguments must not shadow applied-file or watch evidence. */
+export function toolResultFields(tool: ToolView): { readonly [key: string]: JsonValue } {
+  const data = jsonRecord(tool.result?.data) ?? {};
+  const inner = jsonRecord(jsonRecord(data.xdev)?.inner);
+  return inner === undefined ? data : { ...data, ...inner };
+}
+
+export function toolActionsView(tool: ToolView): JobActionsView | undefined {
+  const data = toolResultFields(tool);
+  return actionsViewFromData(data.watch ?? data.actions);
+}
+
+export function toolFields(tool: ToolView): { readonly [key: string]: JsonValue } {
+  const args = jsonRecord(tool.arguments) ?? {};
+  const data = jsonRecord(tool.result?.data) ?? {};
+  const xdev = jsonRecord(data.xdev);
+  const xdevArgs = jsonRecord(xdev?.args) ?? {};
+  const xdevInner = jsonRecord(xdev?.inner) ?? {};
+  const merged: { [key: string]: JsonValue } = xdev === undefined
+    ? { ...data, ...args }
+    : { ...data, ...args, ...xdevInner, ...xdevArgs, args: xdevArgs };
+  const transportPath = jsonString(args.path);
+  if (xdev !== undefined && transportPath?.startsWith("xd://")) {
+    merged.transportPath = transportPath;
+  }
+  if (merged.output === undefined) {
+    const output = tool.output ?? xdevOutput(xdevInner);
+    if (output !== undefined) merged.output = output;
+  }
+  return merged;
+}
+
+const PLAN_PROPOSE_PATH = /^xd:\/\/propose\/?$/i;
+
+export function isPlanProposeTool(tool: ToolView): boolean {
+  if (xdevToolName(tool) === "propose") {
+    return jsonString(xdevEnvelope(tool)?.mode) !== "help";
+  }
+  const raw = tool.toolName.trim().toLowerCase();
+  if (raw !== "write" && raw !== "propose") return false;
+  const fields = toolFields(tool);
+  const path =
+    jsonString(fields.transportPath)
+    ?? jsonString(fields.path)
+    ?? jsonString(jsonRecord(tool.arguments)?.path)
+    ?? jsonString(jsonRecord(tool.arguments)?.file_path);
+  return path !== undefined && PLAN_PROPOSE_PATH.test(path.trim());
+}
+
+export type PlanProposal = {
+  readonly title: string;
+  readonly body?: string;
+};
+
+export type PlanDocument = {
+  readonly title: string;
+  readonly body: string;
+};
+
+export function isPlanArtifactPath(path: string): boolean {
+  const normalized = path.trim().toLowerCase();
+  return normalized.startsWith("local://") && normalized.endsWith("plan.md");
+}
+
+export function planProposalRawTitle(tool: ToolView): string | undefined {
+  const fields = toolFields(tool);
+  const titled = jsonString(fields.title)?.trim();
+  if (titled) return titled;
+  const content = jsonString(fields.content)?.trim();
+  if (!content || content === "?") return undefined;
+  if (content.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(content) as JsonValue;
+      const fromJson = jsonString(jsonRecord(parsed)?.title)?.trim();
+      if (fromJson) return fromJson;
+    } catch {
+      /* slug or markdown body */
+    }
+  }
+  if (content.length < 120 && !content.includes("\n")) return content;
+  return undefined;
+}
+
+function planProposalTitle(tool: ToolView): string {
+  return planProposalRawTitle(tool) ?? "Plan";
+}
+
+export function planArtifactWriteContent(call: ToolView): string | undefined {
+  if (toolKind(call) !== "write") return undefined;
+  const fields = toolFields(call);
+  const path = jsonString(fields.path) ?? jsonString(jsonRecord(call.arguments)?.path) ?? "";
+  if (!isPlanArtifactPath(path)) return undefined;
+  const content = jsonString(fields.content) ?? jsonString(jsonRecord(call.arguments)?.content);
+  return content !== undefined && content.length > 0 ? content : undefined;
+}
+
+/** Latest plan markdown + propose title from the transcript, for viewing after approval. */
+export function collectLatestPlanDocument(rows: readonly TimelineRow[]): PlanDocument | undefined {
+  let title = "";
+  let body = "";
+  for (const row of rows) {
+    if (row.type !== "assistant") continue;
+    for (const segment of row.segments) {
+      if (segment.type !== "batch") continue;
+      for (const call of segment.tools) {
+        if (call.status === "failed" || call.status === "aborted" || call.status === "missing") continue;
+        if (isPlanProposeTool(call)) {
+          title = planProposalTitle(call);
+          const proposed = jsonString(toolFields(call).planContent);
+          if (proposed !== undefined && proposed.length > 0) body = proposed;
+          continue;
+        }
+        const written = planArtifactWriteContent(call);
+        if (written !== undefined) body = written;
+      }
+    }
+  }
+  if (title.length === 0 && body.length === 0) return undefined;
+  return { title: title || "Plan", body };
+}
+
+/** Last succeeded/in-flight `xd://propose` in the slice; failed/aborted calls do not count. */
+export function collectPlanProposal(segments: readonly AssistantSegment[]): PlanProposal | undefined {
+  let found: PlanProposal | undefined;
+  let body = "";
+  for (const segment of segments) {
+    if (segment.type !== "batch") continue;
+    for (const call of segment.tools) {
+      if (call.status === "failed" || call.status === "aborted" || call.status === "missing") continue;
+      const written = planArtifactWriteContent(call);
+      if (written !== undefined) {
+        body = written;
+        continue;
+      }
+      if (!isPlanProposeTool(call)) continue;
+      const proposed = jsonString(toolFields(call).planContent);
+      const resolvedBody = proposed !== undefined && proposed.length > 0 ? proposed : body;
+      found = {
+        title: planProposalTitle(call),
+        ...(resolvedBody.length > 0 ? { body: resolvedBody } : {}),
+      };
+    }
+  }
+  return found;
+}
+
+export function toolKind(tool: ToolView): ToolKind {
+  const xdevTool = xdevToolName(tool);
+  if (xdevTool !== undefined) {
+    if (isMcpToolName(xdevTool)) return "mcp";
+    if (xdevTool === "powershell") return "bash";
+    return xdevTool.replace(/[\s-]+/g, "_");
+  }
+  const raw = tool.toolName.trim().toLowerCase();
+  if (raw === "read" || raw === "write") {
+    const target = jsonString(jsonRecord(tool.arguments)?.path) ?? "";
+    if (/^proc:\/\//iu.test(target)) return "process";
+    if (/^agent:\/\//iu.test(target)) return "agent_message";
+    if (/^omp:\/\//iu.test(target)) return "documentation";
+  }
+  if (NAME_TO_KIND[raw]) return NAME_TO_KIND[raw]!;
+  // Upstream mints MCP tool names as `mcp__<server>_<tool>`; the dot form only
+  // appears in preview fixtures.
+  if (isMcpToolName(raw) || raw.includes(".")) return "mcp";
+  return raw.replace(/[\s-]+/g, "_");
+}
+
+export function toolIcon(kind: ToolKind): IconName {
+  return KIND_ICON[kind] ?? "wrench";
+}
+
+export function toolLabel(tool: ToolView): string {
+  const kind = toolKind(tool);
+  const fields = toolFields(tool);
+  if (kind === "mcp") {
+    const server = jsonString(fields.serverName);
+    const name = jsonString(fields.mcpToolName);
+    if (server || name) return `MCP · ${[server, name].filter(Boolean).join(".")}`;
+    const xdevTool = xdevToolName(tool);
+    if (xdevTool !== undefined && isMcpToolName(xdevTool)) return `MCP · ${mcpNameBody(xdevTool)}`;
+    if (isMcpToolName(tool.toolName)) return `MCP · ${mcpNameBody(tool.toolName)}`;
+    return tool.toolName || "MCP";
+  }
+  if (xdevToolName(tool) === "powershell") return "PowerShell";
+  if (kind === "vibe") return tool.toolName || `Vibe ${jsonString(fields.vibeOp) ?? ""}`.trim();
+  if (kind === "think") return jsonString(fields.name) || tool.toolName || "Think";
+  return KIND_LABEL[kind] ?? tool.toolName;
+}
+
+export function isPathKind(kind: ToolKind): boolean {
+  return PATH_KINDS.has(kind);
+}
+
+export function statusLabel(status: ToolStatus, zh = isZh()): string {
+  return STATUS_LABEL_PAIRS[status][zh ? 0 : 1];
+}
+
+export function fileBase(path: string): string {
+  const index = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+  return index >= 0 ? path.slice(index + 1) : path;
+}
+
+export function splitDisplayPath(path: string): { readonly name: string; readonly dir: string } {
+  const normalized = path.replaceAll("\\", "/");
+  const index = normalized.lastIndexOf("/");
+  if (index < 0) return { name: normalized, dir: "" };
+  return { name: normalized.slice(index + 1), dir: `${normalized.slice(0, index)}/` };
+}
+
+export function jsonNumber(value: JsonValue | undefined): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+export function jsonStringArray(value: JsonValue | undefined): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value.filter((entry): entry is string => typeof entry === "string");
+  return items.length === value.length ? items : undefined;
+}
+
+/** Multi-question ask reports one `QuestionResult` per question instead of a flat selection. */
+function askResultAnswers(fields: { readonly [key: string]: JsonValue }): string | undefined {
+  if (!Array.isArray(fields.results)) return undefined;
+  const picks: string[] = [];
+  for (const entry of fields.results) {
+    const record = jsonRecord(entry);
+    const pick = jsonStringArray(record?.selectedOptions)?.[0] ?? jsonString(record?.customInput);
+    if (pick) picks.push(pick);
+  }
+  return picks.length > 0 ? picks.join(" · ") : undefined;
+}
+
+/** Ask args are `questions[]`; there is no flat `prompt`/`question`. */
+export function askQuestionText(args: { readonly [key: string]: JsonValue } | undefined): string | undefined {
+  const questions = args?.questions;
+  if (!Array.isArray(questions)) return undefined;
+  for (const entry of questions) {
+    const question = jsonString(jsonRecord(entry)?.question);
+    if (question) return question;
+  }
+  return undefined;
+}
+
+export function askAnswer(tool: ToolView): string | undefined {
+  const fields = toolFields(tool);
+  const answer = jsonString(fields.answer);
+  if (answer) return answer;
+  const selectedOptions = jsonStringArray(fields.selectedOptions);
+  if (selectedOptions?.[0]) return selectedOptions[0];
+  const fromResults = askResultAnswers(fields);
+  if (fromResults) return fromResults;
+  const customInput = jsonString(fields.customInput);
+  if (customInput) return customInput;
+  const selected = jsonString(jsonRecord(tool.result?.data)?.selected);
+  if (selected) return selected;
+  const options = fields.options;
+  if (Array.isArray(options)) {
+    for (const option of options) {
+      const record = jsonRecord(option);
+      if (record?.selected === true) {
+        const label = jsonString(record.label);
+        if (label) return label;
+      }
+    }
+  }
+  const output = tool.output?.trim();
+  return output ? output : undefined;
+}
+
+export function isAskPending(tool: ToolView): boolean {
+  const kind = toolKind(tool);
+  if (kind !== "ask" && kind !== "askuser") return false;
+  if (tool.status === "succeeded" || tool.status === "failed" || tool.status === "aborted") return false;
+  return askAnswer(tool) === undefined;
+}
+
+export type FileIconMeta = {
+  readonly path: string;
+  readonly name: string;
+  readonly icon: IconName;
+  readonly ftype: FileTypeId | null;
+  readonly secret: boolean;
+  readonly isDirectory?: boolean;
+};
+
+const HASHLINE_TAG_RE = /#[0-9A-Fa-f]{4}$/;
+const LINE_ANCHOR_RE = /#L\d+(?:C\d+)?(?:-L?\d+)?$/i;
+const READ_SELECTOR_RE = /^(?:raw|conflicts|img|(?:-\d+|\d+(?:[-+:]\d+)?)(?:,:?(?:-\d+|\d+(?:[-+:]\d+)?))*)$/i;
+const NON_FILE_SCHEME_RE = /^(?:https?|mailto|data|javascript|ws|wss|proc|agent|omp|out|xd|cfg|issue|pr|mcp|artifact|history):/i;
+const APPLY_PATCH_DETECT_RE = /^[ \t]*\*{3}[ \t]+(?:Add|Update|Delete|Edit)[ \t]+File:/im;
+const APPLY_PATCH_FILE_RE = /^[ \t]*\*{3}[ \t]+(?:Add|Update|Delete|Edit)[ \t]+File:[ \t]*(.+)$/i;
+const APPLY_PATCH_MOVE_RE = /^[ \t]*\*{3}[ \t]+Move[ \t]+to:[ \t]*(.+)$/i;
+const MULTI_FILE_COUNT_RE = /\s+\(\+\d+\)$/;
+
+function unwrapQuotes(value: string): string {
+  if (value.length >= 2) {
+    const first = value[0];
+    const last = value[value.length - 1];
+    if ((first === "\"" || first === "'") && first === last) return value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+export function stripFileSelector(rawPath: string): string {
+  let base = unwrapQuotes(rawPath.trim())
+    .replace(HASHLINE_TAG_RE, "")
+    .replace(LINE_ANCHOR_RE, "");
+  base = unwrapQuotes(base);
+  const schemeIndex = base.indexOf("://");
+  const minColon = schemeIndex >= 0 ? schemeIndex + 3 : 1;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const colon = base.lastIndexOf(":");
+    if (colon < minColon) break;
+    if (colon === 1 && /^[A-Za-z]:/.test(base)) break;
+    const candidate = base.slice(colon + 1);
+    if (!READ_SELECTOR_RE.test(candidate)) break;
+    base = base.slice(0, colon);
+  }
+  return base;
+}
+
+export function extractEditInputPaths(input: string): {
+  readonly display: string;
+  readonly primaryPath: string;
+  readonly paths: readonly string[];
+} | undefined {
+  const stripped = input.startsWith("\uFEFF") ? input.slice(1) : input;
+  const entries: Array<{ source: string; target: string }> = [];
+  let current: { source: string; target: string } | undefined;
+  if (APPLY_PATCH_DETECT_RE.test(stripped)) {
+    for (const rawLine of stripped.split("\n")) {
+      const line = rawLine.replace(/\r$/, "");
+      const fileMatch = APPLY_PATCH_FILE_RE.exec(line);
+      if (fileMatch) {
+        const path = stripFileSelector(fileMatch[1]!);
+        if (path && !path.includes("\0")) {
+          current = { source: path, target: path };
+          entries.push(current);
+        }
+        continue;
+      }
+      const moveMatch = APPLY_PATCH_MOVE_RE.exec(line);
+      if (moveMatch && current) {
+        const dest = stripFileSelector(moveMatch[1]!);
+        if (dest && !dest.includes("\0")) current.target = dest;
+      }
+    }
+  } else {
+    for (const rawLine of stripped.split("\n")) {
+      const line = rawLine.replace(/\r$/, "").trimEnd();
+      if (line.startsWith("[")) {
+        const body = (line.endsWith("]") ? line.slice(1, -1) : line.slice(1)).trim();
+        if (body && !/[\0\r\n{}]/.test(body)) {
+          const path = stripFileSelector(body);
+          if (path) {
+            current = { source: path, target: path };
+            entries.push(current);
+          }
+        }
+        continue;
+      }
+      if (!current) continue;
+      const trimmed = line.trim();
+      if (trimmed.startsWith("MV ")) {
+        const dest = stripFileSelector(trimmed.slice(3));
+        if (dest && !dest.includes("\0")) current.target = dest;
+      }
+    }
+  }
+  if (entries.length === 0) return undefined;
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    if (!seen.has(entry.target)) {
+      seen.add(entry.target);
+      unique.push(entry.target);
+    }
+  }
+  const first = entries[0]!;
+  const primaryPath = first.target;
+  const display = unique.length > 1
+    ? `${primaryPath} (+${unique.length - 1})`
+    : first.source !== first.target
+      ? `${first.source} → ${first.target}`
+      : primaryPath;
+  return { display, primaryPath, paths: unique };
+}
+
+function editTargetSummary(tool: ToolView): {
+  readonly display: string;
+  readonly primaryPath: string;
+  readonly allPaths: readonly string[];
+} | undefined {
+  const applied = appliedEditResults(tool);
+  if (applied !== undefined && applied.files.length > 0) {
+    const first = applied.files[0]!;
+    const unique = [...new Set(applied.files.map((file) => file.path))];
+    const source = jsonString(first.fields.sourcePath);
+    const display = unique.length > 1
+      ? `${first.path} (+${unique.length - 1})`
+      : source && source !== first.path
+        ? `${source} → ${first.path}`
+        : first.path;
+    return { display, primaryPath: first.path, allPaths: unique };
+  }
+  const result = toolResultFields(tool);
+  const fields = toolFields(tool);
+  const move = jsonString(result.move) ?? jsonString(fields.move) ?? jsonString(fields.rename);
+  const rawPath = jsonString(result.path)
+    ?? jsonString(result.resolvedPath)
+    ?? jsonString(fields.path)
+    ?? jsonString(fields.file_path)
+    ?? jsonString(fields.resolvedPath)
+    ?? jsonString(fields.target);
+  if (rawPath) {
+    if (rawPath.includes(" → ")) {
+      const primaryPath = rawPath.split(" → ").at(-1)!.trim();
+      return { display: rawPath, primaryPath, allPaths: [primaryPath] };
+    }
+    if (move && move !== rawPath) {
+      return { display: `${rawPath} → ${move}`, primaryPath: move, allPaths: [move] };
+    }
+    return { display: rawPath, primaryPath: rawPath, allPaths: [rawPath] };
+  }
+  if (Array.isArray(fields.edits)) {
+    const editPaths: string[] = [];
+    for (const entry of fields.edits) {
+      const rec = jsonRecord(entry);
+      const candidate = jsonString(rec?.rename) ?? jsonString(rec?.move) ?? jsonString(rec?.path);
+      if (candidate && !editPaths.includes(candidate)) editPaths.push(candidate);
+    }
+    if (editPaths.length > 0) {
+      const primaryPath = editPaths[0]!;
+      const display = editPaths.length > 1 ? `${primaryPath} (+${editPaths.length - 1})` : primaryPath;
+      return { display, primaryPath, allPaths: editPaths };
+    }
+  }
+  const input = jsonString(fields.input) ?? jsonString(fields._input);
+  if (input) {
+    const extracted = extractEditInputPaths(input);
+    if (extracted) {
+      return { display: extracted.display, primaryPath: extracted.primaryPath, allPaths: extracted.paths };
+    }
+  }
+  return undefined;
+}
+
+function stripFileScheme(value: string): string | undefined {
+  if (NON_FILE_SCHEME_RE.test(value)) return undefined;
+  if (/^file:\/\//i.test(value)) {
+    const rest = value.replace(/^file:\/\/(?:localhost)?/i, "");
+    try { return decodeURIComponent(rest); } catch { return rest; }
+  }
+  if (/^ssh:\/\//i.test(value)) {
+    const match = /^ssh:\/\/[^/]+(\/.+)$/i.exec(value);
+    return match ? match[1] : undefined;
+  }
+  if (/^(?:local|skill):\/\//i.test(value)) {
+    const rest = value.replace(/^(?:local|skill):\/\//i, "");
+    return rest || undefined;
+  }
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return undefined;
+  return value;
+}
+
+export function resolveFileIconMeta(
+  rawPath: string,
+  options?: { readonly allowBareName?: boolean; readonly allowDirectory?: boolean },
+): FileIconMeta | undefined {
+  const trimmed = rawPath.trim();
+  if (!trimmed || /[\r\n\0]/.test(trimmed)) return undefined;
+  const arrowRight = trimmed.includes(" → ") ? trimmed.split(" → ").at(-1)!.trim() : trimmed;
+  const withoutCount = arrowRight.replace(MULTI_FILE_COUNT_RE, "").trim();
+  const unschemed = stripFileScheme(withoutCount);
+  if (!unschemed) return undefined;
+  const cleaned = stripFileSelector(unschemed);
+  if (!cleaned || /[*?]/.test(cleaned)) return undefined;
+  if (/[\\/]$/.test(cleaned)) {
+    if (options?.allowDirectory !== true) return undefined;
+    const dirName = fileBase(cleaned.replace(/[\\/]+$/, "")) || cleaned;
+    return { path: cleaned, name: dirName, icon: "folder", ftype: null, secret: false, isDirectory: true };
+  }
+  const name = fileBase(cleaned);
+  if (!name || name === "." || name === "..") return undefined;
+  const ftype = fileTypeOf(name);
+  const secret = isSensitive(name);
+  const hasSeparator = cleaned.includes("/") || cleaned.includes("\\");
+  if (!hasSeparator) {
+    if (/\s/.test(name)) return undefined;
+    if (options?.allowBareName === false && ftype === null && !secret && !/\.[A-Za-z0-9]{1,10}$/.test(name)) {
+      return undefined;
+    }
+  }
+  return { path: cleaned, name, icon: iconNameFor(ftype, name), ftype, secret };
+}
+
+export function toolHeaderFileMeta(tool: ToolView): FileIconMeta | undefined {
+  const kind = toolKind(tool);
+  const fields = toolFields(tool);
+  if (kind === "read") {
+    const candidate = jsonString(fields.resolvedPath) ?? jsonString(fields.path) ?? jsonString(fields.file_path) ?? jsonString(fields.target);
+    return candidate ? resolveFileIconMeta(candidate, { allowBareName: true }) : undefined;
+  }
+  if (kind === "write") {
+    if (fields.touchesNoFiles === true || isPlanProposeTool(tool)) return undefined;
+    const candidate = jsonString(fields.resolvedPath) ?? jsonString(fields.path) ?? jsonString(fields.file_path) ?? jsonString(fields.target);
+    return candidate ? resolveFileIconMeta(candidate, { allowBareName: true }) : undefined;
+  }
+  if (kind === "edit") {
+    const summary = editTargetSummary(tool);
+    return summary ? resolveFileIconMeta(summary.primaryPath, { allowBareName: true }) : undefined;
+  }
+  if (kind === "ast_edit") {
+    const detail = chainItemDetail(tool);
+    return detail ? resolveFileIconMeta(detail, { allowBareName: false }) : undefined;
+  }
+  if (kind === "inspect_image" || kind === "generate_image" || kind === "tts") {
+    const candidate = jsonString(fields.path) ?? jsonString(fields.output_path) ?? jsonString(fields.target);
+    return candidate ? resolveFileIconMeta(candidate, { allowBareName: false }) : undefined;
+  }
+  if (kind === "lsp") {
+    const target = jsonString(fields.target);
+    const candidate = jsonString(fields.file)
+      ?? jsonString(jsonRecord(fields.request)?.file)
+      ?? (target?.includes(" · ") ? target.split(" · ").at(-1) : target);
+    return candidate ? resolveFileIconMeta(candidate, { allowBareName: false }) : undefined;
+  }
+  return undefined;
+}
+
+export function toolTarget(tool: ToolView): string {
+  const args = jsonRecord(tool.arguments);
+  const kind = toolKind(tool);
+  if (kind === "edit") return editTargetSummary(tool)?.display ?? "";
+  if (kind === "bash") return jsonString(args?.command) ?? jsonString(args?.cmd) ?? "";
+  if (kind === "find") return jsonString(args?.query) ?? jsonString(args?.pattern) ?? "";
+  if (kind === "process" || kind === "agent_message" || kind === "documentation") return jsonString(args?.path) ?? jsonString(args?.target) ?? "";
+  if (kind === "grep" || kind === "ast_grep" || kind === "glob") {
+    // ast_grep names its pattern `pat`; glob carries its pattern inside `path`.
+    return (
+      jsonString(args?.pattern) ??
+      jsonString(args?.pat) ??
+      jsonString(args?.path) ??
+      jsonString(args?.glob) ??
+      ""
+    );
+  }
+  if (kind === "web_search" || kind === "web") return jsonString(args?.query) ?? jsonString(args?.url) ?? "";
+  if (kind === "ask" || kind === "askuser") {
+    return askAnswer(tool) ?? jsonString(args?.prompt) ?? jsonString(args?.question) ?? askQuestionText(args) ?? "";
+  }
+  if (kind === "task") {
+    const spawn = jsonRecord(args?.spawn) ?? args;
+    const tasks = spawn?.tasks;
+    const n = Array.isArray(tasks) ? tasks.length : Array.isArray(args?.agents) ? args.agents.length : 0;
+    if (n) return `${n} agents`;
+    // Single spawn form is flat: `name` / `agent` / `task`.
+    return jsonString(args?.goal) ?? jsonString(spawn?.name) ?? jsonString(spawn?.agent) ?? "";
+  }
+  if (kind === "lsp") return jsonString(args?.file) ?? jsonString(args?.path) ?? jsonString(args?.target) ?? "";
+  if (kind === "tts") return jsonString(args?.path) ?? jsonString(args?.target) ?? jsonString(args?.output_path) ?? "";
+  return (
+    jsonString(args?.path) ??
+    jsonString(args?.target) ??
+    jsonString(args?.url) ??
+    jsonString(args?.goal) ??
+    jsonString(args?.prompt) ??
+    ""
+  );
+}
+
+export function chainItemDetail(tool: ToolView, zh = isZh()): string {
+  const kind = toolKind(tool);
+  const fields = toolFields(tool);
+  const target = jsonString(fields.target);
+  if (kind === "think") {
+    const dur = jsonString(fields.dur);
+    return jsonString(fields.preview) ?? (dur ? (zh ? `思考了 ${dur}` : `Thought for ${dur}`) : "");
+  }
+  if (kind === "edit") {
+    return editTargetSummary(tool)?.display ?? jsonString(fields.summary) ?? jsonString(fields.i) ?? "";
+  }
+  if (kind === "bash") return jsonString(fields.cmd) ?? jsonString(fields.command) ?? target ?? "";
+  if (kind === "grep" || kind === "ast_grep" || kind === "glob") {
+    return jsonString(fields.pattern) ?? jsonString(fields.pat) ?? target ?? toolTarget(tool);
+  }
+  if (kind === "web_search" || kind === "web") return jsonString(fields.query) ?? target ?? "";
+  if (kind === "lsp") {
+    const action = jsonString(fields.action);
+    const subject = target ?? jsonString(fields.file) ?? jsonString(jsonRecord(fields.request)?.file);
+    if (action && subject?.startsWith(`${action} · `)) return subject;
+    return [action, subject].filter(Boolean).join(" · ");
+  }
+  if (kind === "browser") return [jsonString(fields.action), jsonString(fields.url) ?? target].filter(Boolean).join(" · ");
+  if (kind === "github") return jsonString(fields.op) ?? target ?? "";
+  if (kind === "eval") return jsonString(fields.lang) ?? target ?? "";
+  if (kind === "todo") return jsonString(fields.op) ?? target ?? "";
+  if (kind === "hub") return jsonString(fields.op) ?? target ?? jsonString(fields.hubKind) ?? "";
+  if (kind === "ask" || kind === "askuser") {
+    return (
+      askAnswer(tool) ??
+      jsonString(fields.question) ??
+      jsonString(fields.prompt) ??
+      askQuestionText(jsonRecord(tool.arguments)) ??
+      target ??
+      ""
+    );
+  }
+  if (kind === "goal") return jsonString(fields.op) ?? jsonString(fields.objective) ?? target ?? "";
+  if (kind === "vibe") return target ?? jsonString(fields.vibeOp) ?? "";
+  if (kind === "mcp") {
+    return jsonString(fields.mcpToolName) ?? jsonString(fields.serverName) ?? target ?? "";
+  }
+  if (kind === "task") {
+    const spawn = jsonRecord(fields.spawn) ?? fields;
+    const list = [spawn.tasks, fields.agents, fields.progress, fields.results].find((entry) => Array.isArray(entry));
+    const n = Array.isArray(list) ? list.length : 0;
+    return n > 1 ? `${n} agents` : toolTarget(tool);
+  }
+  if (kind === "debug") return jsonString(fields.action) ?? target ?? "";
+  if (kind === "resolve") return jsonString(fields.action) ?? target ?? "";
+  // The real target (path/command) beats a result-side summary; `summary` only
+  // stands in when there is nothing addressable to show.
+  return target ?? (toolTarget(tool) || jsonString(fields.summary) || jsonString(fields.query) || "");
+}
+
+export type BatchSummary = { readonly text: string; readonly add: number; readonly del: number };
+
+export type EditDiffRow = {
+  readonly mark: "+" | "-" | " ";
+  readonly oldLn: string;
+  readonly newLn: string;
+  readonly text: string;
+};
+
+/** Native numbered diff rows and legacy unified diffs; no submitted edit input is interpreted. */
+export function editDiffRows(diff: JsonValue | undefined): EditDiffRow[] {
+  const rows: EditDiffRow[] = [];
+  const push = (mark: "+" | "-" | " ", oldLn: string, newLn: string, text: string) => {
+    rows.push({ mark, oldLn: mark === "+" ? "" : oldLn, newLn: mark === "-" ? "" : newLn, text });
+  };
+  if (Array.isArray(diff)) {
+    for (const row of diff) {
+      if (!Array.isArray(row)) continue;
+      const mark = row[0] === "+" || row[0] === "-" ? row[0] : " ";
+      push(mark, String(row[1] ?? ""), String(row[2] ?? ""), String(row[3] ?? ""));
+    }
+    return rows;
+  }
+  if (typeof diff !== "string" || !diff.length) return rows;
+  let oldLine: number | undefined;
+  let newLine: number | undefined;
+  for (const line of diff.split("\n")) {
+    const hunk = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/u.exec(line);
+    if (hunk) { oldLine = Number(hunk[1]); newLine = Number(hunk[2]); continue; }
+    if (/^(?:diff --git |index |--- |\+\+\+ |\\ No newline)/u.test(line)) continue;
+    const numbered = /^([ +\-])\s*(\d*)[|│](.*)$/u.exec(line);
+    if (numbered) {
+      const mark = numbered[1] === "+" || numbered[1] === "-" ? numbered[1] : " ";
+      push(mark, numbered[2] ?? "", numbered[2] ?? "", numbered[3] ?? "");
+    } else if (/^[ +\-]/u.test(line)) {
+      const mark = line[0] === "+" || line[0] === "-" ? line[0] : " ";
+      push(mark, oldLine === undefined ? "" : String(oldLine), newLine === undefined ? "" : String(newLine), line.slice(1));
+      if (mark !== "+" && oldLine !== undefined) oldLine++;
+      if (mark !== "-" && newLine !== undefined) newLine++;
+    } else if (line.length) push(" ", "", "", line);
+  }
+  return rows;
+}
+
+export function editDiffStats(diff: JsonValue | undefined): { readonly add: number; readonly del: number } {
+  let add = 0;
+  let del = 0;
+  // The composer only needs counts; do not allocate display rows for every historical edit.
+  if (Array.isArray(diff)) {
+    for (const row of diff) {
+      if (!Array.isArray(row)) continue;
+      if (row[0] === "+") add++;
+      if (row[0] === "-") del++;
+    }
+  } else if (typeof diff === "string") {
+    for (const line of diff.split("\n")) {
+      if (line.startsWith("+++ ") || line.startsWith("--- ")) continue;
+      if (line.startsWith("+")) add++;
+      if (line.startsWith("-")) del++;
+    }
+  }
+  return { add, del };
+}
+
+export type AppliedEditFileResult = {
+  readonly path: string;
+  readonly fields: { readonly [key: string]: JsonValue };
+};
+export type AppliedEditResults = {
+  readonly files: readonly AppliedEditFileResult[];
+  readonly partial: boolean;
+};
+
+/** Presence (including an empty array) suppresses every legacy path/diff fallback. */
+export function appliedEditResults(tool: ToolView): AppliedEditResults | undefined {
+  const data = toolResultFields(tool);
+  if (!Object.hasOwn(data, "perFileResults")) return undefined;
+  const files: AppliedEditFileResult[] = [];
+  let rejected = false;
+  if (tool.status === "succeeded" || tool.status === "failed") {
+    for (const entry of Array.isArray(data.perFileResults) ? data.perFileResults : []) {
+      const fields = jsonRecord(entry);
+      if (fields === undefined) continue;
+      if (fields.isError === true || jsonString(fields.errorText) || jsonString(fields.displayErrorText)) { rejected = true; continue; }
+      const path = jsonString(fields.move) ?? jsonString(fields.path);
+      if (path !== undefined) files.push({ path, fields });
+    }
+  }
+  return { files, partial: files.length > 0 && (rejected || tool.status === "failed" || tool.result?.isError === true || data.isError === true) };
+}
+
+export function toolDiffStats(tool: ToolView): { readonly add: number; readonly del: number } {
+  const kind = toolKind(tool);
+  const applied = appliedEditResults(tool);
+  if (applied !== undefined) {
+    return applied.files.reduce((total, file) => {
+      const diff = editDiffStats(file.fields.diff);
+      return { add: total.add + diff.add, del: total.del + diff.del };
+    }, { add: 0, del: 0 });
+  }
+  if (tool.status !== "succeeded" || tool.result?.isError === true) return { add: 0, del: 0 };
+  const fields = toolFields(tool);
+  if (kind === "write") {
+    const explicit = jsonNumber(fields.lines);
+    if (explicit !== undefined) return { add: explicit, del: 0 };
+    const content = fields.content;
+    if (typeof content === "string") {
+      return { add: content.length === 0 ? 0 : content.split("\n").length, del: 0 };
+    }
+    if (Array.isArray(content)) return { add: content.length, del: 0 };
+  }
+  return kind === "edit" ? editDiffStats(toolResultFields(tool).diff ?? fields.diff) : { add: 0, del: 0 };
+}
+
+export type FileEditKind = "write" | "edit" | "ast_edit";
+
+export type TurnFileChange = {
+  readonly path: string;
+  readonly name: string;
+  readonly dir: string;
+  readonly add: number;
+  readonly del: number;
+  readonly status?: TreeGitStatus;
+  readonly note?: string;
+  /** This file is confirmed applied, but another part of its tool call was rejected. */
+  readonly partial?: boolean;
+};
+
+export const CHANGE_NOTE: Readonly<Record<FileEditKind, string>> = {
+  write: "Write",
+  edit: "Edit",
+  ast_edit: "AST Edit",
+};
+
+function asFileEditKind(kind: string): FileEditKind | undefined {
+  return kind === "write" || kind === "edit" || kind === "ast_edit" ? kind : undefined;
+}
+
+function changeStatus(add: number, del: number, kinds: readonly FileEditKind[]): TreeGitStatus {
+  const writeOnly = kinds.length > 0 && kinds.every((kind) => kind === "write");
+  if (writeOnly && del === 0) return "added";
+  if (add === 0 && del > 0) return "deleted";
+  return "modified";
+}
+
+function changeNote(kinds: readonly FileEditKind[]): string | undefined {
+  const last = kinds.at(-1);
+  return last === undefined ? undefined : CHANGE_NOTE[last];
+}
+
+export function toolFilePath(tool: ToolView): string | undefined {
+  const result = toolResultFields(tool);
+  const fields = toolFields(tool);
+  return jsonString(result.move) ?? jsonString(result.path) ?? jsonString(result.resolvedPath)
+    ?? jsonString(fields.path) ?? jsonString(fields.resolvedPath) ?? jsonString(fields.target);
+}
+
+type FileChangeAcc = { add: number; del: number; kinds: FileEditKind[]; partial?: boolean; status?: TreeGitStatus };
+
+function addTurnFile(
+  files: Map<string, FileChangeAcc>,
+  path: string | undefined,
+  add: number,
+  del: number,
+  kind: FileEditKind,
+  partial = false,
+  status?: TreeGitStatus,
+): void {
+  if (path === undefined) return;
+  const normalized = path.replaceAll("\\", "/").trim();
+  // Handler writes and SQLite row mutations are not ordinary file diffs.
+  if(/^(?:cfg|proc|local|omp|attachment|conflict):/iu.test(normalized)||/\.(?:sqlite3?|db)\//iu.test(normalized))return;
+  if (!normalized || normalized.includes(" → ") || /^[a-z][a-z0-9+.-]*:\/\//iu.test(normalized)) return;
+  const previous = files.get(normalized);
+  const resultStatus = status ?? previous?.status;
+  files.set(normalized, {
+    add: (previous?.add ?? 0) + add,
+    del: (previous?.del ?? 0) + del,
+    kinds: [...(previous?.kinds ?? []), kind],
+    ...(partial || previous?.partial ? { partial: true } : {}),
+    ...(resultStatus === undefined ? {} : { status: resultStatus }),
+  });
+}
+
+function collectToolFileChanges(tool: ToolView, files: Map<string, FileChangeAcc>): void {
+  const kind = asFileEditKind(toolKind(tool));
+  if (kind === undefined) return;
+  const applied = appliedEditResults(tool);
+  if (applied !== undefined) {
+    for (const file of applied.files) {
+      const stats = editDiffStats(file.fields.diff);
+      const op = jsonString(file.fields.op);
+      const status = op === "create" ? "added" : op === "delete" ? "deleted" : "modified";
+      addTurnFile(files, file.path, stats.add, stats.del, kind, applied.partial, status);
+    }
+    return;
+  }
+  if (tool.status !== "succeeded" || tool.result?.isError === true) return;
+  const fields = toolFields(tool);
+  if (kind === "ast_edit") {
+    if (Array.isArray(fields.changes)) {
+      for (const entry of fields.changes) {
+        const record = jsonRecord(entry);
+        const file = jsonString(record?.file);
+        if (file === undefined) continue;
+        const before = jsonString(record?.before);
+        const after = jsonString(record?.after);
+        addTurnFile(files, file, after ? 1 : 0, before ? 1 : 0, kind);
+      }
+      return;
+    }
+    // Upstream reports per-file replacement counts, not before/after text; each
+    // replacement rewrites one span, so it counts as one removal plus one add.
+    if (Array.isArray(fields.fileReplacements)) {
+      for (const entry of fields.fileReplacements) {
+        const record = jsonRecord(entry);
+        const file = jsonString(record?.path);
+        const count = jsonNumber(record?.count);
+        if (file === undefined || count === undefined || count <= 0) continue;
+        addTurnFile(files, file, count, count, kind);
+      }
+    }
+    return;
+  }
+  const diff = toolDiffStats(tool);
+  addTurnFile(files, toolFilePath(tool), diff.add, diff.del, kind);
+}
+
+export function collectTurnFileChanges(segments: readonly AssistantSegment[]): TurnFileChange[] {
+  const files = new Map<string, FileChangeAcc>();
+  for (const segment of segments) {
+    if (segment.type !== "batch") continue;
+    for (const tool of segment.tools) collectToolFileChanges(tool, files);
+  }
+  const changes: TurnFileChange[] = [];
+  for (const [path, stats] of files) {
+    const display = splitDisplayPath(path);
+    const note = changeNote(stats.kinds);
+    changes.push({
+      path,
+      name: display.name,
+      dir: display.dir,
+      add: stats.add,
+      del: stats.del,
+      status: stats.status ?? changeStatus(stats.add, stats.del, stats.kinds),
+      ...(note === undefined ? {} : { note }),
+      ...(stats.partial ? { partial: true } : {}),
+    });
+  }
+  return changes;
+}
+
+export function hasAssistantText(segments: readonly AssistantSegment[]): boolean {
+  return segments.some((segment) => segment.type === "text" && segment.text.trim().length > 0);
+}
+
+/* ---------- 会话级变更（右侧 Changes 页签） ---------- */
+
+/** 连续 assistant 行的闭区间；非 assistant 行切开一轮。 */
+export type AssistantRunRange = {
+  readonly start: number;
+  readonly end: number;
+};
+
+export const SESSION_CHANGE_LAST_ID = "last";
+export const SESSION_CHANGE_SESSION_ID = "session";
+
+export type SessionChangeTurnKind = "last" | "turn" | "session";
+
+export type SessionChangeTurn = {
+  readonly id: string;
+  readonly kind: SessionChangeTurnKind;
+  readonly label: string;
+  readonly files: readonly TurnFileChange[];
+};
+
+export type SessionChangeScope = {
+  readonly id: string;
+  readonly kind: SessionChangeTurnKind;
+  readonly label: string;
+  readonly files: readonly TurnFileChange[];
+  readonly segments: readonly AssistantSegment[];
+};
+
+/** 非 assistant 行切开的连续 assistant 段。与对话 TurnDiffCard 的 turn 口径一致。 */
+export function assistantRunRanges(rows: readonly TimelineRow[]): readonly AssistantRunRange[] {
+  const ranges: AssistantRunRange[] = [];
+  let start = -1;
+  const flush = (endExclusive: number) => {
+    if (start >= 0 && endExclusive > start) ranges.push({ start, end: endExclusive - 1 });
+    start = -1;
+  };
+  for (let index = 0; index < rows.length; index += 1) {
+    if (rows[index]?.type === "assistant") {
+      if (start < 0) start = index;
+      continue;
+    }
+    flush(index);
+  }
+  flush(rows.length);
+  return ranges;
+}
+
+function rangeTurnId(rows: readonly TimelineRow[], range: AssistantRunRange): string {
+  const row = rows[range.end];
+  return row?.type === "assistant" ? row.itemId : `turn:${range.start}-${range.end}`;
+}
+
+/** 与 `listSessionChangeTurns` 同一套 id：最后一段为 last，其余为该段末行 itemId。 */
+export function sessionChangeTurnIdForRange(
+  rows: readonly TimelineRow[],
+  range: AssistantRunRange,
+  ranges: readonly AssistantRunRange[] = assistantRunRanges(rows),
+): string {
+  const last = ranges[ranges.length - 1];
+  if (last !== undefined && last.start === range.start && last.end === range.end) {
+    return SESSION_CHANGE_LAST_ID;
+  }
+  return rangeTurnId(rows, range);
+}
+
+function filesInRange(rows: readonly TimelineRow[], range: AssistantRunRange): TurnFileChange[] {
+  const segments: AssistantSegment[] = [];
+  for (let i = range.start; i <= range.end; i += 1) {
+    const row = rows[i];
+    if (row?.type === "assistant") segments.push(...row.segments);
+  }
+  return collectTurnFileChanges(segments);
+}
+
+function segmentsInRange(rows: readonly TimelineRow[], range: AssistantRunRange): readonly AssistantSegment[] {
+  const segments: AssistantSegment[] = [];
+  for (let i = range.start; i <= range.end; i += 1) {
+    const row = rows[i];
+    if (row?.type === "assistant") segments.push(...row.segments);
+  }
+  return segments;
+}
+
+function allAssistantSegments(rows: readonly TimelineRow[]): readonly AssistantSegment[] {
+  const segments: AssistantSegment[] = [];
+  for (const row of rows) {
+    if (row.type === "assistant") segments.push(...row.segments);
+  }
+  return segments;
+}
+
+function changePathMatches(path: string, focus: string): boolean {
+  const value = path.replaceAll("\\", "/");
+  const normalized = focus.replaceAll("\\", "/");
+  return value === normalized || value.endsWith(`/${normalized}`) || normalized.endsWith(`/${value}`);
+}
+
+/** 轮次菜单：最近一轮（跟随最新段）+ 有改动的历史轮 + 本会话。 */
+export function listSessionChangeTurns(rows: readonly TimelineRow[], zh = isZh()): SessionChangeTurn[] {
+  const ranges = assistantRunRanges(rows);
+  const last = ranges[ranges.length - 1];
+  const items: SessionChangeTurn[] = [{
+    id: SESSION_CHANGE_LAST_ID,
+    kind: "last",
+    label: zh ? "最近一轮" : "Latest turn",
+    files: last === undefined ? [] : filesInRange(rows, last),
+  }];
+  let historyIndex = 0;
+  for (let index = 0; index < ranges.length - 1; index += 1) {
+    const range = ranges[index]!;
+    const files = filesInRange(rows, range);
+    if (files.length === 0) continue;
+    historyIndex += 1;
+    items.push({
+      id: rangeTurnId(rows, range),
+      kind: "turn",
+      label: zh ? `第 ${historyIndex} 轮` : `Turn ${historyIndex}`,
+      files,
+    });
+  }
+  items.push({
+    id: SESSION_CHANGE_SESSION_ID,
+    kind: "session",
+    label: zh ? "本会话" : "This session",
+    files: collectTurnFileChanges(allAssistantSegments(rows)),
+  });
+  return items;
+}
+
+/** 选中轮次的文件清单与 patch 段。未知 id 回退到最近一轮。 */
+export function sessionChangeScope(rows: readonly TimelineRow[], turnId: string, zh = isZh()): SessionChangeScope {
+  if (turnId === SESSION_CHANGE_SESSION_ID) {
+    const segments = allAssistantSegments(rows);
+    return {
+      id: SESSION_CHANGE_SESSION_ID,
+      kind: "session",
+      label: zh ? "本会话" : "This session",
+      files: collectTurnFileChanges(segments),
+      segments,
+    };
+  }
+  const ranges = assistantRunRanges(rows);
+  if (turnId !== SESSION_CHANGE_LAST_ID) {
+    let historyIndex = 0;
+    for (let index = 0; index < ranges.length - 1; index += 1) {
+      const range = ranges[index]!;
+      const files = filesInRange(rows, range);
+      if (files.length === 0) continue;
+      historyIndex += 1;
+      if (rangeTurnId(rows, range) !== turnId) continue;
+      return {
+        id: turnId,
+        kind: "turn",
+        label: zh ? `第 ${historyIndex} 轮` : `Turn ${historyIndex}`,
+        files,
+        segments: segmentsInRange(rows, range),
+      };
+    }
+  }
+  const last = ranges[ranges.length - 1];
+  return {
+    id: SESSION_CHANGE_LAST_ID,
+    kind: "last",
+    label: zh ? "最近一轮" : "Latest turn",
+    files: last === undefined ? [] : filesInRange(rows, last),
+    segments: last === undefined ? [] : segmentsInRange(rows, last),
+  };
+}
+
+/** 从后往前找改过该路径的一轮；最后一段用 last id，便于跟随新 turn。 */
+export function sessionChangeTurnIdForPath(rows: readonly TimelineRow[], path: string): string | undefined {
+  const ranges = assistantRunRanges(rows);
+  for (let index = ranges.length - 1; index >= 0; index -= 1) {
+    const range = ranges[index]!;
+    if (!filesInRange(rows, range).some((file) => changePathMatches(file.path, path))) continue;
+    return index === ranges.length - 1 ? SESSION_CHANGE_LAST_ID : rangeTurnId(rows, range);
+  }
+  return undefined;
+}
+
+// --- Deleted: WeakMap segment caches, session patch tree builder, todo state machine, progress aggregation ---
+
+export function batchSummary(thinking: readonly ThinkView[], tools: readonly ToolView[], zh = isZh()): BatchSummary {
+  const files = new Set<string>();
+  let searches = 0;
+  let commands = 0;
+  let fetches = 0;
+  let agents = 0;
+  let asks = 0;
+  let editing = "";
+  let editingRun = false;
+  let thinkDur = "";
+  let askFirst = "";
+  let add = 0;
+  let del = 0;
+  for (const tool of tools) {
+    if (isAskPending(tool) || isPlanProposeTool(tool)) continue;
+    const kind = toolKind(tool);
+    const fields = toolFields(tool);
+    const path = jsonString(fields.path) ?? jsonString(fields.target);
+    if (kind === "think") thinkDur = jsonString(fields.dur) ?? thinkDur;
+    if (kind === "read" || kind === "write" || kind === "edit") {
+      const editSummary = kind === "edit" && !path ? editTargetSummary(tool) : undefined;
+      if (path) files.add(stripFileSelector(path));
+      else if (editSummary) {
+        for (const editPath of editSummary.allPaths) files.add(stripFileSelector(editPath));
+      }
+      if (kind === "edit" || kind === "write") {
+        const editTarget = path ?? editSummary?.primaryPath;
+        if (editTarget) editing = stripFileSelector(editTarget);
+        editingRun = tool.status === "running" || tool.status === "queued";
+      }
+    }
+    if (kind === "grep" || kind === "ast_grep" || kind === "glob") searches += 1;
+    if (kind === "bash") commands += 1;
+    if (kind === "web" || kind === "web_search" || kind === "mcp" || kind === "browser" || kind === "github") fetches += 1;
+    if (kind === "task") {
+      const list = fields.agents;
+      if (Array.isArray(list)) agents += list.length;
+    }
+    if (kind === "ask" || kind === "askuser") {
+      const answer = askAnswer(tool);
+      if (answer) {
+        asks += 1;
+        if (!askFirst) askFirst = answer;
+      }
+    }
+    const diff = toolDiffStats(tool);
+    add += diff.add;
+    del += diff.del;
+  }
+  const parts: string[] = [];
+  if (editing) {
+    const verb = editingRun
+      ? (zh ? "正在编辑 " : "Editing ")
+      : (zh ? "编辑 " : "Edited ");
+    parts.push(`${verb}${fileBase(editing)}`);
+  }
+  if (files.size) {
+    parts.push(zh ? `阅读 ${files.size} 个文件` : `Read ${files.size} ${files.size === 1 ? "file" : "files"}`);
+  }
+  if (searches) {
+    parts.push(zh ? `搜索 ${searches} 次` : `${searches} ${searches === 1 ? "search" : "searches"}`);
+  }
+  if (commands) {
+    parts.push(zh ? `运行 ${commands} 条命令` : `Ran ${commands} ${commands === 1 ? "command" : "commands"}`);
+  }
+  if (fetches) {
+    parts.push(zh ? `请求 ${fetches} 次` : `${fetches} ${fetches === 1 ? "request" : "requests"}`);
+  }
+  if (agents) {
+    parts.push(zh ? `${agents} 个子 Agent` : `${agents} ${agents === 1 ? "subagent" : "subagents"}`);
+  }
+  if (asks === 1 && askFirst && parts.length === 0) parts.push(`Ask · ${askFirst}`);
+  else if (asks) {
+    parts.push(zh ? `回答 ${asks} 次` : `${asks} ${asks === 1 ? "answer" : "answers"}`);
+  }
+  if (parts.length === 0 && thinkDur) {
+    parts.push(zh ? `思考了 ${thinkDur}` : `Thought for ${thinkDur}`);
+  }
+  if (parts.length === 0 && thinking.length > 0) {
+    const preview = thinking[0]?.text.trim().replace(/\s+/g, " ") ?? "";
+    parts.push(
+      preview
+        ? (zh ? `思考 · ${preview.slice(0, 36)}${preview.length > 36 ? "…" : ""}` : `Thinking · ${preview.slice(0, 36)}${preview.length > 36 ? "…" : ""}`)
+        : (zh ? "思考" : "Thinking"),
+    );
+  }
+  if (parts.length === 0) parts.push(zh ? "工具调用" : "Tool calls");
+  return { text: parts.join(" · "), add, del };
+}
+
+function metricValue(value: JsonValue | undefined): string | number | undefined {
+  const text = jsonString(value);
+  if (text !== undefined) return text;
+  return jsonNumber(value);
+}
+
+function taskTextForName(args: { readonly [key: string]: JsonValue } | undefined, name: string): string | undefined {
+  if (!args) return undefined;
+  const spawn = jsonRecord(args.spawn) ?? args;
+  const tasks = spawn.tasks;
+  if (Array.isArray(tasks)) {
+    for (const entry of tasks) {
+      const record = jsonRecord(entry);
+      if (jsonString(record?.name) === name) return jsonString(record?.task);
+    }
+  }
+  return jsonString(spawn.task);
+}
+
+export function collectAgents(tools: readonly ToolView[]): SubagentView[] {
+  const out: SubagentView[] = [];
+  for (const tool of tools) {
+    if (toolKind(tool) !== "task") continue;
+    const fields = toolFields(tool);
+    // `progress` is the live view; `results` is what a finished spawn reports.
+    const agents = Array.isArray(fields.progress)
+      ? fields.progress
+      : Array.isArray(fields.results)
+        ? fields.results
+        : fields.agents;
+    if (!Array.isArray(agents)) {
+      const args = jsonRecord(tool.arguments);
+      const spawn = jsonRecord(args?.spawn) ?? args;
+      if (spawn === undefined) continue;
+      const pending = Array.isArray(spawn.tasks) ? spawn.tasks : [spawn];
+      for (let index = 0; index < pending.length; index += 1) {
+        const record = jsonRecord(pending[index]);
+        if (record === undefined) continue;
+        const task = jsonString(record.task);
+        const agent = jsonString(record.agent) ?? jsonString(spawn.agent);
+        const explicitName = jsonString(record.name);
+        const baseName = explicitName ?? agent ?? "Agent";
+        const name = explicitName === undefined && pending.length > 1 ? `${baseName} ${index + 1}` : baseName;
+        out.push({
+          name,
+          status: tool.status === "failed" || tool.status === "aborted" ? tool.status : tool.status === "succeeded" ? "done" : "starting",
+          toolCallId: tool.toolCallId,
+          ...(task === undefined ? {} : { task }),
+        });
+      }
+      continue;
+    }
+    for (const entry of agents) {
+      const record = jsonRecord(entry);
+      const rawId = jsonString(record?.agentId) ?? jsonString(record?.id);
+      const name = jsonString(record?.name) ?? rawId ?? jsonString(record?.agent);
+      if (!name) continue;
+      const agentId = rawId !== undefined && isRealSubagentId(rawId) ? rawId : undefined;
+      const task = jsonString(record?.task) ?? jsonString(record?.assignment) ?? taskTextForName(jsonRecord(tool.arguments), name);
+      const status = jsonString(record?.status) ?? "done";
+      // 异步派发时 runtime 立刻把一份 progress 快照写进工具结果，那时每个 Agent 都还是
+      // `pending`，token/请求/时长全是占位 0。把它们当统计渲染出来就成了「0 tok  req 0」，
+      // 所以未起跑的行一律不带度量。
+      const measured = status !== "pending";
+      const durationMs = measured ? jsonNumber(record?.durationMs) : undefined;
+      const dur = (measured ? jsonString(record?.dur) : undefined)
+        ?? (durationMs === undefined ? undefined : `${(durationMs / 1000).toFixed(1)}s`);
+      const rawTokens = measured ? jsonString(record?.tokens) : undefined;
+      const tokens = rawTokens === "[redacted]"
+        ? undefined
+        : rawTokens ?? (!measured || jsonNumber(record?.tokens) === undefined ? undefined : String(jsonNumber(record?.tokens)));
+      // 运行中的 progress 行用 `toolCount`，落盘的 results 行用 `tools`。
+      const toolsCount = measured ? metricValue(record?.tools) ?? metricValue(record?.toolCount) : undefined;
+      const requests = measured ? metricValue(record?.requests) : undefined;
+      const files = measured ? metricValue(record?.files) : undefined;
+      const rawCost = measured ? jsonString(record?.cost) : undefined;
+      const cost = rawCost === "[redacted]" ? undefined : rawCost;
+      const activity = jsonString(record?.activity);
+      const currentTool = jsonString(record?.currentTool) ?? jsonString(jsonRecord(record?.currentTool)?.name);
+      const currentDetail = jsonString(record?.currentToolIntent) ?? jsonString(record?.currentToolArgs);
+      const latestActivity = currentTool
+        ? [currentTool, currentDetail].filter(Boolean).join(" · ")
+        : jsonString(record?.lastIntent) ?? jsonString(record?.lastTool) ?? jsonString(record?.summary);
+      out.push({
+        name,
+        status,
+        toolCallId: tool.toolCallId,
+        ...(agentId === undefined ? {} : { agentId }),
+        ...(task === undefined ? {} : { task }),
+        ...(activity === undefined ? {} : { activity }),
+        ...(currentTool === undefined ? {} : { currentTool }),
+        ...(latestActivity === undefined ? {} : { latestActivity }),
+        ...(dur === undefined ? {} : { dur }),
+        ...(tokens === undefined ? {} : { tokens }),
+        ...(toolsCount === undefined ? {} : { tools: toolsCount }),
+        ...(requests === undefined ? {} : { requests }),
+        ...(files === undefined ? {} : { files }),
+        ...(cost === undefined ? {} : { cost }),
+      });
+    }
+  }
+  return out;
+}
+
+export function parseTaskBrief(args: { readonly [key: string]: JsonValue } | undefined): { goal: string; constraints: string[] } {
+  if (!args) return { goal: "", constraints: [] };
+  // Upstream has no `spawn` wrapper: the batch form is `{ context, tasks[] }`
+  // and the single form is flat `{ agent, task }`.
+  const spawn = jsonRecord(args.spawn) ?? args;
+  const goal = jsonString(spawn.goal) ?? jsonString(args.goal) ?? jsonString(spawn.task);
+  const constraints = jsonStringArray(spawn.constraints) ?? jsonStringArray(args.constraints);
+  if (goal || (constraints && constraints.length)) {
+    return { goal: goal ?? "", constraints: constraints ?? [] };
+  }
+  const ctx = jsonString(spawn.context);
+  if (!ctx?.trim()) return { goal: "", constraints: [] };
+  const goalLines: string[] = [];
+  const constraintLines: string[] = [];
+  let mode = "";
+  for (const line of ctx.split("\n")) {
+    const heading = line.trim();
+    if (/^#+\s*goal\b/i.test(heading)) {
+      mode = "goal";
+      continue;
+    }
+    if (/^#+\s*constraints\b/i.test(heading)) {
+      mode = "constraints";
+      continue;
+    }
+    if (/^#+\s+/.test(heading)) {
+      mode = "";
+      continue;
+    }
+    if (!heading) continue;
+    if (mode === "goal") goalLines.push(heading.replace(/^[-*]\s+/, ""));
+    else if (mode === "constraints") constraintLines.push(heading.replace(/^[-*]\s+/, ""));
+  }
+  if (!goalLines.length && !constraintLines.length) return { goal: ctx.trim(), constraints: [] };
+  return { goal: goalLines.join("\n"), constraints: constraintLines };
+}
+
+export function taskJobs(args: { readonly [key: string]: JsonValue } | undefined): Array<{ name: string; agent?: string }> {
+  if (!args) return [];
+  const spawn = jsonRecord(args.spawn) ?? args;
+  const tasks = spawn.tasks;
+  if (!Array.isArray(tasks)) return [];
+  const jobs: Array<{ name: string; agent?: string }> = [];
+  for (const entry of tasks) {
+    const record = jsonRecord(entry);
+    const name = jsonString(record?.name);
+    if (!name) continue;
+    const agent = jsonString(record?.agent) ?? jsonString(spawn.agent);
+    jobs.push(agent ? { name, agent } : { name });
+  }
+  return jobs;
+}
+
+export function saPill(agent: SubagentView | string): { cls: string; label: string } {
+  const status = typeof agent === "string" ? agent : agent.status;
+  const activity = typeof agent === "string" ? undefined : agent.activity;
+  const currentTool = typeof agent === "string" ? undefined : agent.currentTool;
+  if (status === "running") {
+    if (activity === "tool" || currentTool) {
+      return { cls: "tool", label: currentTool ? `Running Tool · ${currentTool}` : "Running Tool" };
+    }
+    return activity === "thinking" ? { cls: "thinking", label: "Thinking" } : { cls: "tool", label: "Running" };
+  }
+  if (status === "starting" || status === "reviving") return { cls: "thinking", label: "Starting" };
+  if (status === "waiting") return { cls: "waiting", label: "Waiting for User" };
+  if (status === "error" || status === "failed") return { cls: "aborted", label: "Failed" };
+  if (status === "aborted") return { cls: "aborted", label: "Aborted" };
+  if (status === "done" || status === "succeeded" || status === "completed" || status === "released") {
+    return { cls: "idle", label: "Done" };
+  }
+  if (status === "idle") return { cls: "idle", label: "Idle" };
+  if (status === "parked") return { cls: "parked", label: "Parked" };
+  if (status === "pending") return { cls: "parked", label: "Pending" };
+  return { cls: "parked", label: status };
+}
+
+/* ============================================================
+   Todo 任务清单状态机 + 会话任务进度（输入框上方的 Task Dock 数据源）。
+   2026-08-30 自 4788173 恢复：streaming-ver1 重写时被整体移除，导致
+   TaskProgressDock（todolist / 本轮 diff 胶囊）空转。
+   ============================================================ */
+
+function assistantSegmentsOf(rows: readonly TimelineRow[]): AssistantSegment[] {
+  const segments: AssistantSegment[] = [];
+  for (const row of rows) {
+    if (row.type === "assistant") segments.push(...row.segments);
+  }
+  return segments;
+}
+
+function lastAssistantRunRange(rows: readonly TimelineRow[]): AssistantRunRange | undefined {
+  const ranges = assistantRunRanges(rows);
+  return ranges[ranges.length - 1];
+}
+
+/** `blocked` is read-only legacy transcript compatibility, not a status offered by native Todo. */
+export type TodoStatus = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
+
+export type TodoTask = {
+  readonly id: string;
+  readonly content: string;
+  readonly status: TodoStatus;
+  readonly phase?: string;
+};
+
+export type TaskProgress = {
+  readonly todos: readonly TodoTask[];
+  readonly files: readonly TurnFileChange[];
+};
+
+export type TodoPhaseGroup = {
+  readonly phase: string | undefined;
+  readonly tasks: readonly TodoTask[];
+};
+
+/** Native flattened `init { items }` uses this phase name. */
+const DEFAULT_TODO_PHASE = "Tasks";
+
+export function groupTodosByPhase(todos: readonly TodoTask[]): TodoPhaseGroup[] {
+  const groups: Array<{ phase: string | undefined; tasks: TodoTask[] }> = [];
+  const indexByPhase = new Map<string | undefined, number>();
+  for (const todo of todos) {
+    const key = todo.phase;
+    let index = indexByPhase.get(key);
+    if (index === undefined) {
+      index = groups.length;
+      indexByPhase.set(key, index);
+      groups.push({ phase: key, tasks: [] });
+    }
+    groups[index]!.tasks.push(todo);
+  }
+  return groups;
+}
+
+export function todoPhaseHeadersVisible(groups: readonly TodoPhaseGroup[]): boolean {
+  if (groups.length > 1) return groups.some((group) => group.phase !== undefined);
+  const name = groups[0]?.phase;
+  return name !== undefined && name !== DEFAULT_TODO_PHASE;
+}
+
+export function isTodoPhaseComplete(group: TodoPhaseGroup): boolean {
+  return group.tasks.length > 0 && group.tasks.every((task) => task.status === "completed" || task.status === "abandoned");
+}
+
+export function todoPhaseOpenByDefault(groups: readonly TodoPhaseGroup[]): boolean[] {
+  if (groups.length === 0) return [];
+  if (groups.every(isTodoPhaseComplete)) return groups.map(() => true);
+  return groups.map((group) => !isTodoPhaseComplete(group));
+}
+
+const TODO_STATUS: Record<string, TodoStatus> = {
+  pending: "pending",
+  todo: "pending",
+  in_progress: "in_progress",
+  "in-progress": "in_progress",
+  doing: "in_progress",
+  completed: "completed",
+  done: "completed",
+  abandoned: "abandoned",
+  blocked: "blocked",
+};
+
+function todoStatusOf(raw: string | undefined): TodoStatus {
+  return TODO_STATUS[raw?.trim().toLowerCase() ?? ""] ?? "pending";
+}
+
+function todoContentOf(task: { readonly [key: string]: JsonValue }): string | undefined {
+  return jsonString(task.content) ?? jsonString(task.text) ?? jsonString(task.label);
+}
+
+function tasksFromTodoFields(fields: { readonly [key: string]: JsonValue }): TodoTask[] {
+  const out: TodoTask[] = [];
+  const pushTask = (entry: JsonValue, phase: string | undefined, index: number) => {
+    const record = jsonRecord(entry);
+    if (record === undefined) return;
+    const content = todoContentOf(record);
+    if (content === undefined || content.trim().length === 0) return;
+    const id = jsonString(record.id) ?? `${phase ?? "todo"}-${index}`;
+    out.push({
+      id,
+      content,
+      status: todoStatusOf(jsonString(record.status)),
+      ...(phase === undefined ? {} : { phase }),
+    });
+  };
+  if (Array.isArray(fields.phases)) {
+    for (const [phaseIndex, entry] of fields.phases.entries()) {
+      const phase = jsonRecord(entry) ?? {};
+      const name = jsonString(phase.name) ?? `phase-${phaseIndex}`;
+      const tasks = Array.isArray(phase.tasks) ? phase.tasks : Array.isArray(phase.items) ? phase.items : [];
+      for (const [taskIndex, task] of tasks.entries()) pushTask(task, name, out.length + taskIndex);
+    }
+  }
+  if (out.length > 0) return out;
+  const items = Array.isArray(fields.items) ? fields.items : Array.isArray(fields.list) ? fields.list : [];
+  for (const [index, item] of items.entries()) pushTask(item, undefined, index);
+  return out;
+}
+
+function extractTodoSnapshot(tool: ToolView): TodoTask[] | undefined {
+  if (toolKind(tool) !== "todo" || tool.status !== "succeeded" || tool.result?.isError === true) return undefined;
+  const result = toolResultFields(tool);
+  // A native view after restore supersedes the historical blocked snapshot,
+  // including an empty list. History itself remains untouched and read-only.
+  if (Object.hasOwn(result, "phases")) return tasksFromTodoFields(result);
+  const fields = toolFields(tool);
+  const tasks = tasksFromTodoFields(fields);
+  if (tasks.length > 0) return tasks;
+  const op = jsonString(fields.op)?.toLowerCase();
+  if (op === "clear" || op === "rm" || op === "reset") return [];
+  return undefined;
+}
+
+export function collectLatestTodos(segments: readonly AssistantSegment[]): TodoTask[] {
+  let latest: TodoTask[] = [];
+  for (const segment of segments) {
+    if (segment.type !== "batch") continue;
+    for (const tool of segment.tools) {
+      const snapshot = extractTodoSnapshot(tool);
+      if (snapshot !== undefined) latest = snapshot;
+    }
+  }
+  return latest;
+}
+
+export function todoStepProgress(todos: readonly TodoTask[]): { current: number; total: number; completed: number } {
+  const active = todos.filter((task) => task.status !== "abandoned");
+  const total = active.length;
+  const completed = active.filter((task) => task.status === "completed").length;
+  const inProgress = active.findIndex((task) => task.status === "in_progress");
+  if (total === 0) return { current: 0, total: 0, completed: 0 };
+  if (inProgress >= 0) return { current: inProgress + 1, total, completed };
+  if (completed >= total) return { current: total, total, completed };
+  return { current: Math.min(total, completed + 1), total, completed };
+}
+
+/** DSH HUD keeps a list that still has open work; completed-only snapshots auto-clear. */
+export function todoHudVisible(todos: readonly TodoTask[]): boolean {
+  return todos.some((task) => task.status === "pending" || task.status === "in_progress" || task.status === "blocked");
+}
+
+function lastUserRowIndex(rows: readonly TimelineRow[]): number {
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    if (rows[index]?.type === "user") return index;
+  }
+  return -1;
+}
+
+/**
+ * Session HUD: latest session todo snapshot (DSH live HUD) plus files from the
+ * current turn. A new user message starts a turn — previous-turn files drop;
+ * completed-only todos stay hidden, matching DSH after auto-clear / `/new`.
+ */
+export function sessionTaskProgress(rows: readonly TimelineRow[]): TaskProgress {
+  const latest = collectLatestTodos(assistantSegmentsOf(rows));
+  const todos = todoHudVisible(latest) ? latest : [];
+  const run = lastAssistantRunRange(rows);
+  const user = lastUserRowIndex(rows);
+  if (run === undefined || (user >= 0 && run.end < user)) {
+    return { todos, files: [] };
+  }
+  return { todos, files: collectTurnFileChanges(assistantSegmentsOf(rows.slice(run.start, run.end + 1))) };
+}

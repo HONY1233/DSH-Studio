@@ -1,0 +1,718 @@
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { CommandReceipt, CommandRequestId, EnvironmentReadModel, RuntimeConnection, StudioClient } from "@omp-studio/client-contract";
+import { DiagnosticsPage, DIAGNOSTICS_INTENT_KEY, setDiagnosticsIntent } from "./DiagnosticsPage";
+import { PreviewModeProvider } from "./preview/PreviewContext";
+import { PREVIEW_MODE_STORAGE_KEY } from "./preview/mode";
+import { UPDATE_CHECK_TIMEOUT_MS } from "./updateCheck";
+import { __resetUpdatesForTests, type UpdateProgressEvent } from "./settings/updates";
+
+afterEach(() => {
+  cleanup();
+  __resetUpdatesForTests();
+  vi.useRealTimers();
+  window.localStorage.removeItem(PREVIEW_MODE_STORAGE_KEY);
+  window.sessionStorage.removeItem(DIAGNOSTICS_INTENT_KEY);
+  window.ompStudioChrome = undefined;
+});
+
+function fakeClient(): StudioClient & { readonly query: ReturnType<typeof vi.fn>; readonly command: ReturnType<typeof vi.fn> } {
+  const query = vi.fn(async () => {
+    throw new Error("query should not run in preview");
+  });
+  const command = vi.fn(async () => {
+    throw new Error("command should not run in preview");
+  });
+  return { query, command, bootstrap: vi.fn(), subscribe: vi.fn(), close: vi.fn() } as unknown as StudioClient & {
+    readonly query: ReturnType<typeof vi.fn>;
+    readonly command: ReturnType<typeof vi.fn>;
+  };
+}
+
+// The recovery inventory uses a root client, independent of the Runtime fixtures below.
+const recoveryClient = { query: async () => ({ workspaces: [] }) } as unknown as StudioClient;
+
+function renderPage(options: {
+  preview?: boolean;
+  client?: StudioClient;
+  runtime?: RuntimeConnection;
+  environment?: EnvironmentReadModel;
+} = {}) {
+  window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, options.preview === false ? "0" : "1");
+  const client = options.client ?? fakeClient();
+  render(
+    <PreviewModeProvider switchEnabled>
+      <DiagnosticsPage
+        client={client}
+        recoveryClient={recoveryClient}
+        {...(options.runtime === undefined ? {} : { runtime: options.runtime })}
+        {...(options.environment === undefined ? {} : { environment: options.environment })}
+      />
+    </PreviewModeProvider>,
+  );
+  return client;
+}
+
+function installHarness(result: { status: "installed" | "failed"; message?: string } = { status: "installed" }) {
+  const requestId = "runtime-install-review" as CommandRequestId;
+  const environment: EnvironmentReadModel = {
+    platform: "win32", arch: "x64",
+    authority: { authorityId: "auth-review" as never, authorityEpoch: 1 as never },
+    runtime: { status: "connected", classification: "managed", runtimeVersion: "1.0.0" },
+    installer: { status: "installed", version: "1.0.0", signature: "verified" },
+  };
+  const command = vi.fn(async () => ({ requestId }));
+  const client = {
+    command,
+    query: vi.fn(async (name: string) => name === "environment.get" ? environment : { entries: [] }),
+    subscribe: (_scope: unknown, listener: (event: unknown) => void) => {
+      queueMicrotask(() => listener({ kind: "command.receipt", receipt: {
+        commandName: "runtime.install", requestId, status: "completed",
+        result: { ...result, version: "2.0.0", signature: "verified" }, observedAt: new Date().toISOString(),
+      } }));
+      return () => {};
+    },
+    bootstrap: vi.fn(), close: vi.fn(),
+  } as unknown as StudioClient;
+  return { client, command, environment };
+}
+
+const installPrefs = { mirrorPrefix: "", autoCheck: false, skippedAppVersion: "", runtimeChannel: "stable" as const, preferHotUpdate: true, lastIndexSequence: 0 };
+
+describe("Runtime installation handoff", () => {
+  it.each(["stable", "canary"] as const)("installs an imported %s artifact using its verified channel", async (runtimeChannel) => {
+    const { client, command, environment } = installHarness();
+    window.ompStudioChrome = {
+      getUpdatePrefs: async () => installPrefs,
+      importLocalUpdate: async () => ({ ok: true, runtimeChannel, runtimeVersion: "2.0.0" }),
+    } as never;
+    renderPage({ preview: false, client, environment });
+    fireEvent.click(screen.getByRole("button", { name: "从本地文件安装…" }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("runtime.install", { channel: runtimeChannel }));
+    await waitFor(() => expect(screen.getByText("托管运行时已安装")).toBeTruthy());
+  });
+
+  it("keeps the downloaded artifact channel even when preferences now select stable", async () => {
+    const { client, command, environment } = installHarness();
+    let listener!: (event: UpdateProgressEvent) => void;
+    window.ompStudioChrome = {
+      getUpdatePrefs: async () => installPrefs,
+      subscribeUpdateProgress: (next: typeof listener) => { listener = next; return () => {}; },
+      startRuntime: async () => {
+        queueMicrotask(() => listener({ jobId: "download-canary", kind: "runtime", phase: "awaiting-apply", runtimeChannel: "canary", step: 3, steps: 3 }));
+        return { ok: true, jobId: "download-canary" };
+      },
+    } as never;
+    __resetUpdatesForTests({ check: { checkedAt: new Date().toISOString(), app: { plan: "none" }, runtime: { plan: "available", runtimeVersion: "2.0.0" } } });
+    renderPage({ preview: false, client, environment });
+    fireEvent.click(screen.getByRole("button", { name: "更新" }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("runtime.install", { channel: "canary" }));
+    await waitFor(() => expect(screen.getByText("托管运行时已更新")).toBeTruthy());
+  });
+
+  it("uses the selected channel for a local reinstall", async () => {
+    const { client, command, environment } = installHarness();
+    window.ompStudioChrome = { getUpdatePrefs: async () => ({ ...installPrefs, runtimeChannel: "canary" }) } as never;
+    renderPage({ preview: false, client, environment });
+    fireEvent.click(screen.getByRole("button", { name: "重装" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认重装" }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("runtime.install", { channel: "canary" }));
+  });
+
+  it("reports a failed install result even when its command receipt is completed", async () => {
+    const { client, environment } = installHarness({ status: "failed", message: "Runtime handshake failed" });
+    window.ompStudioChrome = { importLocalUpdate: async () => ({ ok: true, runtimeChannel: "stable" }) } as never;
+    renderPage({ preview: false, client, environment });
+    fireEvent.click(screen.getByRole("button", { name: "从本地文件安装…" }));
+    await waitFor(() => expect(screen.getByText("Runtime handshake failed")).toBeTruthy());
+    expect(screen.queryByText("托管运行时已安装")).toBeNull();
+  });
+
+  it("does not silently install stable when an imported artifact has no channel", async () => {
+    const { client, command, environment } = installHarness();
+    window.ompStudioChrome = { importLocalUpdate: async () => ({ ok: true }) } as never;
+    renderPage({ preview: false, client, environment });
+    fireEvent.click(screen.getByRole("button", { name: "从本地文件安装…" }));
+    await waitFor(() => expect(screen.getByText("无法确认 Runtime 工件通道，请重新检查更新")).toBeTruthy());
+    expect(command).not.toHaveBeenCalled();
+  });
+});
+
+describe("Runtime update compatibility", () => {
+  it("shows the desktop blocker and never falls back to local installation", async () => {
+    const { client, command, environment: installedEnvironment } = installHarness();
+    const blocker = "Runtime 至少需要桌面 0.1.11，请先更新桌面";
+    const environment: EnvironmentReadModel = { ...installedEnvironment, installer: { status: "update-available", version: "1.0.0", availableVersion: "2.0.0", signature: "verified" } };
+    const prepareUpdates = vi.fn();
+    window.ompStudioChrome = { getUpdatePrefs: async () => installPrefs, prepareUpdates } as never;
+    __resetUpdatesForTests({ check: { checkedAt: new Date().toISOString(), app: { plan: "full", version: "0.1.11" }, runtime: { plan: "blocked", runtimeVersion: "2.0.0", reason: blocker } } });
+    renderPage({ preview: false, client, environment });
+    expect(screen.getByText("运行时更新需先升级桌面")).toBeTruthy();
+    expect(screen.getAllByText(blocker).length).toBeGreaterThan(0);
+    const buttons = [screen.getByRole("button", { name: "更新运行时" }), ...screen.getAllByRole("button", { name: "更新" })];
+    for (const button of buttons) {
+      expect((button as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click(button);
+    }
+    expect(command).not.toHaveBeenCalled();
+    expect(prepareUpdates).not.toHaveBeenCalled();
+    expect((screen.getByRole("button", { name: "重装" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("reports a blocked manual check rather than announcing an installable update", async () => {
+    const { client, environment } = installHarness();
+    window.ompStudioChrome = {
+      getUpdatePrefs: async () => installPrefs,
+      checkUpdates: async () => ({ checkedAt: new Date().toISOString(), app: { plan: "none" }, runtime: { plan: "blocked", runtimeVersion: "2.0.0", reason: "请先更新桌面" } }),
+    } as never;
+    renderPage({ preview: false, client, environment });
+    fireEvent.click(screen.getAllByRole("button", { name: "检查更新" })[0]!);
+    await waitFor(() => expect(screen.getByText("请先更新桌面")).toBeTruthy());
+    expect(screen.queryByText("发现可用制品 2.0.0")).toBeNull();
+  });
+
+  it("reports a rejected update check instead of claiming the local Runtime is up to date", async () => {
+    const { client, environment } = installHarness();
+    window.ompStudioChrome = {
+      getUpdatePrefs: async () => installPrefs,
+      checkUpdates: async () => { throw new Error("更新请求 HTTP 403（api.github.com），请求受限"); },
+    } as never;
+    renderPage({ preview: false, client, environment });
+    fireEvent.click(screen.getAllByRole("button", { name: "检查更新" })[0]!);
+    await waitFor(() => expect(screen.getByText("检查更新失败: 更新请求 HTTP 403（api.github.com），请求受限")).toBeTruthy());
+    expect(screen.queryByText("已是最新版本")).toBeNull();
+  });
+
+  it("keeps a reported update check failure visible when the local environment cannot be read", async () => {
+    const { client, environment } = installHarness();
+    vi.mocked(client.query).mockRejectedValue(new Error("Local environment unavailable"));
+    window.ompStudioChrome = {
+      getUpdatePrefs: async () => installPrefs,
+      checkUpdates: async () => ({ checkedAt: new Date().toISOString(), error: "HTTP 403，请求受限", app: { plan: "none" }, runtime: { plan: "none" } }),
+    } as never;
+    renderPage({ preview: false, client, environment });
+    fireEvent.click(screen.getAllByRole("button", { name: "检查更新" })[0]!);
+    await waitFor(() => expect(screen.getByText("检查更新失败: HTTP 403，请求受限")).toBeTruthy());
+    expect(screen.queryByText("已是最新版本")).toBeNull();
+  });
+
+  it("distinguishes a local-only check from an online update check", async () => {
+    const { client, environment } = installHarness();
+    renderPage({ preview: false, client, environment });
+    fireEvent.click(screen.getAllByRole("button", { name: "检查更新" })[0]!);
+    await waitFor(() => expect(screen.getByText("已检查本地运行时工件，未检查在线更新")).toBeTruthy());
+    expect(screen.queryByText("已是最新版本")).toBeNull();
+  });
+
+  it("still refreshes local Runtime information after a silent online check fails", async () => {
+    const { client, environment } = installHarness();
+    let failCheck!: (error: Error) => void;
+    const checkUpdates = vi.fn(() => new Promise<never>((_resolve, reject) => { failCheck = reject; }));
+    window.ompStudioChrome = {
+      getUpdatePrefs: async () => ({ ...installPrefs, autoCheck: true }),
+      checkUpdates,
+    } as never;
+    renderPage({ preview: false, client, environment });
+    await waitFor(() => expect(checkUpdates).toHaveBeenCalled());
+    vi.mocked(client.query).mockClear();
+    await act(async () => failCheck(new Error("Offline")));
+    await waitFor(() => expect(client.query).toHaveBeenCalledWith("environment.get", {}));
+    expect(screen.queryByText(/检查更新失败/)).toBeNull();
+  });
+
+  it("demonstrates the same blocker without using Host data or writes", () => {
+    __resetUpdatesForTests({ check: { checkedAt: new Date().toISOString(), app: { plan: "none" }, runtime: { plan: "blocked", reason: "Real Host blocker" } } });
+    const client = renderPage({ preview: true });
+    fireEvent.click(screen.getByRole("button", { name: "预览：有可用更新" }));
+    fireEvent.click(screen.getByRole("button", { name: "预览：环境正常" }));
+    fireEvent.click(screen.getByRole("button", { name: "预览：启动失败" }));
+    expect(screen.getByText("运行时更新需先升级桌面")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "更新运行时" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getAllByRole("button", { name: "检查更新" })[0]!);
+    expect(screen.queryByText("已检查更新（演示）· 18.8.0-studio.18 可用")).toBeNull();
+    expect(screen.getAllByText(/请先更新桌面（演示）/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Real Host blocker")).toBeNull();
+    expect(client.query).not.toHaveBeenCalled();
+    expect(client.command).not.toHaveBeenCalled();
+  });
+});
+
+describe("DiagnosticsPage", () => {
+  it("keeps Runtime maintenance local in preview", () => {
+    const rollback = vi.fn();
+    const prune = vi.fn();
+    window.ompStudioChrome = { rollbackRuntimeUpdate: rollback, pruneRuntimeUpdates: prune } as never;
+    renderPage({ preview: true });
+    fireEvent.click(screen.getByRole("button", { name: "回滚运行时并重启应用" }));
+    fireEvent.click(screen.getByRole("button", { name: "清理旧版工件缓存" }));
+    expect(rollback).not.toHaveBeenCalled();
+    expect(prune).not.toHaveBeenCalled();
+  });
+
+  it("reports rollback errors and blocks other maintenance while rollback is running", async () => {
+    let finish!: (value: { ok: boolean; message: string }) => void;
+    const rollback = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
+    window.ompStudioChrome = { rollbackRuntimeUpdate: rollback, pruneRuntimeUpdates: vi.fn() } as never;
+    renderPage({ preview: false });
+    fireEvent.click(screen.getByRole("button", { name: "回滚运行时并重启应用" }));
+    expect((screen.getByRole("button", { name: "清理旧版工件缓存" }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => finish({ ok: false, message: "Previous runtime is unavailable" }));
+    expect(screen.getByText("Previous runtime is unavailable")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "回滚运行时并重启应用" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+  it("shows the update hero and version tiles in preview", () => {
+    renderPage({ preview: true });
+    expect(screen.getByRole("heading", { level: 1, name: "诊断中心" })).toBeTruthy();
+    expect(screen.getByText("有可用运行时更新")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "更新运行时" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "检查更新" }).length).toBeGreaterThan(1);
+    expect(screen.queryByText(/路径 \/ PID/)).toBeNull();
+    expect(screen.getByText("托管运行时").parentElement?.textContent).toContain("18.8.0-studio.17");
+    expect(screen.getAllByText(/可更新到 18\.8\.0-studio\.18/).length).toBeGreaterThan(0);
+  });
+
+  it("checks updates in preview without calling Host", () => {
+    const client = renderPage({ preview: true });
+    fireEvent.click(screen.getAllByRole("button", { name: "检查更新" })[0]!);
+    expect(screen.getByText("已检查更新（演示）· 18.8.0-studio.18 可用")).toBeTruthy();
+    expect(client.query).not.toHaveBeenCalled();
+    expect(client.command).not.toHaveBeenCalled();
+  });
+
+  it("confirms reinstall in preview without calling Host", () => {
+    const client = renderPage({ preview: true });
+    fireEvent.click(screen.getByRole("button", { name: "重装" }));
+    expect(screen.getByRole("dialog", { name: "重装托管运行时？" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "确认重装" }));
+    expect(screen.getByText("已重装运行时（演示）")).toBeTruthy();
+    expect(client.command).not.toHaveBeenCalled();
+  });
+
+  it("shows a real update-available installer from the Host read model", () => {
+    window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "0");
+    const environment: EnvironmentReadModel = {
+      platform: "win32",
+      arch: "x64",
+      authority: {
+        authorityId: "auth-1" as EnvironmentReadModel["authority"]["authorityId"],
+        authorityEpoch: 1 as EnvironmentReadModel["authority"]["authorityEpoch"],
+      },
+      runtime: { status: "connected", classification: "managed", runtimeVersion: "1.0.0-studio.1" },
+      installer: {
+        status: "update-available",
+        version: "1.0.0-studio.1",
+        availableVersion: "1.0.2-studio.1",
+        signature: "verified",
+      },
+    };
+    render(
+      <PreviewModeProvider switchEnabled>
+        <DiagnosticsPage
+          client={fakeClient()}
+          recoveryClient={recoveryClient}
+          runtime={environment.runtime}
+          environment={environment}
+        />
+      </PreviewModeProvider>,
+    );
+    expect(screen.getByText("有可用运行时更新")).toBeTruthy();
+    expect(screen.getAllByText(/可更新到 1\.0\.2-studio\.1/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("演示数据 · 预览开时覆盖真实读模型")).toBeNull();
+    expect(screen.queryByText(/路径 \/ PID/)).toBeNull();
+  });
+
+  it("honors a check-update intent on mount in preview", () => {
+    setDiagnosticsIntent("check-update");
+    renderPage({ preview: true });
+    expect(screen.getByText("已检查更新（演示）· 18.8.0-studio.18 可用")).toBeTruthy();
+  });
+
+  it("stays quiet when the automatic update check times out", async () => {
+    vi.useFakeTimers();
+    const query = vi.fn(() => new Promise<never>(() => undefined));
+    const client = { ...fakeClient(), query };
+    renderPage({ preview: false, client });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(UPDATE_CHECK_TIMEOUT_MS);
+    });
+    expect(screen.queryByText("检查更新超时")).toBeNull();
+    expect(screen.queryByText("检查更新失败")).toBeNull();
+    expect(query).toHaveBeenCalled();
+  });
+
+  it("reports a timeout only for a manual update check", async () => {
+    vi.useFakeTimers();
+    const query = vi.fn(() => new Promise<never>(() => undefined));
+    const client = { ...fakeClient(), query };
+    renderPage({ preview: false, client });
+    fireEvent.click(screen.getAllByRole("button", { name: "检查更新" })[0]!);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(UPDATE_CHECK_TIMEOUT_MS);
+    });
+    expect(screen.getByText("检查更新超时")).toBeTruthy();
+  });
+
+  it("shows a Chinese launch-failure reason in the preview fail scenario", () => {
+    renderPage({ preview: true });
+    fireEvent.click(screen.getByRole("button", { name: "预览：有可用更新" }));
+    fireEvent.click(screen.getByRole("button", { name: "预览：环境正常" }));
+    expect(screen.getByText("运行时安装失败")).toBeTruthy();
+    expect(screen.getAllByText(/运行时启动失败：Studio Bridge handshake timed out/).length).toBeGreaterThan(0);
+  });
+
+  it("shows a Chinese unavailable reason from the Host read model", () => {
+    window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "0");
+    const environment: EnvironmentReadModel = {
+      platform: "win32",
+      arch: "x64",
+      authority: {
+        authorityId: "auth-1" as EnvironmentReadModel["authority"]["authorityId"],
+        authorityEpoch: 1 as EnvironmentReadModel["authority"]["authorityEpoch"],
+      },
+      runtime: {
+        status: "unavailable",
+        classification: "unavailable",
+        unavailableCode: "no-workspace",
+        unavailableReason: "no workspace is selected",
+      },
+      installer: { status: "installed", version: "1.0.0-studio.1", signature: "verified" },
+    };
+    render(
+      <PreviewModeProvider switchEnabled>
+        <DiagnosticsPage
+          client={fakeClient()}
+          recoveryClient={recoveryClient}
+          runtime={environment.runtime}
+          environment={environment}
+          diagnostics={{
+            generatedAt: "2026-08-18T06:26:07.000Z",
+            authority: environment.authority,
+            redacted: true,
+            entries: [{
+              entryId: "diag-1" as never,
+              scope: "host",
+              level: "warning",
+              message: "Runtime is not available: no workspace is selected",
+              detail: { code: "no-workspace", reason: "no workspace is selected" },
+              occurredAt: "2026-08-18T06:26:07.000Z",
+            }],
+          }}
+        />
+      </PreviewModeProvider>,
+    );
+    expect(screen.getByText("未选择工作区")).toBeTruthy();
+    expect(screen.getAllByText("未选择工作区，运行时不会启动").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Runtime is not available")).toBeNull();
+  });
+
+  it("shows a Chinese disconnect reason from the Host read model", () => {
+    window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "0");
+    const environment: EnvironmentReadModel = {
+      platform: "win32",
+      arch: "x64",
+      authority: {
+        authorityId: "auth-1" as EnvironmentReadModel["authority"]["authorityId"],
+        authorityEpoch: 1 as EnvironmentReadModel["authority"]["authorityEpoch"],
+      },
+      runtime: {
+        status: "disconnected",
+        classification: "managed",
+        disconnectCode: "process-exit",
+        disconnectReason: "Runtime process exited (code=1)",
+      },
+      installer: { status: "installed", version: "1.0.0-studio.1", signature: "verified" },
+    };
+    render(
+      <PreviewModeProvider switchEnabled>
+        <DiagnosticsPage
+          client={fakeClient()}
+          recoveryClient={recoveryClient}
+          runtime={environment.runtime}
+          environment={environment}
+        />
+      </PreviewModeProvider>,
+    );
+    expect(screen.getByText("运行时进程已退出")).toBeTruthy();
+    expect(screen.getAllByText(/运行时进程已退出（退出码 1）/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Runtime process exited/)).toBeNull();
+  });
+
+  it("recheck ensures a disconnected runtime instead of only re-querying", async () => {
+    const requestId = "req-ensure" as CommandRequestId;
+    const authority = {
+      authorityId: "auth-1" as EnvironmentReadModel["authority"]["authorityId"],
+      authorityEpoch: 1 as EnvironmentReadModel["authority"]["authorityEpoch"],
+    };
+    const disconnected: RuntimeConnection = {
+      status: "disconnected",
+      classification: "managed",
+      disconnectCode: "process-exit",
+      disconnectReason: "Runtime process exited (code=1)",
+    };
+    const connected: RuntimeConnection = { status: "connected", classification: "managed", runtimeVersion: "1.0.0-studio.1" };
+    const environment: EnvironmentReadModel = {
+      platform: "win32",
+      arch: "x64",
+      authority,
+      runtime: disconnected,
+      installer: { status: "installed", version: "1.0.0-studio.1", signature: "verified" },
+    };
+    const query = vi.fn(async (name: string) => {
+      if (name === "environment.get") {
+        return { ...environment, runtime: connected };
+      }
+      if (name === "diagnostics.get") {
+        return { generatedAt: "2026-08-18T06:26:07.000Z", authority, redacted: true, entries: [] };
+      }
+      if (name === "capabilities.get") {
+        return { profile: "full-parity-v1", generatedAt: "2026-08-18T06:26:07.000Z", hash: "cap", capabilities: [] };
+      }
+      throw new Error(`unexpected query ${name}`);
+    });
+    const command = vi.fn(async (name: string) => {
+      if (name !== "runtime.ensure") throw new Error(`unexpected command ${name}`);
+      return { requestId };
+    });
+    const subscribe = vi.fn((_scope: unknown, listener: (event: { kind: string; receipt?: CommandReceipt }) => void) => {
+      queueMicrotask(() => {
+        listener({
+          kind: "command.receipt",
+          receipt: {
+            requestId,
+            commandName: "runtime.ensure",
+            status: "completed",
+            result: connected,
+            observedAt: "2026-08-18T06:26:07.000Z",
+          },
+        });
+      });
+      return () => undefined;
+    });
+    const client = { query, command, subscribe, bootstrap: vi.fn(), close: vi.fn() } as unknown as StudioClient & {
+      readonly query: ReturnType<typeof vi.fn>;
+      readonly command: ReturnType<typeof vi.fn>;
+    };
+    renderPage({ preview: false, client, runtime: disconnected, environment });
+    fireEvent.click(screen.getByRole("button", { name: "重新连接运行时" }));
+    await waitFor(() => {
+      expect(command).toHaveBeenCalledWith("runtime.ensure", {});
+      expect(screen.getByText("运行时已重新连接")).toBeTruthy();
+    });
+  });
+
+  it("re-probes a Runtime that a transient first-install probe failure rejected", async () => {
+    const requestId = "req-reprobe" as CommandRequestId;
+    const authority = {
+      authorityId: "auth-1" as EnvironmentReadModel["authority"]["authorityId"],
+      authorityEpoch: 1 as EnvironmentReadModel["authority"]["authorityEpoch"],
+    };
+    const rejected: RuntimeConnection = {
+      status: "unavailable",
+      classification: "rejected",
+      unavailableCode: "resolution-rejected",
+      unavailableReason: "runtime probe timed out",
+    };
+    const connected: RuntimeConnection = { status: "connected", classification: "managed", runtimeVersion: "1.0.0-studio.1" };
+    const environment: EnvironmentReadModel = {
+      platform: "win32",
+      arch: "x64",
+      authority,
+      runtime: rejected,
+      installer: { status: "installed", version: "1.0.0-studio.1", signature: "verified" },
+    };
+    const query = vi.fn(async (name: string) => {
+      if (name === "environment.get") {
+        return { ...environment, runtime: connected };
+      }
+      if (name === "diagnostics.get") {
+        return { generatedAt: "2026-08-18T06:26:07.000Z", authority, redacted: true, entries: [] };
+      }
+      if (name === "capabilities.get") {
+        return { profile: "full-parity-v1", generatedAt: "2026-08-18T06:26:07.000Z", hash: "cap", capabilities: [] };
+      }
+      throw new Error(`unexpected query ${name}`);
+    });
+    const command = vi.fn(async (name: string) => {
+      if (name !== "runtime.ensure") throw new Error(`unexpected command ${name}`);
+      return { requestId };
+    });
+    const subscribe = vi.fn((_scope: unknown, listener: (event: { kind: string; receipt?: CommandReceipt }) => void) => {
+      queueMicrotask(() => {
+        listener({
+          kind: "command.receipt",
+          receipt: {
+            requestId,
+            commandName: "runtime.ensure",
+            status: "completed",
+            result: connected,
+            observedAt: "2026-08-18T06:26:07.000Z",
+          },
+        });
+      });
+      return () => undefined;
+    });
+    const client = { query, command, subscribe, bootstrap: vi.fn(), close: vi.fn() } as unknown as StudioClient & {
+      readonly query: ReturnType<typeof vi.fn>;
+      readonly command: ReturnType<typeof vi.fn>;
+    };
+    renderPage({ preview: false, client, runtime: rejected, environment });
+    expect(screen.getByText("运行时未被接受")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "重新连接运行时" }));
+    await waitFor(() => {
+      expect(command).toHaveBeenCalledWith("runtime.ensure", {});
+      expect(screen.getByText("运行时已重新连接")).toBeTruthy();
+    });
+  });
+
+  it("does not ensure when the workspace is missing", async () => {
+    const query = vi.fn(async (name: string) => {
+      if (name === "environment.get") {
+        return environment;
+      }
+      if (name === "diagnostics.get") {
+        return { generatedAt: "2026-08-18T06:26:07.000Z", authority: environment.authority, redacted: true, entries: [] };
+      }
+      if (name === "capabilities.get") {
+        return { profile: "full-parity-v1", generatedAt: "2026-08-18T06:26:07.000Z", hash: "cap", capabilities: [] };
+      }
+      throw new Error(`unexpected query ${name}`);
+    });
+    const command = vi.fn(async () => {
+      throw new Error("runtime.ensure should not run");
+    });
+    const environment: EnvironmentReadModel = {
+      platform: "win32",
+      arch: "x64",
+      authority: {
+        authorityId: "auth-1" as EnvironmentReadModel["authority"]["authorityId"],
+        authorityEpoch: 1 as EnvironmentReadModel["authority"]["authorityEpoch"],
+      },
+      runtime: {
+        status: "unavailable",
+        classification: "unavailable",
+        unavailableCode: "no-workspace",
+      },
+      installer: { status: "installed", version: "1.0.0-studio.1", signature: "verified" },
+    };
+    const client = { query, command, subscribe: vi.fn(), bootstrap: vi.fn(), close: vi.fn() } as unknown as StudioClient & {
+      readonly query: ReturnType<typeof vi.fn>;
+      readonly command: ReturnType<typeof vi.fn>;
+    };
+    renderPage({ preview: false, client, runtime: environment.runtime, environment });
+    fireEvent.click(screen.getByRole("button", { name: "重新检测" }));
+    await waitFor(() => {
+      expect(query).toHaveBeenCalledWith("diagnostics.get", {});
+    });
+    expect(command).not.toHaveBeenCalled();
+  });
+
+  it("confirms a forced Runtime restart", async () => {
+    const requestId = "req-restart" as CommandRequestId;
+    const authority = {
+      authorityId: "auth-1" as EnvironmentReadModel["authority"]["authorityId"],
+      authorityEpoch: 1 as EnvironmentReadModel["authority"]["authorityEpoch"],
+    };
+    const connected: RuntimeConnection = { status: "connected", classification: "managed", runtimeVersion: "1.0.0-studio.1" };
+    const environment: EnvironmentReadModel = {
+      platform: "win32",
+      arch: "x64",
+      authority,
+      runtime: connected,
+      installer: { status: "installed", version: "1.0.0-studio.1", signature: "verified" },
+    };
+    const query = vi.fn(async (name: string) => {
+      if (name === "environment.get") return environment;
+      if (name === "diagnostics.get") {
+        return { generatedAt: "2026-08-18T06:26:07.000Z", authority, redacted: true, entries: [] };
+      }
+      if (name === "capabilities.get") {
+        return { profile: "full-parity-v1", generatedAt: "2026-08-18T06:26:07.000Z", hash: "cap", capabilities: [] };
+      }
+      throw new Error(`unexpected query ${name}`);
+    });
+    const command = vi.fn(async (name: string) => {
+      if (name !== "runtime.ensure") throw new Error(`unexpected command ${name}`);
+      return { requestId };
+    });
+    let emitReceipt: (() => void) | undefined;
+    const subscribe = vi.fn((_scope: unknown, listener: (event: { kind: string; receipt?: CommandReceipt }) => void) => {
+      emitReceipt = () => {
+        listener({
+          kind: "command.receipt",
+          receipt: {
+            requestId,
+            commandName: "runtime.ensure",
+            status: "completed",
+            result: connected,
+            observedAt: "2026-08-18T06:26:07.000Z",
+          },
+        });
+      };
+      return () => undefined;
+    });
+    const client = { query, command, subscribe, bootstrap: vi.fn(), close: vi.fn() } as unknown as StudioClient & {
+      readonly query: ReturnType<typeof vi.fn>;
+      readonly command: ReturnType<typeof vi.fn>;
+    };
+    renderPage({ preview: false, client, runtime: connected, environment });
+    fireEvent.click(screen.getByRole("button", { name: "重启" }));
+    expect(screen.getByRole("dialog", { name: "重启运行时？" })).toBeTruthy();
+    expect(screen.getByRole("dialog").textContent).toMatch(/完成后会自动重新连接/);
+    fireEvent.click(screen.getByRole("button", { name: "确认重启" }));
+    await waitFor(() => {
+      expect(screen.getByRole("progressbar")).toBeTruthy();
+    });
+    expect(typeof emitReceipt).toBe("function");
+    act(() => {
+      emitReceipt?.();
+    });
+    await waitFor(() => {
+      expect(command).toHaveBeenCalledWith("runtime.ensure", { force: true });
+      expect(screen.getByText("运行时已重启并重新连接")).toBeTruthy();
+    });
+  });
+
+  it("opens Host logs through chrome in real mode", async () => {
+    const openLogDir = vi.fn(async () => ({ ok: true as const }));
+    const exportLogs = vi.fn(async () => ({ ok: true as const }));
+    window.ompStudioChrome = {
+      openLogDir,
+      exportLogs,
+    } as unknown as NonNullable<typeof window.ompStudioChrome>;
+    renderPage({
+      preview: false,
+      client: fakeClient(),
+      runtime: { status: "connected", classification: "managed", runtimeVersion: "1.0.0-studio.1" },
+      environment: {
+        platform: "win32",
+        arch: "x64",
+        authority: {
+          authorityId: "auth-1" as EnvironmentReadModel["authority"]["authorityId"],
+          authorityEpoch: 1 as EnvironmentReadModel["authority"]["authorityEpoch"],
+        },
+        runtime: { status: "connected", classification: "managed", runtimeVersion: "1.0.0-studio.1" },
+        installer: { status: "installed", version: "1.0.0-studio.1", signature: "verified" },
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "打开" }));
+    await waitFor(() => {
+      expect(openLogDir).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("已打开日志目录")).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "导出" }));
+    await waitFor(() => {
+      expect(exportLogs).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("已导出 Host 日志")).toBeTruthy();
+    });
+  });
+
+  it("keeps log actions local in preview", () => {
+    const client = renderPage({ preview: true });
+    fireEvent.click(screen.getByRole("button", { name: "打开" }));
+    expect(screen.getByText("演示：打开日志目录不会触发外部操作")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "导出" }));
+    expect(screen.getByText("演示：导出日志不会写文件")).toBeTruthy();
+    expect(client.query).not.toHaveBeenCalled();
+    expect(client.command).not.toHaveBeenCalled();
+  });
+});

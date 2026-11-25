@@ -1,0 +1,37 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./vite.config" without a file extension (vitest.config.ts:3:38). Add the file extension
+  - import "./productionPreviewBoundary" without a file extension (vite.config.ts:4:48). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+3:01:18 PM [vite] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic', jsxImportSource: undefined }`
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+[90mstderr[2m | src/capabilities/ResourcesWorkspace.test.tsx[2m > [22m[2mURI resources[2m > [22m[2mshows ANSI colors across log pages and replaces decorations when rereading
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/capabilities/ResourcesWorkspace.test.tsx[2m > [22m[2mURI resources[2m > [22m[2mshows ANSI colors across log pages and replaces decorations when rereading
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

@@ -1,0 +1,965 @@
+src/App.composerPerf.test.tsx	4/4
+  keeps continuing keystrokes out of AppShell and out of the layout engine
+    TypeError: Cannot set properties of null (setting 'textContent')
+  publishes the deferred draft once the typing pauses
+    TypeError: Cannot set properties of null (setting 'textContent')
+  keeps draft books across execution-target remounts
+    Error: Unable to fire a "click" event - please provide a DOM element.
+  keeps the sent text intact while the draft publish is still pending
+    TypeError: Cannot set properties of null (setting 'textContent')
+src/App.contextStrip.test.tsx	4/5
+  hides the whole context strip in a started conversation
+    AssertionError: expected null not to be null
+  shows the full context strip attached above the composer on a new conversation
+    AssertionError: expected null not to be null
+  keeps a fresh conversation free of tool cards while typing and restores them on an existing conversation (preview=false)
+    Error: Unable to fire a "click" event - please provide a DOM element.
+  keeps a fresh conversation free of tool cards while typing and restores them on an existing conversation (preview=true)
+    AssertionError: expected null not to be null
+src/App.dockRegion.test.tsx	8/8
+  shows the right sidebar from the View menu in a 640px window
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "View"
+  re-presents a region whose preference is already on but the narrow window clipped
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "View"
+  keeps the narrow window's one visible drawer in sync with the menu
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "View"
+  leaves the conversation rail out of the layout solver
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "View"
+  docks the right sidebar in a wide window without an overlay
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "View"
+  removes the empty left tools area and restores it when a tool returns
+    AssertionError: expected null not to be null
+  keeps left card headers grip-free, including tools moved into the sidebar
+    TypeError: Cannot read properties of null (reading 'querySelector')
+  keeps the right sidebar to one tab row and puts add next to the last tab
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "View"
+src/App.followUpQueue.test.tsx	3/3
+  native streaming queue dispatch queues streaming Enter through queue.enqueue without an optimistic user bubble
+    Error: Unable to find an element with the text: Initial task. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  native streaming queue dispatch fails closed and preserves the draft when native queueing is unsupported
+    Error: Unable to find an element with the text: Initial task. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  native streaming queue dispatch keeps idle Enter on the ordinary prompt command
+    Error: Unable to find an element with the text: Initial task. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/App.modelSelection.test.tsx	3/5
+  updates disabled slash-command copy when the workbench language changes and preserves the draft
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  rejects /computer status at the workbench boundary without sending a prompt and preserves the draft
+    Error: Unable to find an element with the text: /Computer Use is not implemented/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  model selection in a cold conversation selects before the first prompt, keeps the draft, and sends two prompts to that session
+    AssertionError: expected [] to have a length of 1 but got +0
+src/App.navigation.test.tsx	5/5
+  a named session refreshes history once instead of looping after the result commits
+    AssertionError: expected 2 to be greater than 2
+  blocks secondary navigation and forward when model configuration is dirty
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "File"
+  keeps the application appearance authoritative when the active shell is in another document
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/theme/i`
+  theme changes use a window dissolve unless reduced motion is active (false)
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/theme/i`
+  theme changes use a window dissolve unless reduced motion is active (true)
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/theme/i`
+src/App.runtime-mirror.test.ts	4/6
+  App runtime and plan receipt wiring keeps save/exit receipt outcome honest: started
+    AssertionError: expected 'Saved PLAN.md and exited Plan; create…' to contain '已保存 PLAN.md，Plan 已退出'
+  App runtime and plan receipt wiring keeps save/exit receipt outcome honest: started
+    AssertionError: expected 'Saved PLAN.md and exited Plan; create…' to contain '已保存 PLAN.md，Plan 已退出'
+  App runtime and plan receipt wiring keeps save/exit receipt outcome honest: cancelled
+    AssertionError: expected 'Saved PLAN.md and exited Plan; new se…' to contain '已保存 PLAN.md，Plan 已退出'
+  App runtime and plan receipt wiring keeps save/exit receipt outcome honest: failed
+    AssertionError: expected 'Saved PLAN.md and exited Plan; failed…' to contain '已保存 PLAN.md，Plan 已退出'
+src/AppUpdateDialog.test.tsx	9/13
+  opens the Linux manual installer without preparing or restarting the app
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "下载安装包"
+  prepares signed updates without an exposed URL and restarts only when ready
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "下载更新"
+  offers skipping for desktop updates but not for Runtime-only updates
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "跳过此版本"
+  exposes the GitHub release link as an icon without a visible label
+    TestingLibraryElementError: Unable to find an accessible element with the role "link" and name "前往 GitHub 查看"
+  shows restart blockers as a waiting status and retries application without downloading
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重启更新"
+  uses a restart status without download progress while applying
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重启更新"
+  labels checks, downloads and application errors by their stage
+    AssertionError: expected 'Update could not be applied: Installe…' to be '应用更新失败: Installer unavailable' // Object.is equality
+  explains Runtime compatibility and disables downloading until the blocker clears
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "下载更新"
+  simulates preparation and restarting locally in preview
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "下载更新"
+src/CapabilitiesPage.command-manifest.test.tsx	2/3
+  CapabilitiesPage command manifest queries and renders only Runtime manifest commands, including dynamic commands
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "执行"
+  CapabilitiesPage command manifest refreshes the caller after an authoritative /pin action
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "执行"
+src/CapabilitiesPage.test.tsx	5/7
+  CapabilitiesPage opens a skill directory in preview without calling Host
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "打开来源目录：mermaid-verify"
+  CapabilitiesPage lists builtin slash commands in real mode and runs ones that need no args
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "执行"
+  CapabilitiesPage reveals a skill directory and probes MCP in real mode
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "打开来源目录：shared"
+  CapabilitiesPage keeps a bottom toast while an MCP test is in flight
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "测试连接：filesystem"
+  CapabilitiesPage does not send MCP or slash Host commands from preview actions
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "测试连接：filesystem"
+src/ComposerModePicker.test.tsx	1/9
+  Composer grouped tools keeps attachments, mentions, and slash commands reachable through the plus menu
+    TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "@ 引用文件、文件夹、Agent 或 Skill"
+src/DiagnosticsPage.test.tsx	29/31
+  Runtime installation handoff installs an imported stable artifact using its verified channel
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "从本地文件安装…"
+  Runtime installation handoff installs an imported canary artifact using its verified channel
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "从本地文件安装…"
+  Runtime installation handoff keeps the downloaded artifact channel even when preferences now select stable
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "更新"
+  Runtime installation handoff uses the selected channel for a local reinstall
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重装"
+  Runtime installation handoff reports a failed install result even when its command receipt is completed
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "从本地文件安装…"
+  Runtime installation handoff does not silently install stable when an imported artifact has no channel
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "从本地文件安装…"
+  Runtime update compatibility shows the desktop blocker and never falls back to local installation
+    TestingLibraryElementError: Unable to find an element with the text: Runtime 更新需先升级桌面. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  Runtime update compatibility reports a blocked manual check rather than announcing an installable update
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "检查更新"
+  Runtime update compatibility reports a rejected update check instead of claiming the local Runtime is up to date
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "检查更新"
+  Runtime update compatibility keeps a reported update check failure visible when the local environment cannot be read
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "检查更新"
+  Runtime update compatibility distinguishes a local-only check from an online update check
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "检查更新"
+  Runtime update compatibility demonstrates the same blocker without using Host data or writes
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "预览：有可用更新"
+  DiagnosticsPage keeps Runtime maintenance local in preview
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "回滚 Runtime 并重启应用"
+  DiagnosticsPage reports rollback errors and blocks other maintenance while rollback is running
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "回滚 Runtime 并重启应用"
+  DiagnosticsPage shows the update hero and version tiles in preview
+    TestingLibraryElementError: Unable to find an accessible element with the role "heading" and name "诊断中心"
+  DiagnosticsPage checks updates in preview without calling Host
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "检查更新"
+  DiagnosticsPage confirms reinstall in preview without calling Host
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重装"
+  DiagnosticsPage shows a real update-available installer from the Host read model
+    TestingLibraryElementError: Unable to find an element with the text: 有可用 Runtime 更新. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  DiagnosticsPage honors a check-update intent on mount in preview
+    TestingLibraryElementError: Unable to find an element with the text: 已检查更新（演示）· 18.8.0-studio.18 可用. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  DiagnosticsPage reports a timeout only for a manual update check
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "检查更新"
+  DiagnosticsPage shows a Chinese launch-failure reason in the preview fail scenario
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "预览：有可用更新"
+  DiagnosticsPage shows a Chinese unavailable reason from the Host read model
+    TestingLibraryElementError: Unable to find an element with the text: 未选择工作区. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  DiagnosticsPage shows a Chinese disconnect reason from the Host read model
+    TestingLibraryElementError: Unable to find an element with the text: Runtime 进程已退出. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  DiagnosticsPage recheck ensures a disconnected runtime instead of only re-querying
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重新连接 Runtime"
+  DiagnosticsPage re-probes a Runtime that a transient first-install probe failure rejected
+    TestingLibraryElementError: Unable to find an element with the text: Runtime 未被接受. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  DiagnosticsPage does not ensure when the workspace is missing
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重新检测"
+  DiagnosticsPage confirms a forced Runtime restart
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重启"
+  DiagnosticsPage opens Host logs through chrome in real mode
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "打开"
+  DiagnosticsPage keeps log actions local in preview
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "打开"
+src/ExplorerTree.test.tsx	2/22
+  RealFileTree opens the file ⋯ menu with the standard items and dispatches actions
+    TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "在资源管理器中打开"
+  RealFileTree disables desktop-dependent ⋯ items with a reason when the handler is unavailable
+    TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "在资源管理器中打开"
+src/HomePage.test.tsx	1/12
+  HomePage identity keeps an honest omp status when Runtime is down
+    TestingLibraryElementError: Unable to find an element with the text: Runtime 不可用. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/InteractionDeck.test.tsx	15/18
+  InteractionDeck real cards select uses the preview Ask layout and submits the picked option id
+    TestingLibraryElementError: Unable to find an element with the text: Agent 提问. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  InteractionDeck real cards select starts on the native initial option
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "提交"
+  InteractionDeck real cards select custom answer submits the typed text
+    TestingLibraryElementError: Unable to find a label with the text of: 自定义回答
+  InteractionDeck real cards input shows the real title and placeholder and submits the typed text
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "提交"
+  InteractionDeck real cards editor is editable and submits the edited string with cancel support
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "提交"
+  InteractionDeck real cards approval uses the ver1 layout and submit sends value true
+    TestingLibraryElementError: Unable to find an element with the text: 审批请求. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  InteractionDeck real cards approval 拒绝 cancels the interaction
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "拒绝"
+  InteractionDeck real cards tool approvals do not pretend to grant permission for the whole session
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "本会话允许"
+  InteractionDeck real cards configuration approvals show the value change and send the native session grant
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "本会话允许"
+  InteractionDeck real cards failed respond keeps the card and shows Retry; resolved clears it
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "提交"
+  InteractionDeck real cards failed cancel keeps the card and exposes Retry
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "取消"
+  InteractionDeck real cards parent disabled still lets the user pick an option; only 取消/提交 stay locked
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "提交"
+  InteractionDeck real cards select through the shared queue submits the picked option id
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "提交"
+  InteractionDeck real cards the shared queue honours the native cursor and answers a toggle list per click
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "提交"
+  InteractionDeck real cards multi-question ask uses the preview queue: 1/N, header chips, and body-only paging
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "下一个请求"
+src/ModelConfigPage.test.tsx	18/20
+  reorders filtered provider cards while preserving hidden providers and keeping the order local
+    Error: Unable to find role="button" and name "编辑供应商"
+  keeps an unavailable role model editable and saves its replacement through the native role command
+    Error: Unable to find role="button" and name "编辑 Default"
+  clears an explicit role assignment to native auto-selection
+    Error: Unable to find role="button" and name "编辑 Default"
+  searches and replaces an unavailable preview model with the keyboard without writing to Host
+    Error: Unable to find role="button" and name "编辑 Designer"
+  updates the catalog from the model navigation without a duplicate evaluation tab
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "检查并更新目录"
+  keeps catalog updates local and visibly marked in preview mode
+    Error: Unable to find an element with the text: 2026.10. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  manages search credentials only in the provider library and keeps preview local
+    Error: Unable to find role="tab" and name `/网络搜索/`
+  ModelConfigPage 自动获取模型 applies gray recommendations to the model draft and the provider YAML save, including provenance
+    Error: Unable to find role="button" and name "编辑供应商"
+  ModelConfigPage 自动获取模型 probes the wire API without a discovery type and imports picked models into the draft
+    Error: Unable to find role="button" and name "编辑供应商"
+  ModelConfigPage 自动获取模型 select-all can include models that already exist
+    Error: Unable to find role="button" and name "编辑供应商"
+  ModelConfigPage 自动获取模型 surfaces a Host failure without opening the checklist
+    Error: Unable to find role="button" and name "编辑供应商"
+  ModelConfigPage 自动获取模型 keeps the button disabled until the provider has an id and a base url
+    Error: Unable to find role="button" and name "添加供应商"
+  ModelConfigPage 自动获取模型 uses fixtures and never calls the Host in preview mode
+    Error: Unable to find role="button" and name "编辑供应商"
+  ModelConfigPage 自动获取模型 lets the user disambiguate catalog matches, switch choices, and filter discovered models
+    Error: Unable to find role="button" and name "编辑供应商"
+  ModelConfigPage YAML 卡片随表单实时更新 表单改动不保存就出现在 models.yml 切片里，且卡片转为只读
+    Error: Unable to find role="button" and name "编辑供应商"
+  ModelConfigPage YAML 卡片随表单实时更新 表单改动后保存会带上完整切片，而不是空文档
+    Error: Unable to find role="button" and name "编辑供应商"
+  ModelConfigPage YAML 卡片随表单实时更新 角色编辑器换主模型时 config.yml 卡片同步变化
+    Error: Unable to find role="button" and name "编辑供应商"
+  ModelConfigPage YAML 卡片随表单实时更新 清空 Base URL 后切片与保存都不再携带 baseUrl
+    Error: Unable to find role="button" and name "编辑供应商"
+src/Runtime18104.test.tsx	6/6
+  makes billed message prediction an explicit opt-in and keeps demo changes local
+    TestingLibraryElementError: Unable to find an accessible element with the role "switch" and name "下一条消息建议"
+  requires archive inspection before import and shows preservation of the local copy
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/选择 DSH 会话包/`
+  separates compression scanning from applying the reviewed inventory
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "扫描候选文件"
+  protects dirty worktrees and requires an explicit removal review
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "检查移除"
+  folds a pending Ask without submitting and preserves its draft on reopening
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "自定义回答"
+  recognizes macOS Option+H by physical key and ignores composition and key repeat
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "自定义回答"
+src/Runtime18132.test.tsx	5/5
+  keeps budget and local-file demo edits off the Host
+    TestingLibraryElementError: Unable to find an accessible element with the role "spinbutton" and name "费用上限（USD）"
+  preserves the selected note target in the submitted multi-choice answer
+    TestingLibraryElementError: Unable to find an accessible element with the role "combobox" and name "备注对象 / Note on"
+  offers only once or deny for restricted-folder approvals even with remembered grants
+    AssertionError: expected [ 'Deny', 'Allow once' ] to deeply equal [ '拒绝', '允许一次' ]
+  dictation demo keeps text in its isolated draft and never calls the Host
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "试用听写交互"
+  releases a real context snapshot when the viewer closes
+    Error: Unable to find role="meter" and name "上下文占用"
+src/RuntimeLossBanner.test.tsx	3/3
+  explains pending startup without offering a duplicate reconnect
+    AssertionError: expected 'Runtime is preparing. The workbench i…' to contain 'Runtime 正在准备'
+  presents a conversation whose Runtime has not started as a quiet notice, not a failure
+    AssertionError: expected 'Runtime not started · It connects aut…' to contain '发送消息时会自动连接'
+  shows a failed reconnect reason once when Runtime reports the same failure
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重新连接"
+src/RuntimeSettings.test.tsx	2/8
+  Runtime settings seam shows configured notes separately from effective state and never restarts a Runtime implicitly
+    TestingLibraryElementError: Unable to find an element with the text: /已保存，需重启 Runtime/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  Runtime settings seam announces a pending Runtime update
+    AssertionError: expected undefined to be truthy
+src/SettingsPage.test.tsx	1/20
+  settings navigation and real preferences saves local appearance and startup settings; reset affects only its own section
+    TestingLibraryElementError: Unable to find an accessible element with the role "option" and name "Light"
+src/SettingsSecondBatch.test.tsx	1/4
+  shows only the selected memory backend in preview without writing real settings
+    TestingLibraryElementError: Unable to find an element with the text: 演示设置已更新。. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/SkillsDrawer.test.tsx	2/4
+  SkillsDrawer real-mode draft join 加入 inserts a skill into the current draft and 移出 removes it
+    Error: Unable to find role="button" and name "把 commit-msg 加入当前草稿"
+  SkillsDrawer real-mode draft join keeps search and scroll position while reopening and returns focus on close
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "搜索技能与插件"
+src/SubagentsPanel.test.tsx	7/13
+  SubagentsPanel card delete puts a delete control left of the enable switch on user-created cards only
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "删除 notes"
+  SubagentsPanel card delete asks for confirmation before removing a user-created card
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "删除 notes"
+  SubagentsPanel card delete deletes a project-scoped card through agents.definition.delete after confirm
+    Error: Unable to find role="switch" and name "禁用 local-review"
+  SubagentsPanel create editor shows a required-field error on the viewport when save is clicked with an empty draft
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "新建子代理"
+  SubagentsPanel create editor rejects names that the Host cannot store, without calling upsert
+    Error: Unable to find role="button" and name "新建子代理"
+  SubagentsPanel create editor writes a new definition through agents.definition.upsert
+    Error: Unable to find role="button" and name "新建子代理"
+  SubagentsPanel create editor adds a preview draft to the local list on save
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "新建子代理"
+src/WebSearchPanel.test.tsx	8/11
+  WebSearchPanel shows a warning when the tool is off
+    TestingLibraryElementError: Unable to find an element with the text: /web_search 工具已关闭/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  WebSearchPanel shows a warning when no engine is usable at all
+    TestingLibraryElementError: Unable to find an element with the text: /没有可用引擎/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  WebSearchPanel promotes a library engine into the priority chain and drops it from the library
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/设为优先/`
+  WebSearchPanel excludes an engine and restores it back
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "排除 Brave"
+  WebSearchPanel filters the library by credential state and search query
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/未配置/`
+  WebSearchPanel opens the credential modal and saves a direct API key locally in preview
+    Error: No credential button in row containing "Requires BRAVE_API_KEY"
+  WebSearchPanel saves through models.webSearch.set with the full payload (real mode)
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/设为优先/`
+  WebSearchPanel keeps preview mode local: onPreviewSave mutates the demo read model only
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/设为优先/`
+src/hostError.test.ts	1/7
+  waitReceipt times out with 等待 Host 回执超时 only when nothing settles
+    Error: expected Error: Timed out waiting for Host receipt { code: '…' } to match object { code: 'UNAVAILABLE', …(1) }
+src/agents/AgentDetailPanel.test.tsx	6/6
+  Agent dock entry points opens BTW again after the workbench remounts and keeps the previous draft
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  Agent dock entry points does not locate a pinned agent's delegation in a different parent conversation
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  Agent dock entry points keeps simultaneous agent drafts and content tabs independent across close and reopen
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  Agent dock entry points loads earlier history to restore a saved reading anchor displaced by new messages
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  Agent dock entry points reads a historical child from its own parent and keeps it read-only despite live send capability
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  Agent dock entry points reuses one detail pane and editor when reopened from either entry after docking or hiding
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "打开子 Agent deps 子 Agent"
+src/agents/AgentRosterMeter.test.tsx	1/2
+  Agent status in dock chrome updates initially folded headers and compact icons without mounting an Agent body
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Agents · 8 个子代理 · 1 失败 · 3 运行 · 4 未运行/`
+src/agents/AgentRosterPanel.test.tsx	3/3
+  Agent roster density keeps the selected density after remounting and shows the actual model in single-line rows
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "极简"
+  Agent roster density does not mistake a model role for a resolved model
+    TestingLibraryElementError: Unable to find an element with the text: 模型未知. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  Agent roster density switches preview density locally without overwriting the real preference
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "极简"
+src/backgroundTasks/BackgroundTasksDock.test.tsx	1/11
+  opens selected details beside the retained card and shares service stop state
+    AssertionError: expected false to be true // Object.is equality
+src/capabilities/ResourcesWorkspace.test.tsx	1/10
+  URI resources uses all four preview protocols, preserves local edits, and hides demo copy with marks off without Host calls
+    TestingLibraryElementError: Found multiple elements with the text: 演示
+src/contextViewer/ContextInspector.test.tsx	6/10
+  ContextInspector opens a snapshot, previews the first entry and releases on unmount
+    Error: Unable to find role="meter" and name "上下文占用"
+  ContextInspector narrows the list to a tool-output group, and widens it again while searching
+    Error: Unable to find role="meter" and name "上下文占用"
+  ContextInspector shows the shared weight on the thinking group, never 0 tokens on its members
+    Error: Unable to find role="meter" and name "上下文占用"
+  ContextInspector opens the source identity rather than the first entry and keeps native caveats visible
+    Error: Unable to find role="button" and name `/查看来源条目.*target\.md/`
+  ContextInspector never reads the Host in preview mode and keeps markings visible when marks=off is requested
+    Error: Unable to find role="meter" and name "上下文占用"
+  ContextInspector keeps the snapshot while resizing, then refreshes and releases it on close
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "返回列表"
+src/composer/ChipComposer.test.tsx	12/52
+  ChipComposer opens the command menu from a leading slash and does not insert a skill chip
+    TestingLibraryElementError: Unable to find an accessible element with the role "listbox" and name "指令"
+  ChipComposer does not open the command menu when slash is not the first character
+    TestingLibraryElementError: Unable to find an accessible element with the role "listbox" and name "指令"
+  ChipComposer closes the command menu when clicking outside the editor and popup
+    TestingLibraryElementError: Unable to find an accessible element with the role "listbox" and name "指令"
+  ChipComposer opens a detached command menu over a skill capsule without inserting another slash
+    TestingLibraryElementError: Unable to find an accessible element with the role "listbox" and name "指令"
+  ChipComposer renumbers image capsules and drops the bytes when one is removed
+    TestingLibraryElementError: Unable to find a label with the text of: 移除图2
+  ChipComposer drops a capsule from its inline × and leaves the surrounding text alone
+    TestingLibraryElementError: Unable to find a label with the text of: 移除胶囊 a.ts
+  ChipComposer opens a preview from a thumbnail and closes it without deleting the chip
+    TestingLibraryElementError: Unable to find a label with the text of: 预览图1
+  ChipComposer does not open the preview when the thumbnail remove control is clicked
+    TestingLibraryElementError: Unable to find a label with the text of: 移除图1
+  ChipComposer closes the preview on Escape and on the dimmed backdrop
+    TestingLibraryElementError: Unable to find a label with the text of: 预览图1
+  ChipComposer copies and saves from the preview context menu through desktop chrome
+    TestingLibraryElementError: Unable to find a label with the text of: 预览图1
+  ChipComposer keeps /btw on the submit path for explicit rejection instead of parking it in the queue
+    AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times
+  ChipComposer coalesces capsule and width changes into one settled measurement and cancels it on unmount
+    AssertionError: expected 'Img1' to be '图1' // Object.is equality
+src/composer/ImagePreview.test.tsx	16/16
+  ImagePreview keeps legacy base64 subjects and the copy/save context menu working
+    TestingLibraryElementError: Unable to find an accessible element with the role "dialog" and name "预览屏幕.png"
+  ImagePreview loads byte-backed subjects only on demand and reuses the bytes for copy and save
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "复制"
+  ImagePreview passes supplied bytes through without fetching or decoding a redundant base64 copy
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "另存为"
+  ImagePreview treats a cancelled save as cancellation rather than an error and remains usable
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "另存为"
+  ImagePreview shows byte-loading and desktop errors inline and allows a retry
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "复制"
+  ImagePreview fits the received image, offers 100% and zoom, and pans only the local scrollbox
+    TestingLibraryElementError: Unable to find an accessible element with the role "region" and name "图片查看区域"
+  ImagePreview contains focus, supports the keyboard menu and Escape, and returns focus to the opener
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "关闭预览"
+  ImagePreview keeps the close button and backdrop available while bytes are loading
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "复制"
+  ImagePreview does not copy an old lazy result or clear the next image's pending operation
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "复制"
+  ImagePreview ignores late desktop failures after replace
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "另存为"
+  ImagePreview ignores late desktop failures after unmount
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "另存为"
+  ImagePreview does not start desktop work after the viewer is unmounted during a lazy read
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "复制"
+  ImagePreview uses the owning surface for the dialog, keyboard, clipboard, save and focus return
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "关闭预览"
+  ImagePreview honestly disables unavailable surface actions without borrowing the main window's chrome
+    TestingLibraryElementError: Unable to find an element with the text: 当前环境不支持复制和另存为图片，请在桌面应用中使用。. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  ImagePreview lets read-only callers disable actions, including an in-flight lazy read
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "复制"
+  ImagePreview shows image display failures even when no error callback was supplied
+    AssertionError: expected 'Unable to display this image. Close a…' to contain '无法显示这张图片'
+src/composer/command-manifest.test.ts	1/11
+  mergeSlashCatalogWithManifest keeps matching native/typed metadata while Runtime controls membership and status
+    AssertionError: expected { name: 'missing', aliases: [], …(9) } to match object { name: 'missing', …(2) }
+src/composer/serialize.test.ts	3/23
+  serializeDoc snapshotFromTextAndImages overwrites a text draft with image capsules
+    AssertionError: expected [ …(2) ] to deeply equal [ …(2) ]
+  displayDocFromSerializedText rebuilds file, folder, skill, agent and clipboard-image capsules
+    AssertionError: expected [ { …(4) }, { …(4) }, { …(4) }, …(2) ] to deeply equal [ ObjectContaining{…}, …(4) ]
+  displayDocFromSerializedText prefers the original composer doc so labels and preview bytes survive send
+    AssertionError: expected [ { type: 'text', value: '看 ' }, …(1) ] to deeply equal [ { type: 'text', value: '看 ' }, …(1) ]
+src/conversationWorkspace/Workspace.integration.test.tsx	38/50
+  conversation windows keeps shared sidebar, right and bottom sizes locked for keyboard and double-click resizing
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows opens two dragged conversations with animations enabled and preserves the original draft (preview=false)
+    AssertionError: expected undefined to be defined
+  conversation windows opens two dragged conversations with animations enabled and preserves the original draft (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows previews an unopened sidebar conversation over left tools, cancels and floats it (preview=false)
+    AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+  conversation windows previews an unopened sidebar conversation over left tools, cancels and floats it (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows floats over the conversation directory and drags again without docking or jumping (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows opens a sidebar conversation directly in a tool region and preserves the main conversation
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows docks and detaches the same conversation through the left tool region (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows docks and detaches the same conversation through the right tool region (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows docks and detaches the same conversation through the bottom tool region (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows keeps independent pages free of workbench chrome and restores the same draft (preview=true, floating=false)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows keeps independent pages free of workbench chrome and restores the same draft (preview=true, floating=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows keeps dragging a tool card when the window preview replaces its source with a compact rail (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows previews and docks the context viewer beside a full-height main conversation without recreating it (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows preserves the opposite quarter during left full-height drag preview, cancellation and drop
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows preserves the opposite quarter during right full-height drag preview, cancellation and drop
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows snaps conversations and tool windows well inside the edge and retains previews through pointer drift
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows shows the full canvas when a tool is dragged to maximize (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows returns from a window preview to the conversation tools under the pointer
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows restores the expanded rail before hit-testing a drag from the right sidebar (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows opens a sidebar conversation in another window without replacing the focused body (preview=false)
+    AssertionError: expected null to be <div class="cw-document" …(1)></div> // Object.is equality
+  conversation windows opens a sidebar conversation in another window without replacing the focused body (preview=true)
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows offers a workspace launcher that brings the existing conversation back without recreating its editor
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows keeps the shell and cached directory present during delayed context loading without reconnecting on focus
+    AssertionError: expected <div class="app" id="appRoot" …(1)>…(2)</div> to be null
+  conversation windows maximizes the last visible conversation back to the ordinary main area with the same editor
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows drags an original sidebar row into a float while keeping one shared left, right and bottom region
+    AssertionError: expected null to be <div class="cw-document" …(1)></div> // Object.is equality
+  conversation windows keeps the original preview project and conversation rows when opening and focusing floats
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows drags the main title into the shared window frame and restores the same editor
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows borrows the body and complete floating header once and restores them on Escape
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows reuses the current conversation when its original sidebar row is dragged out
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows drags main A while the shared title represents B, cancels to B and disables dragging when main is empty
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows snaps B and automatically places main A beside it, resizes together and restores after maximizing
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows keeps title-menu keyboard input, drag cancellation and window controls independent
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows restores the most recently used visible window after close and minimize without reacting to hover
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows moves the breadcrumb into window title rows and lists conversation tabs only once the main area is empty
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows restores, focuses and closes conversation windows from the tabs without capsules or a replacement draft
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  conversation windows keeps the tabs usable while a new conversation window is still loading
+    AssertionError: expected <div class="app" id="appRoot" …(1)>…(2)</div> to be null
+  conversation windows lists tool windows beside conversations and opens a tool or a conversation from the tab bar's +
+    TypeError: Cannot read properties of null (reading 'useReducer')
+src/conversationWorkspace/residency.test.tsx	8/8
+  honors Home on launch, then shows an explicitly opened offline archive (restored workspace=false)
+    AssertionError: expected undefined to be true // Object.is equality
+  honors Home on launch, then shows an explicitly opened offline archive (restored workspace=true)
+    AssertionError: expected undefined to be true // Object.is equality
+  opens a conversation from History instead of restoring its page route (released=false)
+    AssertionError: expected undefined to be true // Object.is equality
+  opens a conversation from History instead of restoring its page route (released=true)
+    AssertionError: expected undefined to be true // Object.is equality
+  keeps only the displayed conversation engine and closes replaced contexts while offline
+    AssertionError: expected undefined to be true // Object.is equality
+  restores the latest draft after releasing its view, without reusing its old editor DOM
+    AssertionError: expected undefined to be true // Object.is equality
+  releases a context even when switching away before its bootstrap completes
+    AssertionError: expected undefined to be defined
+  preserves sidebar scroll across a context switch while the incoming composer waits for bootstrap
+    AssertionError: expected undefined to be true // Object.is equality
+src/conversation/BatchChain.subagent-start.test.tsx	1/3
+  BatchChain subagent start refreshes the brief from the live roster and still opens the same agent
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/renderer.*打开对话/`
+src/conversation/CommandBlock.test.tsx	4/5
+  executes the complete script only on click and preserves newlines and quotes
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "在终端执行"
+  disables unfinished commands and leaves ordinary source code in the regular frame
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "在终端执行"
+  keeps preview execution local and visibly marked when marks=off is requested
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "在终端执行"
+  starts a new terminal in the conversation workspace before revealing it
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "在终端执行"
+src/conversation/ConversationEmpty.test.tsx	1/1
+  keeps the disconnected welcome free of reconnect and diagnostics actions
+    TestingLibraryElementError: Unable to find an element with the text: /尚未连接 Runtime/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/conversation/ConversationMinimap.test.tsx	7/28
+  deriveMinimapMarks 预览文本取用户原文 / 工具摘要 / 压缩摘要
+    AssertionError: expected 'Ran 1 command' to contain '运行 1 条命令'
+  ConversationMinimap 组件 渲染带类型的圆点按钮，点击跳转到对应行
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "#1 用户消息"
+  ConversationMinimap 组件 筛选菜单：仅显示错误与关键节点，并支持跳到下一个错误
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "筛选事件"
+  ConversationMinimap 组件 悬浮圆点显示简化预览
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "#1 用户消息"
+  ConversationMinimap 组件 连续高度变化只合成一次尾随重测
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "#1 用户消息"
+  回归：筛选 / 预览 / 失败分类 筛选切走再切回后活跃圆点仍然高亮
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "筛选事件"
+  回归：筛选 / 预览 / 失败分类 会关闭菜单的菜单项把焦点还给筛选按钮
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "筛选事件"
+src/conversation/ConversationPane.switch.test.tsx	13/13
+  ConversationPane session switch uses the current motion tier after the retained conversation changes preference
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch reveals a cached transcript on mount while the archive is still being revalidated
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch cross-dissolves through a switch instead of hard-cutting to a placeholder
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch skips the skeleton entirely when the read lands inside the fade-out
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch holds one skeleton through a burst of switches
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch covers a same-session reload that clears its rows
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch never renders an empty body when content is pulled mid-reveal
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch drops the fade-out under reduced motion but still covers the gap
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch keeps the welcome mounted and quiet across the new-session handoff
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch plays the choreography when toggling between a transcript and the welcome
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch fades the welcome at its scroll position and lands the transcript at the bottom
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch reveals the welcome at its top when leaving a bottom-pinned transcript
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  ConversationPane session switch reports the on-screen welcome surface so the shell layout class never flips early
+    TypeError: Cannot read properties of null (reading 'useReducer')
+src/conversation/ShellView.test.tsx	2/2
+  waits for the current replay frame and releases the recorded command when closed
+    ReferenceError: IntersectionObserver is not defined
+  stops hidden-window reads and refreshes the presentation when the window becomes visible
+    ReferenceError: IntersectionObserver is not defined
+src/conversation/SubagentHoverPreview.test.tsx	16/17
+  subagent hover preview waits 300ms before reading, renders Markdown, and clicking opens the original agent
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview closes immediately on leave and releases the visible child lease
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview closes immediately on escape and releases the visible child lease
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview closes immediately on scroll and releases the visible child lease
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview closes immediately on window blur and releases the visible child lease
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview closes immediately on focus blur and releases the visible child lease
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview cancels a brief sweep without reading or reopening after the delay
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview lets keyboard users preview an assignment before the agent identity is available
+    TestingLibraryElementError: Unable to find an accessible element with the role "group" and name `/New worker.*缺少 Agent 身份/`
+  subagent hover preview streams complete Markdown and tool output, then keeps the read content when offline
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview switches agents without flashing a late response from the previous reader
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview uses the main conversation's Thinking and tool display settings
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview closes during a session switch and ignores the unresolved old read
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview cancels a pending hover when the execution client changes
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview reopens the reader for a new agent generation without retaining the previous content
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+  subagent hover preview plays the preview stream locally and keeps the global preview mark visible
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/deps.*打开对话/`
+  subagent hover preview keeps an empty real conversation empty and reports read failures without fixtures
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Renderer.*打开对话/`
+src/conversation/TaskProgressDock.test.tsx	1/3
+  keeps preview markings visible while retaining the partial warning and ordinary file-open labels
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "打开 src/applied.ts"
+src/conversation/ToolBody.test.tsx	2/12
+  shows native Eval restart status and structured fallback attempts
+    ReferenceError: hasComputerMedia is not defined
+  ToolBody: 代码视图语法高亮 在 Bash 命令头与 Eval 代码格中产出语法着色节点
+    ReferenceError: hasComputerMedia is not defined
+src/conversation/advisorTranscript.test.tsx	8/8
+  keeps advisor attribution, order and copy text when switching the mounted transcript language
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  renders the preview advisor in the current language
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  preserves the expanded preview batch when its conversation engine changes language
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  collapses one original batch, keeps mixed notes in order and copies complete text even while folded
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  starts blockers open, respects manual choices through appends and prepends, and keeps batches separate
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  keeps expanded content and controls mounted through zh to en to zh without rewriting notes
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  isolates conversation and preview scopes and releases overrides for evicted messages
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  summarizes a 28-note batch in one folded heading with accurate severity counts
+    TypeError: Cannot read properties of null (reading 'useReducer')
+src/conversation/conversationProtocolPlaceholder.test.tsx	2/2
+  empty-message protocol placeholder removes the provider artifact so adjacent tool activity renders as one chain
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  empty-message protocol placeholder keeps ordinary intermediate text visible but reserves copy for the concluding reply
+    TypeError: Cannot read properties of null (reading 'useReducer')
+src/conversation/conversationReveal.test.tsx	2/2
+  mounts an offscreen virtual row before revealing the delegation and reports unloaded sources
+    TypeError: Cannot read properties of null (reading 'useReducer')
+  preserves an advisor batch choice when offscreen navigation unmounts and remounts its virtual row
+    TypeError: Cannot read properties of null (reading 'useReducer')
+src/conversation/jobs.test.tsx	1/6
+  Eval structured views shows a table view in place of the printed text it stands for
+    ReferenceError: hasComputerMedia is not defined
+src/conversation/streamingFrameCost.test.tsx	1/1
+  streaming frame cost keeps a published frame independent of how much output the live tool has produced
+    TypeError: Cannot read properties of null (reading 'useReducer')
+src/conversation/streamingLayoutBudget.test.tsx	1/9
+  流式期间的布局预算 scroller 上带出流式标记，CSS 据此把工具卡高度过渡收成瞬时
+    TypeError: Cannot read properties of null (reading 'useReducer')
+src/deck/AskAnswerFlow.test.tsx	5/5
+  makes a typed single answer visibly replace the selected option
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "自定义回答"
+  choosing an option replaces custom text and clears a note tied to that custom answer
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "自定义回答"
+  keeps multiple selections alongside a custom answer and its explicitly assigned note
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "备注 / Note"
+  does not silently move an option note when its owner is deselected
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "备注 / Note"
+  selects image-only custom answers and clears their images when choosing an option
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "自定义回答"
+src/deck/AskImages.test.tsx	4/5
+  keeps uploads, pasted images, thumbnail previews and removal in their owning field
+    TestingLibraryElementError: Unable to find an accessible element with the role "group" and name "回答 / Answer"
+  preserves text-only questions and Enter submission without attachment controls
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "备注 / Note"
+  closing or changing a question discards a late image load
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "备注 / Note"
+  accepts clipboard image items without duplicates and still pastes ordinary text
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "自定义回答"
+src/deck/AskInlineImages.test.tsx	2/2
+  inserts image capsules at the caret, keeps thumbnails, and submits their original text positions after remount
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "自定义回答"
+  keeps a note image between note text and removes it from both preview and payload
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "备注 / Note"
+src/deck/FormCard.test.tsx	5/7
+  preserves field DOM and edits through fieldset navigation, collapse, expansion and metadata refresh
+    Error: Unable to find role="navigation" and name "表单题组"
+  keeps transient drafts after a Deck host remount but starts fresh on a new lease
+    Error: Unable to find role="navigation" and name "表单题组"
+  does not remount a visited form's input while paging to another queued form
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/交互参数/`
+  makes Other reachable from radio keys, keeps option notes attached and sends native named data
+    Error: Unable to find role="radio" and name `/^做成设置项/`
+  keeps preview marks visible in both compact and open forms and demo submissions local
+    TestingLibraryElementError: Unable to find an accessible element with the role "radio" and name "默认关"
+src/deck/FormSession.test.ts	1/8
+  retains failed timeout data without automatic retry storms
+    AssertionError: expected 'Submission failed; the form and your …' to contain '已保留'
+src/deck/PlanEditor.test.tsx	1/14
+  plan split editing defaults overall annotations to collapsed, retains text and includes folded notes in feedback
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Overall annotations Has notes"
+src/deck/PlanSaveAndQuit.test.tsx	1/6
+  PlanExecutionPicker & PlanViewDialog ignores read xd://propose doc lookups and pins a single PlanCreatedCard inline above post-approval execution chains
+    TypeError: Cannot read properties of null (reading 'useReducer')
+src/deck/approvalContent.test.ts	2/3
+  approvalFromInteraction parses DSH labeled summary into the ver1 bash card
+    AssertionError: expected 'DSH wants to run a Bash command' to be 'DSH 想要执行 Bash 命令' // Object.is equality
+  approvalFromInteraction maps write Path/Content and File labels
+    AssertionError: expected 'DSH wants to write a file' to be 'DSH 想要写入文件' // Object.is equality
+src/environment/environmentCard.test.tsx	9/13
+  EnvironmentCard reads as two axes: project and Git position on the left, machine and version on the right
+    TestingLibraryElementError: Unable to find an element with the text: 此计算机. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  EnvironmentCard puts the working tree under the rule with its line totals
+    TestingLibraryElementError: Unable to find an element with the text: 3 个文件. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  EnvironmentCard keeps a clean tree and a missing project honest, without inventing numbers or actions
+    TestingLibraryElementError: Unable to find an element with the text: 未选择项目. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  EnvironmentCard says so when the workspace is not a Git repository, and offers nothing to open
+    TestingLibraryElementError: Unable to find an element with the text: 非 Git 仓库. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  EnvironmentCard shows a detached HEAD and a rebase in flight instead of a stale branch name
+    TestingLibraryElementError: Unable to find an element with the text: 游离 HEAD. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  EnvironmentCard opens the project in the file tree and the changes row in Changes
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/打开 Changes 改动/`
+  EnvironmentCard uses the branch row as the Git shortcut, titled with its upstream
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/上游 origin\/main/`
+  EnvironmentCard sends the dock wiring's changes row to the Changes panel, not Git
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/打开 Changes 改动/`
+  EnvironmentCard tints the machine glyph and names the state when the Runtime is not up
+    TestingLibraryElementError: Unable to find an element with the text: 此计算机. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/embed/websiteEmbed.test.tsx	2/4
+  keeps full shell chrome without preview-switch, switches routes without echo or confirm, and reports internal navigation
+    AssertionError: expected null not to be null
+  forwards SettingsPage theme changes through AppShell and emits theme-changed
+    AssertionError: expected null not to be null
+src/dock/NativeFloat.test.tsx	1/1
+  mirrors preview state into native float documents and keeps an independent CSS mark
+    TypeError: The URL must be of scheme file
+src/dock/lifetime.test.tsx	6/37
+  dock content lifetime removes the annotations backdrop as soon as a title drag starts
+    Error: Unable to fire a "pointerdown" event - please provide a DOM element.
+  dock content lifetime keeps focus in the first annotations and returns it when Esc closes the window
+    TypeError: Cannot read properties of null (reading 'getAttribute')
+  dock tab chrome reveals each strip's left-edge grip only near the edge
+    AssertionError: expected false to be true // Object.is equality
+  live dock drag interrupts a snap animation without queuing motion or losing the live body
+    AssertionError: expected "vi.fn()" to be called once, but got 0 times
+  live dock drag finishes the snap curve after an early drop while committing layout immediately
+    AssertionError: expected undefined to be true // Object.is equality
+  live dock drag does not restart a landing animation for subpixel layout rounding
+    AssertionError: expected "vi.fn()" to be called once, but got 0 times
+src/dock/model.test.ts	19/40
+  dock layouts puts the quick card in the conversation rail when Git is dragged there
+    AssertionError: expected false to be true // Object.is equality
+  dock layouts keeps the original tab order when a group including Git is dropped in the rail
+    AssertionError: expected false to be true // Object.is equality
+  dock layouts restores an old IDA rail placement as a quick card with an independently opened workspace
+    AssertionError: expected [ 'environment', 'context' ] to include 'disassembler-quick'
+  dock layouts restores agent detail at its chosen position and unminimizes the same floating group
+    AssertionError: expected false to be true // Object.is equality
+  dock layouts starts with Explorer, expanded Environment and Background tasks, collapsed Context/Git/Agents and hidden empty right and populated bottom
+    AssertionError: expected undefined to be 'float' // Object.is equality
+  dock layouts moves the whole Terminal module and reorders tabs without duplicating or mutating it
+    AssertionError: expected false to be true // Object.is equality
+  dock layouts preserves source order and active tab when a whole group becomes cards or joins another group
+    TypeError: Cannot read properties of undefined (reading 'collapsed')
+  dock layouts creates two equal groups, routes further edges to existing groups, and cleans empty groups
+    AssertionError: expected false to be true // Object.is equality
+  dock layouts retains group identity on floating and remembers float geometry across hide/reopen
+    TypeError: Cannot set properties of undefined (setting 'collapsed')
+  dock layouts restores separately hidden tabs in original order even when reopened backwards
+    TypeError: Cannot set properties of undefined (setting 'collapsed')
+  dock layouts open finds the moved panel, expands cards, restores minimized floats and raises them
+    TypeError: Cannot read properties of undefined (reading 'id')
+  dock layouts locks movement and sizing but not browsing, hiding, reopening, folding or explicit presets
+    TypeError: Cannot read properties of undefined (reading 'id')
+  dock layouts normalizes persisted layouts once while retaining recoverable panels
+    AssertionError: expected [ [ 'changes' ], [ 'git' ] ] to deeply equal [ [ 'changes' ], …(1) ]
+  dock layouts ships independent default, focus and debugging templates
+    AssertionError: expected false to be true // Object.is equality
+  dock empty regions collapses the right region when its last group leaves, keeping size and other regions
+    TypeError: Cannot read properties of undefined (reading 'collapsed')
+  dock empty regions collapses the bottom region when its last group leaves but keeps expansion and size
+    AssertionError: expected false to be true // Object.is equality
+  dock empty regions collapses right and bottom when their last module is hidden
+    AssertionError: expected false to be true // Object.is equality
+  dock empty regions shows an explicitly opened empty region until the user closes it again
+    TypeError: Cannot read properties of undefined (reading 'collapsed')
+  dock empty regions leaves empty left cards and an empty rail alone, and never touches the conversation
+    AssertionError: expected false to be true // Object.is equality
+src/dock/store.test.ts	5/43
+  dock persistence and session scope centers and dims annotations again after closing, including after a restart
+    TypeError: Cannot read properties of undefined (reading 'rect')
+  dock persistence and session scope removes the annotations mask on docking, minimizing or pinning
+    TypeError: Cannot read properties of undefined (reading 'id')
+  dock persistence and session scope preserves tab selection and float raising without offering an undo step
+    AssertionError: expected [] to have a length of 1 but got +0
+  legacy layout migration migrates global/project layouts once into named presets, preserving old values and BTW geometry
+    AssertionError: expected [] to have a length of 2 but got +0
+  legacy layout migration restores old docked BTW to the right group without automatically opening the region
+    TypeError: Cannot read properties of undefined (reading 'layout')
+src/dock/windows.test.ts	1/29
+  unified workbench windows recenters annotations and restores its backdrop after its managed window closes
+    TypeError: Cannot read properties of undefined (reading 'rect')
+src/fileBrowser/FileBrowserPanel.test.tsx	10/17
+  file browser enters a folder and navigates up, back and forward
+    Error: Unable to find an element with the text: Desktop, which matches selector '.fb-name .ellipsis'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  file browser keeps a column folder selected for F2 and allows keyboard navigation into its children
+    Error: Unable to find an element with the text: Desktop, which matches selector '.fb-name .ellipsis'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  file browser uses Alt+Left for history without also navigating to the parent folder
+    Error: Unable to find an element with the text: Desktop, which matches selector '.fb-name .ellipsis'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  file browser creates, renames and confirms recycling at 720 px with preview=true and marks=true
+    Error: Unable to find an element with the text: Desktop, which matches selector '.fb-name .ellipsis'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  file browser creates, renames and confirms recycling at 720 px with preview=true and marks=false
+    Error: Unable to find an element with the text: Desktop, which matches selector '.fb-name .ellipsis'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  file browser creates, renames and confirms recycling at 720 px with preview=false and marks=false
+    Error: Unable to find an element with the text: Desktop, which matches selector '.fb-name .ellipsis'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  file browser creates, renames and confirms recycling at 1120 px with preview=true and marks=false
+    Error: Unable to find an element with the text: Desktop, which matches selector '.fb-name .ellipsis'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  file browser opens external files with system identity and project files with workspace identity
+    Error: Unable to find an element with the text: notes.txt, which matches selector '.fb-name .ellipsis'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  file browser disables local shell and recycling for remote files
+    Error: Unable to find an element with the text: Desktop, which matches selector '.fb-name .ellipsis'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  file browser keeps the real Host unused when the dock browser is in preview mode
+    Error: Unable to find an element with the text: Desktop, which matches selector '.fb-name .ellipsis'. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/files/FileCloseDialog.test.tsx	1/1
+  keeps a newly requested dirty file open while another file finishes saving
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "保存"
+src/git/GitHubPanel.test.tsx	2/3
+  previews PR discussion and selected diffs as a reference without invoking the real client
+    Error: Unable to find an element with the text: 修复 Mermaid 主题切换并补充回归验证. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  queries only the selected repository and preserves a loaded list when selecting details
+    Error: Unable to find an element with the text: 切换主题后 Mermaid 图表没有更新. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/git/GitQuickCard.test.tsx	2/7
+  shares preview staging and commit drafts with the full view and adds a PR reference without Host writes
+    TestingLibraryElementError: Unable to find an element with the placeholder text of: Commit message
+  opens the requested PR and follows a subsequent remote selection for references
+    Error: Unable to find role="button" and name `/#47.*修复 Mermaid/`
+src/graphics/GraphicPreview.test.tsx	1/3
+  keeps a generated numeric chart across scrolling and hide/show
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "收起图表"
+src/history/TimeTravel.test.tsx	2/3
+  requires a risk confirmation before enabling from the conversation entry
+    Error: Unable to find role="button" and name "Time Travel 开启"
+  preview enable and restore only change local UI
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Time Travel 开启"
+src/lux/workbenchLight.test.tsx	2/2
+  lights a real Plan review as waiting without a pending interaction
+    Error: Unable to find role="button" and name `/批准并执行|Approve and execute/i`
+  keeps preview Plan and Ask cards lit while they await a response
+    AssertionError: expected null not to be null
+src/media/microphoneAccess.test.tsx	1/6
+  file manager copy names Finder on macOS and keeps File Explorer everywhere else
+    AssertionError: expected 'shell.fileManagerLinux' to be 'shell.fileManagerWindows' // Object.is equality
+src/models/AgentAccountRules.test.tsx	4/4
+  edits the selected agent, keeps account drafts across providers and the list, and saves preview locally
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "打开 reviewer 详情"
+  does not silently turn an empty selected-account draft into a blocked provider
+    Error: Unable to find role="radio" and name "指定账号"
+  reads and writes global agent rules independently of effective session restrictions
+    Error: Unable to find an element with the text: 当前会话另有生效规则. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  saving only account changes does not rewrite the agent definition or its other overrides
+    Error: Unable to find role="radio" and name "停用提供商"
+src/models/ModelCompactionPane.test.tsx	5/5
+  keeps an unavailable role model selected until the user chooses a replacement
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "压缩配置模型"
+  prefills the role's model threshold and keeps the saved value when switching models
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "压缩阈值"
+  saves through native compaction and re-reads the effective settings before reporting completion
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "压缩阈值"
+  requires the native extended-window confirmation and drops it when the input changes
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "压缩阈值"
+  retains per-model preview edits without Host writes, and shows no invented values when Runtime is disconnected
+    TestingLibraryElementError: Unable to find an accessible element with the role "textbox" and name "压缩阈值"
+src/models/ModelParameterEditor.test.tsx	3/5
+  saves gray recommendations as effective values and preserves manual overrides when recommendations are reapplied
+    TestingLibraryElementError: Unable to find an accessible element with the role "spinbutton" and name "上下文窗口"
+  requires choosing between different matches before recommending their parameters
+    Error: Unable to find role="combobox" and name "选择目录模型"
+  keeps saved automatic parameters fixed when only the display name changes
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重新应用推荐"
+src/models/SessionOptionsPane.test.tsx	1/3
+  keeps preset writes in preview local and requires confirmation before replacing roles
+    Error: Unable to find role="button" and name "review 生效中"
+src/models/WebSearchPanel.test.tsx	1/5
+  does not offer credential writes while Runtime is disconnected
+    TestingLibraryElementError: Unable to find an element with the text: 连接支持此功能的 Runtime 后，可查看和管理凭据。. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/panels/panels.test.tsx	5/5
+  OutputPanel ledger lists each command with its status and terminal detail
+    TestingLibraryElementError: Unable to find an accessible element with the role "columnheader" and name "状态"
+  OutputPanel ledger shows the empty state instead of an empty table
+    TestingLibraryElementError: Unable to find an element with the text: 暂无命令. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  OutputPanel ledger keeps operator controls behind a disclosure
+    AssertionError: expected 'Operator consoleCapability gated' to contain '操作台'
+  OmpLogsPanel transcript splits each event kind into domain and leaf and counts the log
+    TestingLibraryElementError: Unable to find an accessible element with the role "columnheader" and name "事件"
+  OmpLogsPanel transcript shows the empty state before the first event
+    TestingLibraryElementError: Unable to find an element with the text: 暂无事件. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/sidebar/AppSidebar.threadRowMenu.test.tsx	5/6
+  AppSidebar thread row more menu opens the top-bar thread actions on a history row and routes the pick to onThreadRowAction
+    TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Fork 当前对话"
+  AppSidebar thread row more menu keeps preview demo rows honest: session actions disabled, archive stays local
+    TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Fork 当前对话"
+  AppSidebar thread row more menu keeps the right Fork gate for a saved current streaming session
+    TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Fork 当前对话"
+  AppSidebar thread row more menu keeps the right Fork gate for a saved background streaming resident
+    TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Fork 当前对话"
+  AppSidebar thread row more menu keeps the right Fork gate for a saved background compacting resident
+    TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Fork 当前对话"
+src/settings/DesktopUpdateRecovery.test.tsx	4/4
+  shows the verified target and requires a separate restart after preparation
+    TestingLibraryElementError: Unable to find an element with the text: /恢复目标: 0.1.4/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  keeps recovery unavailable without a verified previous version and reports preparation errors
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "准备上一版本"
+  simulates both preview steps without calling desktop APIs
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "准备上一版本"
+  shows restart progress while applying a prepared recovery
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重启恢复"
+src/usage/TokenUsagePanel.test.tsx	2/3
+  launches the separate counter without embedding tools or context actions in usage
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "离线 Token 计数"
+  shows an honest empty state and keeps the separate counter available
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "离线 Token 计数"
+src/workspaces/ExecutionTargets.test.tsx	7/11
+  a failed page sync offers resync rather than redeployment or another password prompt
+    Error: Unable to find role="button" and name "重新同步"
+  cancel during recovery calls disconnect without changing execution target
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "取消恢复"
+  preview target selection never connects to a real SSH host
+    Error: Unable to find role="button" and name `/此计算机/`
+  keeps authentication inside the connection dialog and identifies the target system automatically
+    Error: Unable to find role="button" and name `/此计算机/`
+  refreshes WSL distributions, translates the mounted menu and connects the ensured profile
+    Error: Unable to find role="menuitem" and name `/Ubuntu.*运行中/`
+  omits the group when WSL discovery reports unavailable
+    Error: Unable to find role="button" and name `/此计算机/`
+  WSL preview keeps the selected distro and directory draft across language changes without touching the Host
+    TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name `/Ubuntu-24.04/`
+src/workspaces/SessionWorktreesPane.test.tsx	5/5
+  allows closing and reopening a failed choice without pretending the Runtime accepted it
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "创建并进入"
+  can dismiss a pending continue command and retry after its failure
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "留在当前工作区"
+  reopens an already created worktree when switching to it fails
+    Error: Unable to find role="dialog"
+  offers the created worktree again after the Runtime disconnects during the switch
+    TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "创建并进入"
+  removes the modal when the Runtime becomes unavailable
+    Error: Unable to find role="dialog"
+src/workspaces/SshPasswordDialog.test.tsx	3/3
+  names the target account and never prefills a password
+    TestingLibraryElementError: Unable to find a label with the text of: SSH 密码
+  does not submit an empty password and clears the field after submitting
+    TestingLibraryElementError: Unable to find a label with the text of: SSH 密码
+  cancelling clears whatever was typed and reports cancellation
+    TestingLibraryElementError: Unable to find a label with the text of: SSH 密码
+src/agents/deck/AgentDeck.test.tsx	1/16
+  Agents deck shows agent messaging as unavailable in real mode without a Runtime to read it, with no invented messages
+    TestingLibraryElementError: Unable to find an element with the text: 读不到 Agent 间通讯. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.

@@ -1,0 +1,1 @@
+{"version":3,"file":"prompt-history.js","sourceRoot":"","sources":["../../../src/contracts/prompt-history.ts"],"names":[],"mappings":"AA8BA,MAAM,CAAC,MAAM,0BAA0B,GAAG,CAAC,sBAAsB,EAAE,sBAAsB,CAAU,CAAC;AACpG,MAAM,CAAC,MAAM,4BAA4B,GAAG,CAAC,wBAAwB,CAAU,CAAC;AAChF,MAAM,UAAU,mBAAmB,CAAC,IAAY;IAC9C,OAAQ,CAAC,GAAG,0BAA0B,EAAE,GAAG,4BAA4B,CAAuB,CAAC,QAAQ,CAAC,IAAI,CAAC,CAAC;AAChH,CAAC"}

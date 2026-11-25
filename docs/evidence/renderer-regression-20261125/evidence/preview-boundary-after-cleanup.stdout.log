@@ -1,0 +1,14 @@
+✔ all six external-capability preview modules have fail-closed product replacements (1.511423ms)
+✔ regex aliases replace complete relative and absolute specifiers with an absolute product path (0.252788ms)
+✔ the production import closure cannot reach Computer, SSH/WSL preparation, BTW, or preview gallery fixtures (210.404444ms)
+✔ only the explicit preview harness config opts out of the product boundary (2.265365ms)
+✔ production preview activation cannot be restored through URL parameters or stored preferences (0.359776ms)
+✔ native float documents receive an independent mandatory preview marker (0.185298ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 390.750018

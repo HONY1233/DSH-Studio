@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-25",
+  "scope": "DSH Studio apps/renderer-omp Vitest full regression",
+  "conclusion": {
+    "rendererFullRegression": "passed",
+    "rendererFullSuiteFiles": 288,
+    "rendererFullSuiteSuites": 544,
+    "rendererFullSuiteTests": 2132,
+    "rendererFullSuitePassed": 2132,
+    "rendererFullSuiteFailed": 0,
+    "rendererFullSuiteSkipped": 0,
+    "runtimeFullRegression": "not-passed-unbaselined",
+    "xg1ProtocolGate": "passed",
+    "xg0": "not-passed",
+    "rendererOmpFullTypecheck": "not-clean-not-part-of-this-gate",
+    "productionRendererEntrypointAlignment": "incomplete",
+    "commitPushPublish": "not-authorized"
+  },
+  "baseline": {
+    "preXg1CleanBaselineAvailable": false,
+    "strongestComparison": "after-card-column-full.json -> after-final-full.json",
+    "sameFiles": 288,
+    "sameSuites": 544,
+    "sameTests": 2132,
+    "failedBefore": 14,
+    "failedAfter": 0,
+    "initial307FileRunComparable": false,
+    "sourceOnlyProbeSameTestSet": false
+  },
+  "checks": {
+    "focused": {
+      "status": "passed",
+      "files": 9,
+      "tests": 96,
+      "failed": 0,
+      "log": "evidence/after-remaining-focused.stdout.log"
+    },
+    "full": {
+      "status": "passed",
+      "files": 288,
+      "suites": 544,
+      "tests": 2132,
+      "passed": 2132,
+      "failed": 0,
+      "skipped": 0,
+      "durationSeconds": 98.84,
+      "json": "evidence/after-final-full.json",
+      "stdout": "evidence/after-final-full.stdout.log",
+      "stderr": "evidence/after-final-full.stderr.log"
+    },
+    "architecture": {
+      "status": "passed",
+      "files": 1162,
+      "ruleGroups": 8,
+      "log": "evidence/architecture-after-cleanup.stdout.log"
+    },
+    "entrypointAlignment": {
+      "status": "passed",
+      "rendererQueries": 79,
+      "rendererCommands": 97,
+      "bridgeCases": 103,
+      "bridgeExplicitReasons": 130,
+      "silentEntries": 0,
+      "log": "evidence/entrypoint-after-cleanup.stdout.log"
+    },
+    "productionPreviewBoundary": {
+      "status": "passed",
+      "tests": 6,
+      "failed": 0,
+      "log": "evidence/preview-boundary-after-cleanup.stdout.log"
+    },
+    "debugInstrumentation": {
+      "status": "removed-from-source",
+      "marker": "[DEBUG-"
+    }
+  },
+  "environment": {
+    "wslNode": "v24.9.0",
+    "vitest": "5.1.1",
+    "jsdom": "29.1.1",
+    "testRoot": "/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp"
+  },
+  "unresolved": [
+    "Runtime full repository suite: 17 failed files / 68 failed tests; no clean-tag comparison.",
+    "No usable pre-XG1 Renderer clean baseline exists.",
+    "XG0 physical displays, media permissions and E-05 real external capabilities remain deferred and unverified.",
+    "apps/renderer-omp full TypeScript check is not clean and is not covered by this Vitest gate.",
+    "Desktop still loads apps/renderer-omp/dist instead of the target apps/renderer production entry.",
+    "Electron Main JSONL IO, Runtime draft upgrade authority/CAS and event reset/resync remain incomplete.",
+    "Post-change Windows package rebuild, signing, update channel, publication, commit and push remain unperformed or unauthorized."
+  ],
+  "evidence": {
+    "baselineComparison": "evidence/baseline-comparison.json",
+    "report": "REPORT.md",
+    "checksums": "SHA256SUMS.txt"
+  }
+}

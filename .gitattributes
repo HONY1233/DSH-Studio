@@ -1,0 +1,15 @@
+# 统一换行，避免 Windows/Linux 混合行尾制造假差异。
+* text=auto eol=lf
+
+# DSH 自有代码：上游合并时优先保留本地实现。
+# 需要先执行：git config merge.ours.driver true
+apps/desktop/** merge=ours
+packages/** merge=ours
+apps/renderer-omp/src/dsh/** merge=ours
+apps/renderer-omp/src/runtimeState/** merge=ours
+apps/renderer-omp/src/i18n/locales/** merge=ours
+apps/renderer-omp/package.json merge=ours
+apps/renderer-omp/vite.config.ts merge=ours
+apps/renderer-omp/NOTICE.md merge=ours
+sync-config.json merge=ours
+dsh-overlay.json merge=ours

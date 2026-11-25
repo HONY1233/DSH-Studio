@@ -1,0 +1,1 @@
+{"version":3,"file":"session-owner.d.ts","sourceRoot":"","sources":["../../../src/contracts/session-owner.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,iBAAiB;IAAG,iBAAiB,EAAE,SAAS,MAAM,EAAE,CAAC;IAAC,iBAAiB,EAAE,SAAS,MAAM,EAAE,CAAC;IAAC,KAAK,EAAE,OAAO,CAAA;CAAE;AACjI,MAAM,WAAW,qBAAqB;IAAG,IAAI,EAAE,sBAAsB,CAAC;IAAC,SAAS,EAAE,MAAM,CAAC;IAAC,KAAK,EAAE,iBAAiB,CAAA;CAAE"}

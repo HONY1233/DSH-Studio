@@ -1,0 +1,791 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./vite.config" without a file extension (vitest.config.ts:3:38). Add the file extension
+  - import "./productionPreviewBoundary" without a file extension (vite.config.ts:4:48). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+3:03:10 PM [vite] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic', jsxImportSource: undefined }`
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel create editor[2m > [22m[2mshows a required-field error on the viewport when save is clicked with an empty draft
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel create editor[2m > [22m[2mrejects names that the Host cannot store, without calling upsert
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel create editor[2m > [22m[2mrejects names that the Host cannot store, without calling upsert
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mconfigures OpenCode Go from the provider editor and keeps a saved key when the catalog needs a retry
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel create editor[2m > [22m[2mwrites a new definition through agents.definition.upsert
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel create editor[2m > [22m[2mwrites a new definition through agents.definition.upsert
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel create editor[2m > [22m[2madds a preview draft to the local list on save
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel create editor[2m > [22m[2madds a preview draft to the local list on save
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel editor model picker[2m > [22m[2madds a role through the composer model menu
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel editor model picker[2m > [22m[2mreorders model pills with the move buttons
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel editor model picker[2m > [22m[2mpersists reordered models through agents.definition.upsert
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel editor model picker[2m > [22m[2mpersists reordered models through agents.definition.upsert
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel editor model picker[2m > [22m[2moffers enable switch in behavior section, not session overrides
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/SubagentsPanel.test.tsx[2m > [22m[2mSubagentsPanel editor model picker[2m > [22m[2mpersists the disabled state through agents.definition.configure
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2msearches and replaces an unavailable preview model with the keyboard without writing to Host
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage 自动获取模型[2m > [22m[2mapplies gray recommendations to the model draft and the provider YAML save, including provenance
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/models/AgentAccountRules.test.tsx[2m > [22m[2medits the selected agent, keeps account drafts across providers and the list, and saves preview locally
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage 自动获取模型[2m > [22m[2mapplies gray recommendations to the model draft and the provider YAML save, including provenance
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/models/AgentAccountRules.test.tsx[2m > [22m[2medits the selected agent, keeps account drafts across providers and the list, and saves preview locally
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage 自动获取模型[2m > [22m[2mprobes the wire API without a discovery type and imports picked models into the draft
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/models/AgentAccountRules.test.tsx[2m > [22m[2medits the selected agent, keeps account drafts across providers and the list, and saves preview locally
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage 自动获取模型[2m > [22m[2mprobes the wire API without a discovery type and imports picked models into the draft
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage 自动获取模型[2m > [22m[2mselect-all can include models that already exist
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/models/AgentAccountRules.test.tsx[2m > [22m[2mdoes not silently turn an empty selected-account draft into a blocked provider
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/models/AgentAccountRules.test.tsx[2m > [22m[2mdoes not silently turn an empty selected-account draft into a blocked provider
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/models/AgentAccountRules.test.tsx[2m > [22m[2msaving only account changes does not rewrite the agent definition or its other overrides
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at clientRectsFor [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:466:56[90m)[39m
+    at Placeholder.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:10156:38[90m)[39m
+    at WidgetTile.coordsInWidget [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2172:34[90m)[39m
+    at WidgetTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2170:39[90m)[39m
+    at onSameLine [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2087:43[90m)[39m
+    at scan [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2035:144[90m)[39m
+    at LineTile.resolveInline [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2048:9[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2053:26[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+TypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage 自动获取模型[2m > [22m[2msurfaces a Host failure without opening the checklist
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage 自动获取模型[2m > [22m[2muses fixtures and never calls the Host in preview mode
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage 自动获取模型[2m > [22m[2mlets the user disambiguate catalog matches, switch choices, and filter discovered models
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage YAML 卡片随表单实时更新[2m > [22m[2m表单改动不保存就出现在 models.yml 切片里，且卡片转为只读
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage YAML 卡片随表单实时更新[2m > [22m[2m表单改动不保存就出现在 models.yml 切片里，且卡片转为只读
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage YAML 卡片随表单实时更新[2m > [22m[2m表单改动后保存会带上完整切片，而不是空文档
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage YAML 卡片随表单实时更新[2m > [22m[2m表单改动后保存会带上完整切片，而不是空文档
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage YAML 卡片随表单实时更新[2m > [22m[2m角色编辑器换主模型时 config.yml 卡片同步变化
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage YAML 卡片随表单实时更新[2m > [22m[2m角色编辑器换主模型时 config.yml 卡片同步变化
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage YAML 卡片随表单实时更新[2m > [22m[2m角色编辑器换主模型时 config.yml 卡片同步变化
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage YAML 卡片随表单实时更新[2m > [22m[2m清空 Base URL 后切片与保存都不再携带 baseUrl
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/ModelConfigPage.test.tsx[2m > [22m[2mModelConfigPage YAML 卡片随表单实时更新[2m > [22m[2m清空 Base URL 后切片与保存都不再携带 baseUrl
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/capabilities/ResourcesWorkspace.test.tsx[2m > [22m[2mURI resources[2m > [22m[2mshows ANSI colors across log pages and replaces decorations when rereading
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/capabilities/ResourcesWorkspace.test.tsx[2m > [22m[2mURI resources[2m > [22m[2mshows ANSI colors across log pages and replaces decorations when rereading
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/capabilities/ResourcesWorkspace.test.tsx[2m > [22m[2mURI resources[2m > [22m[2mshows ANSI colors across log pages and replaces decorations when rereading
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/deck/FormCard.test.tsx[2m > [22m[2mkeeps transient drafts after a Deck host remount but starts fresh on a new lease
+[22m[39mCannot update a component (`FormSummary`) while rendering a different component (`LiveFormQueue`). To locate the bad setState() call inside `LiveFormQueue`, follow the stack trace as described in https://react.dev/link/setstate-in-render
+
+[90mstderr[2m | src/TerminalPane.test.tsx[2m > [22m[2mpreview tmux draws panes without terminal IPC regardless of marks=true
+[22m[39mEncountered two children with the same key, `preview-pane-0`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-2`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-0`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-2`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-0`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-2`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-0`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-2`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%2-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%2-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%0-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%1-y`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%0-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%1-y`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%2-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%0-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%1-y`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%0-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%1-y`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+
+[90mstderr[2m | src/TerminalPane.test.tsx[2m > [22m[2mpreview tmux draws panes without terminal IPC regardless of marks=false
+[22m[39mEncountered two children with the same key, `preview-pane-0`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-2`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-0`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-2`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-0`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-2`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-0`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `preview-pane-2`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%2-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%2-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%0-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%1-y`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%0-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%1-y`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%2-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%0-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%1-y`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%0-x`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+Encountered two children with the same key, `%1-y`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+
+[90mstderr[2m | src/capabilities/ResourceTextView.test.tsx[2m > [22m[2mkeeps the draft, caret and undo history when previewing a session Markdown file
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/models/ModelSystemTemplates.test.tsx[2m > [22m[2mreopens an editable template after hiding an in-flight file read and ignores its late body
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/graphics/graphic-parser.test.ts[2m > [22m[2mbounded graphic parsers[2m > [22m[2mrejects damaged obj instead of displaying success
+[22m[39mTHREE.OBJLoader: Unexpected line: "not a valid model"
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

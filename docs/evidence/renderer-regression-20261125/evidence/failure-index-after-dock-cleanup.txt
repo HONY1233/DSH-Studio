@@ -1,0 +1,482 @@
+
+### src/App.composerPerf.test.tsx (1)
+- keeps draft books across execution-target remounts
+AssertionError: expected null not to be null
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mdata-density[39m=[32m"standard"[39m
+
+### src/App.contextStrip.test.tsx (1)
+- shows the full context strip attached above the composer on a new conversation
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+    at Proxy.<anonymous> (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/index.DNcttN5a.js:1792:15)
+    at Proxy.<anonymous> (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/index.DNcttN5a.js:1657:14)
+    at Proxy.methodWrapper (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/chai/index.js:1737:25)
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/App.contextStrip.test.tsx:106:66
+
+### src/App.dockRegion.test.tsx (2)
+- keeps left card headers grip-free, including tools moved into the sidebar
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/^Git Branches/`
+
+Here are the accessible roles:
+
+  separator:
+- keeps the right sidebar to one tab row and puts add next to the last tab
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/^Git Branches/`
+
+Here are the accessible roles:
+
+  separator:
+
+### src/CapabilitiesPage.command-manifest.test.tsx (3)
+- CapabilitiesPage command manifest queries and renders only Runtime manifest commands, including dynamic commands
+TestingLibraryElementError: Unable to find an accessible element with the role "tab" and name `/Slash Commands/`
+
+Here are the accessible roles:
+
+  heading:
+- CapabilitiesPage command manifest refreshes the caller after an authoritative /pin action
+TestingLibraryElementError: Unable to find an accessible element with the role "tab" and name `/Slash Commands/`
+
+Here are the accessible roles:
+
+  heading:
+- CapabilitiesPage command manifest keeps preview fixtures and does not query the Runtime manifest
+TestingLibraryElementError: Unable to find an accessible element with the role "tab" and name `/Slash Commands/`
+
+Here are the accessible roles:
+
+  heading:
+
+### src/ComposerModePicker.test.tsx (1)
+- Composer grouped tools keeps attachments, mentions, and slash commands reachable through the plus menu
+TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "@ 引用文件、文件夹、Agent 或 Skill"
+
+Here are the accessible roles:
+
+  button:
+
+### src/DiagnosticsPage.test.tsx (18)
+- 运行时 installation handoff installs an imported stable artifact using its verified channel
+Error: Unable to find an element with the text: 托管运行时 已安装. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+- 运行时 installation handoff installs an imported canary artifact using its verified channel
+Error: Unable to find an element with the text: 托管运行时 已安装. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+- 运行时 installation handoff keeps the downloaded artifact channel even when preferences now select stable
+AssertionError: expected "vi.fn()" to be called with arguments: [ 'runtime.install', …(1) ][90m
+
+Received:
+
+[1m  1st vi.fn() call:
+- 运行时 installation handoff does not silently install stable when an imported artifact has no channel
+Error: Unable to find an element with the text: 无法确认 运行时 工件通道，请重新检查更新. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+- 运行时 update compatibility shows the desktop blocker and never falls back to local installation
+TestingLibraryElementError: Unable to find an element with the text: 运行时 更新需先升级桌面. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+
+### src/ExplorerTree.test.tsx (2)
+- RealFileTree opens the file ⋯ menu with the standard items and dispatches actions
+TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "在资源管理器中打开"
+
+Here are the accessible roles:
+
+  tree:
+- RealFileTree disables desktop-dependent ⋯ items with a reason when the handler is unavailable
+TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "在资源管理器中打开"
+
+Here are the accessible roles:
+
+  tree:
+
+### src/HomePage.test.tsx (1)
+- HomePage identity keeps an honest omp status when Runtime is down
+TestingLibraryElementError: Unable to find an element with the text: Runtime 不可用. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+
+### src/ModelConfigPage.test.tsx (1)
+- keeps catalog updates local and visibly marked in preview mode
+Error: Unable to find an element with the text: 2026.10. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mclass[39m=[32m""[39m
+
+### src/Runtime18104.test.tsx (1)
+- makes billed message prediction an explicit opt-in and keeps demo changes local
+AssertionError: expected 'true' to be 'false' // Object.is equality
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/Runtime18104.test.tsx:26:47
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:3402:20
+
+### src/RuntimeSettings.test.tsx (2)
+- Runtime settings seam shows configured notes separately from effective state and never restarts a Runtime implicitly
+TestingLibraryElementError: Unable to find an element with the text: /已保存，需重启 Runtime/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+- Runtime settings seam announces a pending Runtime update
+AssertionError: expected undefined to be truthy
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/RuntimeSettings.test.tsx:198:21
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:3402:20
+
+### src/SettingsPage.test.tsx (1)
+- settings navigation and real preferences saves local appearance and startup settings; reset affects only its own section
+TestingLibraryElementError: Unable to find an accessible element with the role "option" and name "Light"
+
+Here are the accessible roles:
+
+  option:
+
+### src/SettingsSecondBatch.test.tsx (1)
+- shows only the selected memory backend in preview without writing real settings
+TestingLibraryElementError: Unable to find an element with the text: 演示设置已更新。. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+
+### src/agents/AgentDetailPanel.test.tsx (1)
+- Agent dock entry points opens BTW again after the workbench remounts and keeps the previous draft
+Error: Unable to find role="tab" and name "BTW"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+
+### src/agents/AgentRosterMeter.test.tsx (1)
+- Agent status in dock chrome updates initially folded headers and compact icons without mounting an Agent body
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Agents · 8 个子代理 · 1 失败 · 3 运行 · 4 未运行/`
+
+Here are the accessible roles:
+
+  complementary:
+
+### src/backgroundTasks/BackgroundTasksDock.test.tsx (1)
+- opens selected details beside the retained card and shares service stop state
+AssertionError: expected false to be true // Object.is equality
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/backgroundTasks/BackgroundTasksDock.test.tsx:137:118
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:3402:20
+
+### src/capabilities/ResourcesWorkspace.test.tsx (1)
+- URI resources uses all four preview protocols, preserves local edits, and hides demo copy with marks off without Host calls
+TestingLibraryElementError: Found multiple elements with the text: 演示
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+
+### src/composer/ChipComposer.test.tsx (1)
+- ChipComposer keeps /btw on the submit path for explicit rejection instead of parking it in the queue
+AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/composer/ChipComposer.test.tsx:967:22
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:3402:20
+
+### src/conversation/ConversationEmpty.test.tsx (1)
+- keeps the disconnected welcome free of reconnect and diagnostics actions
+TestingLibraryElementError: Unable to find an element with the text: /尚未连接 Runtime/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+
+### src/conversation/TaskProgressDock.test.tsx (1)
+- keeps preview markings visible while retaining the partial warning and ordinary file-open labels
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "打开 src/applied.ts"
+
+Here are the accessible roles:
+
+  region:
+
+### src/conversationWorkspace/Workspace.integration.test.tsx (4)
+- conversation windows keeps the shell and cached directory present during delayed context loading without reconnecting on focus
+AssertionError: expected <div class="app" id="appRoot" …(1)>…(2)</div> to be null
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mdata-density[39m=[32m"standard"[39m
+- conversation windows drags an original sidebar row into a float while keeping one shared left, right and bottom region
+TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Offline token counter"
+
+Here are the accessible roles:
+
+  banner:
+- conversation windows moves the breadcrumb into window title rows and lists conversation tabs only once the main area is empty
+AssertionError: expected null not to be null
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/conversationWorkspace/Workspace.integration.test.tsx:1022:76
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at listOnTimeout (node:internal/timers:569:9)
+    at process.processTimers (node:internal/timers:543:7)
+- conversation windows keeps the tabs usable while a new conversation window is still loading
+AssertionError: expected <div class="app" id="appRoot" …(1)>…(2)</div> to be null
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mdata-density[39m=[32m"standard"[39m
+
+### src/conversationWorkspace/residency.test.tsx (2)
+- keeps only the displayed conversation engine and closes replaced contexts while offline
+AssertionError: expected 2 to be 1 // Object.is equality
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/conversationWorkspace/residency.test.tsx:141:39
+    at async file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:20
+- releases a context even when switching away before its bootstrap completes
+AssertionError: expected undefined to be defined
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mdata-density[39m=[32m"standard"[39m
+
+### src/deck/PlanEditor.test.tsx (1)
+- plan split editing defaults overall annotations to collapsed, retains text and includes folded notes in feedback
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Overall annotations Has notes"
+
+Here are the accessible roles:
+
+  button:
+
+### src/embed/websiteEmbed.test.tsx (1)
+- keeps full shell chrome without preview-switch, switches routes without echo or confirm, and reports internal navigation
+Error: Unable to find role="button" and name `/^Statistics$/i`
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+
+### src/dock/lifetime.test.tsx (8)
+- dock content lifetime removes the annotations backdrop as soon as a title drag starts
+Error: Unable to fire a "pointerdown" event - please provide a DOM element.
+    at createEvent (/home/qtt199/projects/dsh-studio-xg0/node_modules/@testing-library/dom/dist/events.js:27:11)
+    at createEvent.<computed> [as pointerDown] (/home/qtt199/projects/dsh-studio-xg0/node_modules/@testing-library/dom/dist/events.js:106:38)
+    at fireEvent.<computed> [as pointerDown] (/home/qtt199/projects/dsh-studio-xg0/node_modules/@testing-library/dom/dist/events.js:110:68)
+    at fireEvent.<computed> [as pointerDown] (/home/qtt199/projects/dsh-studio-xg0/node_modules/@testing-library/react/dist/fire-event.js:15:52)
+- dock content lifetime keeps focus in the first annotations and returns it when Esc closes the window
+TypeError: Cannot read properties of null (reading 'getAttribute')
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/lifetime.test.tsx:78:19
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2949:64
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+- dock tab chrome uses a standalone page until a second tool joins and preserves its body on collapse
+AssertionError: expected '资源管理器' to be 'Explorer' // Object.is equality
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/lifetime.test.tsx:140:83
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:3402:20
+- dock tab chrome reveals each strip's left-edge grip only near the edge
+AssertionError: expected false to be true // Object.is equality
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/lifetime.test.tsx:181:25
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:3402:20
+- dock tab chrome opens a new tab from the strip's pinned add button
+AssertionError: expected undefined to be defined
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/lifetime.test.tsx:201:22
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:3402:20
+
+### src/dock/model.test.ts (18)
+- dock layouts puts the quick card in the conversation rail when Git is dragged there
+AssertionError: expected false to be true // Object.is equality
+    at expectSingletons (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/model.test.ts:10:102)
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/model.test.ts:80:5
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+- dock layouts keeps the original tab order when a group including Git is dropped in the rail
+AssertionError: expected false to be true // Object.is equality
+    at expectSingletons (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/model.test.ts:10:102)
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/model.test.ts:91:5
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+- dock layouts restores an old IDA rail placement as a quick card with an independently opened workspace
+AssertionError: expected [ 'environment', 'context' ] to include 'disassembler-quick'
+    at Proxy.<anonymous> (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/index.DNcttN5a.js:1792:15)
+    at Proxy.<anonymous> (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/index.DNcttN5a.js:1657:14)
+    at Proxy.methodWrapper (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/chai/index.js:1737:25)
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/model.test.ts:112:34
+- dock layouts restores agent detail at its chosen position and unminimizes the same floating group
+AssertionError: expected false to be true // Object.is equality
+    at expectSingletons (/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/model.test.ts:10:102)
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/model.test.ts:144:5
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+- dock layouts starts with Explorer, expanded Environment and Background tasks, collapsed Context/Git/Agents and hidden empty right and populated bottom
+AssertionError: expected undefined to be 'float' // Object.is equality
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/model.test.ts:155:39
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:3402:20
+
+### src/dock/railPresentation.test.tsx (2)
+- rail title menus and context presentation opens panel actions on title right-click without toggling the card
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Environment"
+
+Here are the accessible roles:
+
+  complementary:
+- rail title menus and context presentation supports Shift+F10 and returns focus to the title on Escape
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Environment"
+
+Here are the accessible roles:
+
+  complementary:
+
+### src/dock/store.test.ts (5)
+- dock persistence and session scope centers and dims annotations again after closing, including after a restart
+TypeError: Cannot read properties of undefined (reading 'rect')
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/store.test.ts:49:33
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2949:64
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+- dock persistence and session scope removes the annotations mask on docking, minimizing or pinning
+TypeError: Cannot read properties of undefined (reading 'id')
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/store.test.ts:78:82
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2949:64
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+- dock persistence and session scope preserves tab selection and float raising without offering an undo step
+AssertionError: expected [] to have a length of 1 but got +0
+    at Proxy.<anonymous> (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/index.DNcttN5a.js:1862:20)
+    at Proxy.<anonymous> (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/index.DNcttN5a.js:1657:14)
+    at Proxy.methodWrapper (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/chai/index.js:1737:25)
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/store.test.ts:194:28
+- legacy layout migration migrates global/project layouts once into named presets, preserving old values and BTW geometry
+AssertionError: expected { version: 1, …(12) } to match object { Object (left, right, ...) }
+(16 matching properties omitted from actual)
+    at Proxy.<anonymous> (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/index.DNcttN5a.js:1765:10)
+    at Proxy.<anonymous> (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/index.DNcttN5a.js:1657:14)
+    at Proxy.methodWrapper (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/chai/index.js:1737:25)
+- legacy layout migration restores old docked BTW to the right group without automatically opening the region
+AssertionError: expected { visible: false, size: 480, …(2) } to match object { Object (visible, groups) }
+(4 matching properties omitted from actual)
+    at Proxy.<anonymous> (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/index.DNcttN5a.js:1765:10)
+    at Proxy.<anonymous> (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/index.DNcttN5a.js:1657:14)
+    at Proxy.methodWrapper (file:///home/qtt199/projects/dsh-studio-xg0/node_modules/chai/index.js:1737:25)
+
+### src/dock/windows.test.ts (1)
+- unified workbench windows recenters annotations and restores its backdrop after its managed window closes
+TypeError: Cannot read properties of undefined (reading 'rect')
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/dock/windows.test.ts:28:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2949:64
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+
+### src/environment/environmentCard.test.tsx (1)
+- EnvironmentCard tints the machine glyph and names the state when the Runtime is not up
+AssertionError: expected '运行时连接中' to be 'Runtime 连接中' // Object.is equality
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/environment/environmentCard.test.tsx:139:84
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:1695:35
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:26
+    at file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:3402:20
+
+### src/fileBrowser/FileBrowserPanel.test.tsx (1)
+- file browser keeps a column folder selected for F2 and allows keyboard navigation into its children
+AssertionError: expected 'false' to be 'true' // Object.is equality
+    at /home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/src/fileBrowser/FileBrowserPanel.test.tsx:83:57
+    at async file:///home/qtt199/projects/dsh-studio-xg0/node_modules/vitest/dist/chunks/run.zBhXlcZQ.js:2864:20
+
+### src/git/GitQuickCard.test.tsx (1)
+- shares preview staging and commit drafts with the full view and adds a PR reference without Host writes
+TestingLibraryElementError: Unable to find an element with the placeholder text of: Commit message
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+
+### src/history/TimeTravel.test.tsx (2)
+- requires a risk confirmation before enabling from the conversation entry
+Error: Unable to find role="button" and name "Time Travel 开启"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+- preview enable and restore only change local UI
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Time Travel 开启"
+
+Here are the accessible roles:
+
+  button:
+
+### src/models/SessionOptionsPane.test.tsx (1)
+- keeps preset writes in preview local and requires confirmation before replacing roles
+Error: Unable to find role="button" and name "review 生效中"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+
+### src/models/WebSearchPanel.test.tsx (1)
+- does not offer credential writes while Runtime is disconnected
+TestingLibraryElementError: Unable to find an element with the text: 连接支持此功能的 Runtime 后，可查看和管理凭据。. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+
+### src/sidebar/AppSidebar.threadRowMenu.test.tsx (1)
+- AppSidebar thread row more menu opens the top-bar thread actions on a history row and routes the pick to onThreadRowAction
+TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Compact 当前上下文"
+
+Here are the accessible roles:
+
+  menuitem:
+
+### src/usage/TokenUsagePanel.test.tsx (2)
+- launches the separate counter without embedding tools or context actions in usage
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "离线 Token 计数"
+
+Here are the accessible roles:
+
+  banner:
+- shows an honest empty state and keeps the separate counter available
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "离线 Token 计数"
+
+Here are the accessible roles:
+
+  banner:
+
+### src/workspaces/ExecutionTargets.test.tsx (2)
+- preview target selection never connects to a real SSH host
+TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name `/dev-linux/`
+
+Here are the accessible roles:
+
+  button:
+- WSL preview keeps the selected distro and directory draft across language changes without touching the Host
+TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name `/Ubuntu-24.04/`
+
+Here are the accessible roles:
+
+  button:
+
+### src/agents/deck/AgentDeck.test.tsx (1)
+- Agents deck shows agent messaging as unavailable in real mode without a Runtime to read it, with no invented messages
+TestingLibraryElementError: Unable to find an element with the text: 读不到 Agent 间通讯. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+*.log
+.DS_Store
+.screenshots/
+logs/
+
+# Vendored OMP packages expose dist through package exports and have no install build.
+!apps/renderer-omp/vendor/omp/**/dist/
+!apps/renderer-omp/vendor/omp/**/dist/**

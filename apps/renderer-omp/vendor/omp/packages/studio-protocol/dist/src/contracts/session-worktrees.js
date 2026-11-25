@@ -1,0 +1,3 @@
+export const SESSION_WORKTREE_KINDS = ["worktrees.session.resume.list", "worktrees.session.resume.prepare", "worktrees.session.list", "worktrees.session.startPolicy", "worktrees.session.continueHere", "worktrees.session.create", "worktrees.session.open", "worktrees.session.remove.prepare", "worktrees.session.remove.apply"];
+export function isSessionWorktreeKind(kind) { return SESSION_WORKTREE_KINDS.includes(kind); }
+//# sourceMappingURL=session-worktrees.js.map

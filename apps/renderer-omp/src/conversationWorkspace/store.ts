@@ -1,0 +1,496 @@
+import { conversationKey, conversationVisible, type ClosedConversation, type ConversationDocument, type ConversationRef, type ConversationView, type ConversationWorkspaceLayout, type Rect } from "./model";
+import { conversationPanelId, type DockPinMode, type DockTarget } from "../dock/types";
+import type { SessionHistoryEntry, WorkspaceListReadModel } from "@omp-studio/client-contract";
+import { ProjectHistoryStore } from "../sidebar/useProjectHistories";
+import { ProvisionalThreadStore } from "../sidebar/provisionalThread";
+import { WorkbenchWindows, type WindowLayout, type WorkbenchWindow } from "../dock/windows";
+import { clampFloat } from "../dock/model";
+import { DocumentHosts } from "./hosts";
+import { sessionSwitchPerformance } from "../sessionSwitchPerformance";
+import { isZh } from "../i18n";
+import { snapTree, WINDOW_MINIMUM, type SnapRatios, type SnapNode, type SnapTemplate, type WindowSnapLayout } from "../dock/snap";
+
+export type ConversationAction = { id: string; kind: "rename" | "fork" | "handoff" | "compact" | "export" | "archive" | "delete"; entry: SessionHistoryEntry; workspaceId: string };
+export const WORKSPACE_STORAGE_KEY = "omp.conversation-workspace.v1";
+/** 回收站只记最近关闭的窗口，重启后不恢复（布局持久化本身也不保留已关闭文档）。 */
+const RECENTLY_CLOSED_LIMIT = 10;
+type WorkspaceMetadata = Omit<ConversationWorkspaceLayout, "views" | "snap" | "snapAssistCell" | "recentlyClosed">;
+const initial = (): WorkspaceMetadata => ({ version: 4, coordinateVersion: 1, documents: [], activeViewId: null, activeDocumentId: null, sidebarWidth: 272, sidebarVisible: true, panelWidth: 480, bottomHeight: 240, railCollapsed: false });
+const asView = (record: WorkbenchWindow): ConversationView => ({ id: record.id, documentId: record.content.documentId, placement: record.placement, rect: record.rect, minimized: record.minimized, maximized: record.maximized, pin: record.pin, ...(record.nativeRect ? { nativeRect: record.nativeRect } : {}), restoreSnap: record.restoreSnap });
+const conversationRefEqual = (first: ConversationRef, second: ConversationRef): boolean =>
+  first.targetId === second.targetId
+  && first.workspaceId === second.workspaceId
+  && first.sessionId === second.sessionId
+  && first.draftId === second.draftId
+  && first.threadId === second.threadId
+  && first.historyId === second.historyId
+  && first.previewThreadId === second.previewThreadId
+  && first.previewProjectId === second.previewProjectId;
+const documentPatchChanged = (current: ConversationDocument, patch: Partial<Pick<ConversationDocument, "ref" | "title" | "projectName" | "route" | "page" | "pagePhase">>): boolean =>
+  (patch.ref !== undefined && !conversationRefEqual(current.ref, patch.ref))
+  || ("title" in patch && patch.title !== current.title)
+  || ("projectName" in patch && patch.projectName !== current.projectName)
+  || ("route" in patch && patch.route !== current.route)
+  || ("page" in patch && patch.page !== current.page)
+  || ("pagePhase" in patch && patch.pagePhase !== current.pagePhase);
+
+const cleanSnap = (snap: WindowSnapLayout | null | undefined, recordIds: ReadonlySet<string>): WindowSnapLayout | null => {
+  if (!snap) return null;
+  const members = Object.fromEntries(Object.entries(snap.members).filter(([, member]) => recordIds.has(member)));
+  return Object.keys(members).length ? { ...snap, members } : null;
+};
+
+/**
+ * 旧版本把每个草稿窗口的会话身份都写成了共享的 `dsh-draft`（root 客户端的兜底值），
+ * 导致多个窗口显示同一段对话。加载时把这类 ref 和重复 ref 重置为互不相同的草稿。
+ */
+const migrateDocuments = (metadata: WorkspaceMetadata): WorkspaceMetadata => {
+  const seen = new Set<string>();
+  let changed = false;
+  const documents = metadata.documents.map((document) => {
+    const ref = document.ref;
+    if (ref.previewProjectId || ref.previewThreadId) return document;
+    const legacyDraft = typeof ref.sessionId === "string" && ref.sessionId.startsWith("dsh-draft");
+    const key = conversationKey(ref);
+    const duplicate = !legacyDraft && seen.has(key);
+    seen.add(key);
+    if (!legacyDraft && !duplicate) return document;
+    changed = true;
+    return {
+      id: document.id,
+      ref: {
+        targetId: ref.targetId,
+        ...(ref.workspaceId ? { workspaceId: ref.workspaceId } : {}),
+        draftId: `draft-${document.id}`,
+      } as ConversationRef,
+      title: isZh() ? "新对话" : "New conversation",
+      ...(document.projectName ? { projectName: document.projectName } : {}),
+      route: "workbench" as const,
+    };
+  });
+  return changed ? { ...metadata, documents } : metadata;
+};
+
+export class ConversationWorkspaceStore {
+  sidebarScrollTop = 0;
+  readonly manager = new WorkbenchWindows();
+  readonly windows = this.manager.focus;
+  readonly hosts = new DocumentHosts();
+  private catalogs = new Map<string | null, WorkspaceListReadModel>();
+  private histories = new Map<string | null, ProjectHistoryStore>();
+  private provisionals = new Map<string | null, ProvisionalThreadStore>();
+  deletedPreviewSessions: ReadonlySet<string> = new Set();
+  deletionNotice: { readonly title: string; readonly cleanupWarning?: string | undefined; readonly preview?: boolean } | null = null;
+  catalog(target: string | null) { return this.catalogs.get(target); }
+  rememberCatalog(target: string | null, value: WorkspaceListReadModel) { this.catalogs.set(target, value); }
+  history(target: string | null) { let value = this.histories.get(target); if (!value) { value = new ProjectHistoryStore(); this.histories.set(target, value); } return value; }
+  provisional(target: string | null) { let value = this.provisionals.get(target); if (!value) { value = new ProvisionalThreadStore(); this.provisionals.set(target, value); } return value; }
+  cancelDrag?: (() => void) | undefined;
+  private legacyCoordinates = false;
+  get geometry() { return this.manager.geometry; }
+  private actions = new Map<string, ConversationAction>();
+  private pendingDock = new Map<string, DockTarget>();
+  private closedDocuments = new Set<string>();
+  private closedStack: ClosedConversation[] = [];
+  private metadata = initial();
+  private state: ConversationWorkspaceLayout;
+  private listeners = new Set<() => void>();
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private batchDepth = 0;
+  private dirty = false;
+  private dirtySave = false;
+  readonly demo: boolean;
+
+  constructor(private storage: Pick<Storage, "getItem" | "setItem"> | null, demo = false, private persistenceEnabled = true) {
+    this.demo = demo;
+    if (!demo) {
+      try {
+        const saved = JSON.parse(storage?.getItem(WORKSPACE_STORAGE_KEY) ?? "null") as (ConversationWorkspaceLayout & { windowLayout?: WindowLayout; focus?: ReturnType<WorkbenchWindows["focus"]["checkpoint"]> }) | null;
+        if (saved && Array.isArray(saved.documents)) {
+          const { views, snap, snapAssistCell, windowLayout, focus, ...metadata } = saved;
+          const validDocs = new Set(saved.documents.map(doc => doc.id));
+          this.legacyCoordinates = saved.coordinateVersion !== 1;
+          this.metadata = migrateDocuments({ ...initial(), ...metadata, version: 4, coordinateVersion: this.legacyCoordinates ? 0 : 1 });
+          if (windowLayout) {
+            const records = (windowLayout.records ?? []).filter(record => validDocs.has(record.content.documentId));
+            const recordIds = new Set(records.map(record => record.id));
+            this.manager.restore({ records, snap: cleanSnap(windowLayout.snap, recordIds), assist: null });
+          } else {
+            let main = false;
+            const records: WorkbenchWindow[] = (views ?? []).filter(view => validDocs.has(view.documentId)).map(view => {
+              const embedded = view.placement === "main" || (view.placement as string) === "tile";
+              const placement = embedded && !main ? "main" : view.placement === "native" ? "native" : view.placement === "docked" ? "docked" : "float";
+              if (placement === "main") main = true;
+              return { ...view, placement, content: { kind: "conversation", documentId: view.documentId }, minimum: WINDOW_MINIMUM, title: saved.documents.find(doc => doc.id === view.documentId)?.title ?? (isZh() ? "新对话" : "New conversation"), pin: view.pin ?? (placement === "native" ? "window" : "none") };
+            });
+            const recordIds = new Set(records.map(record => record.id));
+            const legacySnap = snap as (WindowSnapLayout & { ratios?: SnapRatios }) | null;
+            const restoredSnap = legacySnap ? { template: legacySnap.template, members: legacySnap.members, tree: legacySnap.tree ?? snapTree(legacySnap.template, legacySnap.ratios) } : null;
+            this.manager.restore({ records, assist: null, snap: cleanSnap(restoredSnap, recordIds) });
+          }
+          if (focus) this.windows.restoreCheckpoint(focus);
+        }
+      } catch {}
+    }
+    this.state = this.snapshot();
+    this.manager.visible = record => conversationVisible({ ...asView(record), documentId: record.content.documentId }, this.state);
+    this.windows.resolveOwner = (id, ownerId) => {
+      const record = this.manager.get(id);
+      if (record?.content.kind !== "tools") return ownerId;
+      const { documentId, groupId } = record.content;
+      const layout = this.hosts.existing(documentId)?.tools?.store.getSnapshot().layout;
+      const group = layout?.floats.find(group => group.id === groupId);
+      const file = group ? layout?.fileViews[group.active] : undefined;
+      const active = this.metadata.documents.find(document => document.id === this.metadata.activeDocumentId);
+      if (file && (file.scope === "workspace" || group?.pin?.mode === "workspace") && active?.ref.workspaceId === file.workspaceId && (active.ref.targetId ?? null) === file.targetId) return active.id;
+      return ownerId;
+    };
+    this.manager.subscribe(() => {
+      this.pruneClosedDocuments();
+      this.publish();
+    });
+    this.windows.subscribe(() => {
+      const activeDocumentId = this.windows.getSnapshot().ownerId;
+      if (!activeDocumentId) return;
+      const activeViewId = this.state.views.find(view => view.documentId === activeDocumentId)?.id ?? null;
+      if (activeDocumentId !== this.metadata.activeDocumentId || activeViewId !== this.metadata.activeViewId) {
+        this.metadata = { ...this.metadata, activeDocumentId, activeViewId };
+        this.publish();
+      }
+    });
+    if (!this.manager.getSnapshot().records.length) this.open({ targetId: null, draftId: "initial" }, "current");
+    else if (!this.windows.getSnapshot().activeId && this.state.activeViewId) this.activate(this.state.activeViewId);
+  }
+  private snapshot(): ConversationWorkspaceLayout {
+    const layout = this.manager.getSnapshot();
+    return { ...this.metadata, recentlyClosed: this.closedStack, views: layout.records.filter(record => record.content.kind === "conversation").map(asView), snap: layout.snap, snapAssistCell: layout.assist };
+  }
+  getSnapshot = () => this.state;
+  /** Keep lightweight identity/draft memory, not a mounted application per past selection. */
+  mountedDocuments() {
+    const referenced = new Set(this.manager.getSnapshot().records.map(record => record.content.documentId));
+    return this.state.documents.filter(document => referenced.has(document.id));
+  }
+  getDiagnostics(deep = false) {
+    const referenced = new Set(this.manager.getSnapshot().records.map(record => record.content.documentId));
+    return { documents: this.state.documents.length, mountedDocuments: this.mountedDocuments().length, views: this.state.views.length,
+      unreferencedDocuments: this.state.documents.filter(document => !referenced.has(document.id)).length,
+      listeners: this.listeners.size, ...this.hosts.getDiagnostics(deep) };
+  }
+  enablePersistence() { this.persistenceEnabled = true; }
+  subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  batch<T>(fn: () => T): T {
+    this.batchDepth++;
+    try {
+      return fn();
+    } finally {
+      this.batchDepth--;
+      if (this.batchDepth === 0 && this.dirty) {
+        const save = this.dirtySave;
+        this.dirty = false;
+        this.dirtySave = false;
+        this.publish(save);
+      }
+    }
+  }
+  private publish(save = true) {
+    this.state = this.snapshot();
+    if (this.batchDepth > 0) {
+      this.dirty = true;
+      this.dirtySave ||= save;
+      return;
+    }
+    for (const listener of this.listeners) listener();
+    if (!save || this.demo || !this.persistenceEnabled) return;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.flush(), 200);
+  }
+  private pruneClosedDocuments() {
+    if (!this.closedDocuments.size) return;
+    const referenced = new Set(this.manager.getSnapshot().records.map(record => record.content.documentId));
+    const removeIds = new Set<string>();
+    for (const docId of this.closedDocuments) {
+      if (referenced.has(docId)) continue;
+      this.closedDocuments.delete(docId);
+      this.actions.delete(docId);
+      removeIds.add(docId);
+    }
+    if (removeIds.size > 0 && this.metadata.documents.some(doc => removeIds.has(doc.id))) {
+      this.metadata = {
+        ...this.metadata,
+        documents: this.metadata.documents.filter(doc => !removeIds.has(doc.id)),
+      };
+    }
+  }
+  flush = () => {
+    clearTimeout(this.timer); this.timer = undefined;
+    if (this.demo || !this.persistenceEnabled) return;
+    const windowLayout = this.manager.getSnapshot();
+    const open = new Set(windowLayout.records.map(record => record.content.documentId));
+    const documents = this.metadata.documents.filter(doc => open.has(doc.id)).map(({ page, pagePhase, route, ...doc }) => doc.ref.sessionId || doc.ref.historyId ? doc : { ...doc, title: isZh() ? "新对话" : "New conversation" });
+    const docById = new Map(documents.map(doc => [doc.id, doc]));
+    const records = windowLayout.records.flatMap((record): WorkbenchWindow[] => {
+      const doc = docById.get(record.content.documentId);
+      if (!doc) return [];
+      if (record.content.kind === "tools" && !doc.ref.sessionId && !doc.ref.historyId) return [];
+      return [record.content.kind === "conversation" ? { ...record, title: doc.title } : record];
+    });
+    const recordIds = new Set(records.map(record => record.id));
+    const state = { ...this.metadata, documents, windowLayout: { ...windowLayout, records, snap: cleanSnap(windowLayout.snap, recordIds), assist: null }, focus: this.windows.checkpoint() };
+    try { this.storage?.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(state)); } catch {}
+  };
+  documentFor(viewId: string | null): ConversationDocument | undefined {
+    return this.state.documents.find(doc => doc.id === this.manager.get(viewId ?? "")?.content.documentId);
+  }
+  viewFor(ref: ConversationRef) {
+    const record = this.state.documents.find(doc => conversationKey(doc.ref) === conversationKey(ref));
+    return this.state.views.find(view => view.documentId === record?.id);
+  }
+  actionFor(id: string) { return this.actions.get(id); }
+  takeAction(id: string) { const value = this.actions.get(id); this.actions.delete(id); return value; }
+  setDeletionNotice = (notice: ConversationWorkspaceStore["deletionNotice"]) => {
+    this.deletionNotice = notice;
+    this.publish(false);
+  };
+  removeDeletedSessions(
+    targetId: string | null,
+    workspaceId: string | undefined,
+    identities: ReadonlySet<string>,
+    draftTitle: string,
+    keepPageDocument?: string,
+  ) {
+    const matches = (ref: ConversationRef) => this.demo ? identities.has(ref.previewThreadId ?? "") : identities.has(ref.sessionId ?? "") || identities.has(ref.historyId ?? "");
+    const documents = this.metadata.documents.filter(({ ref }) => ref.targetId === targetId && matches(ref));
+    // 已删除的会话不该再出现在回收站里；连之前关窗留下的快照一起清掉。
+    this.closedStack = this.closedStack.filter(item => !matches(item.ref));
+    if (documents.length === 0) { this.publish(false); return; }
+    this.batch(() => {
+      const ids = new Set(documents.map(document => document.id));
+      const active = documents.find(document => document.id === this.metadata.activeDocumentId);
+      if (active && active.id === keepPageDocument) {
+        this.updateDocument(active.id, {
+          ref: { targetId, workspaceId: active.ref.workspaceId ?? workspaceId, draftId: crypto.randomUUID(), ...(this.demo ? { previewProjectId: active.ref.previewProjectId, previewThreadId: "t0" } : {}) },
+          title: draftTitle,
+        });
+        ids.delete(active.id);
+      } else if (active) {
+        this.open({ targetId, workspaceId: active.ref.workspaceId ?? workspaceId, draftId: crypto.randomUUID() }, "current", undefined, draftTitle);
+      }
+      for (const view of this.state.views) {
+        if (ids.has(view.documentId)) this.close(view.id);
+      }
+      // close() 会把窗口记进回收站，但这些会话正在被删除。
+      this.closedStack = this.closedStack.filter(item => !matches(item.ref));
+      for (const id of ids) this.closedDocuments.add(id);
+      this.pruneClosedDocuments();
+      this.publish();
+    });
+  }
+  recordPreviewDeletion(ids: readonly string[]) {
+    this.deletedPreviewSessions = new Set([...this.deletedPreviewSessions, ...ids]);
+    this.publish(false);
+  }
+  requestAction(ref: ConversationRef, entry: SessionHistoryEntry, kind: ConversationAction["kind"]) {
+    const viewId = this.open(ref), document = this.documentFor(viewId)!;
+    this.actions.set(document.id, { id: crypto.randomUUID(), kind, entry, workspaceId: ref.workspaceId! });
+    this.publish(false);
+  }
+  setGeometry(workbench: Rect, canvas: Rect) {
+    const prev = this.geometry;
+    const changed = prev.workbench.x !== workbench.x || prev.workbench.y !== workbench.y || prev.workbench.width !== workbench.width || prev.workbench.height !== workbench.height
+      || prev.canvas.x !== canvas.x || prev.canvas.y !== canvas.y || prev.canvas.width !== canvas.width || prev.canvas.height !== canvas.height;
+    this.manager.geometry = { workbench, canvas };
+    if (this.legacyCoordinates && canvas.width && canvas.height) {
+      this.legacyCoordinates = false;
+      this.metadata = { ...this.metadata, coordinateVersion: 1 };
+      this.manager.transaction(() => { for (const record of this.manager.getSnapshot().records) {
+        const rect = clampFloat(record.rect, { width: canvas.width, height: canvas.height }, 280);
+        this.manager.patch(record.id, { rect: { ...rect, x: rect.x + canvas.x - workbench.x, y: rect.y + canvas.y - workbench.y } });
+      } });
+      this.publish(true);
+    } else if (changed) this.publish(false);
+  }
+  activate(id: string) {
+    const record = this.manager.get(id);
+    if (record?.placement === "docked") this.hosts.existing(record.content.documentId)?.tools?.store.dispatch({ type: "open", panel: conversationPanelId(id) });
+    this.manager.activate(id);
+  }
+  dockPanel(id: string, target: DockTarget) {
+    const record = this.manager.get(id);
+    if (!record) return;
+    const tools = this.hosts.existing(record.content.documentId)?.tools;
+    if (!tools) { this.pendingDock.set(id, target); return; }
+    tools.store.dispatch({ type: "move", panels: [conversationPanelId(id)], target });
+    if (target.region === "left") this.shared({ sidebarVisible: true });
+    if (target.region === "bottom" && this.state.bottomHeight < 360) this.shared({ bottomHeight: 360 });
+    this.manager.activate(id);
+  }
+  attachPendingDock(documentId: string) {
+    const view = this.state.views.find(view => view.documentId === documentId);
+    const target = view && this.pendingDock.get(view.id);
+    if (!view || !target) return;
+    this.pendingDock.delete(view.id);
+    this.dockPanel(view.id, target);
+  }
+  focus(id: string) { this.activate(id); globalThis.window?.dispatchEvent(new CustomEvent("omp:conversation-focus", { detail: id })); }
+  isWindowed() { return this.manager.getSnapshot().records.some(record => record.placement !== "main"); }
+  /** The main area holds no conversation: every conversation is in a window. Tool windows do not count. */
+  allWindowed = () => this.state.views.length > 0 && !this.state.views.some(view => view.placement === "main");
+  /** Conversation views, most recently focused first. */
+  recentViews() {
+    const recent = this.windows.recentIds();
+    const rank = (view: ConversationView) => { const index = recent.indexOf(`conversation:${view.id}`); return index < 0 ? recent.length : index; };
+    return [...this.state.views].sort((first, second) => rank(first) - rank(second));
+  }
+  /** A new draft window that keeps the owner's project and connection (the active conversation by default). */
+  openNewWindow(owner = this.state.documents.find(doc => doc.id === this.state.activeDocumentId)) {
+    return this.open({ targetId: owner?.ref.targetId ?? null, workspaceId: owner?.ref.workspaceId, previewProjectId: owner?.ref.previewProjectId, draftId: crypto.randomUUID() }, "float", this.nextWindowRect());
+  }
+  nextWindowRect(size = { width: 720, height: 620 }): Rect {
+    const { canvas, workbench } = this.geometry;
+    const width = Math.min(size.width, canvas.width), height = Math.min(size.height, canvas.height);
+    const count = this.manager.getSnapshot().records.filter(record => record.placement === "float" && !record.minimized).length;
+    const offset = count % 5 * 24;
+    return clampFloat({ x: canvas.x - workbench.x + (canvas.width - width) / 2 + offset, y: canvas.y - workbench.y + Math.min(64, (canvas.height - height) / 2) + offset, width, height }, { width: workbench.width, height: workbench.height }, 280);
+  }
+  openFromDirectory(ref: ConversationRef, title?: string): string {
+    const finish = sessionSwitchPerformance.span("switch.dispatch");
+    try {
+      const existing = this.viewFor(ref);
+      if (existing) return this.open(ref, "current", undefined, title);
+      return this.isWindowed() ? this.open(ref, "float", this.nextWindowRect(), title) : this.open(ref, "current", undefined, title);
+    } finally { finish(); }
+  }
+  open(ref: ConversationRef, placement: "current" | "float" = "current", rect?: Rect, title?: string): string {
+    return this.batch(() => {
+      if (this.demo && ref.draftId && ref.draftId !== "initial") ref = { ...ref, previewThreadId: "t0", previewProjectId: ref.workspaceId ?? this.documentFor(this.state.activeViewId)?.ref.previewProjectId };
+      const key = conversationKey(ref);
+      // Only the startup document defers to startupPage; an explicit open reveals the conversation, including cached documents.
+      const found = this.state.documents.find(doc => conversationKey(doc.ref) === key);
+      const route = !found && ref.draftId === "initial" ? undefined : ("workbench" as const);
+      let document: ConversationDocument;
+      if (!found) {
+        document = { id: crypto.randomUUID(), ref, title: title ?? (isZh() ? "新对话" : "New conversation"), route };
+        this.metadata = { ...this.metadata, documents: [...this.metadata.documents, document] };
+      } else if (found.route !== route || (title !== undefined && found.title !== title)) {
+        document = { ...found, route, ...(title !== undefined ? { title } : {}) };
+        this.metadata = { ...this.metadata, documents: this.metadata.documents.map(doc => doc.id === found.id ? document : doc) };
+      } else {
+        document = found;
+      }
+      this.closedDocuments.delete(document.id);
+      if (this.closedStack.length) this.closedStack = this.closedStack.filter(item => conversationKey(item.ref) !== key);
+      const existing = this.state.views.find(view => view.documentId === document.id);
+      if (existing) {
+        if (title !== undefined) this.manager.patch(existing.id, { title: document.title });
+        if (placement === "float" && existing.placement === "main") this.float(existing.id, rect);
+        this.focus(existing.id);
+        this.publish();
+        return existing.id;
+      }
+      // A minimized view is not "current": reusing it would swap out a conversation the user only put away.
+      const current = this.state.views.find(view => view.id === this.state.activeViewId && !view.minimized);
+      if (placement === "current" && current) {
+        this.manager.patch(current.id, { content: { kind: "conversation", documentId: document.id }, title: document.title, minimized: false });
+        this.activate(current.id);
+        this.publish();
+        return current.id;
+      }
+      const id = crypto.randomUUID();
+      this.manager.register({ id, content: { kind: "conversation", documentId: document.id }, title: document.title, placement: placement === "float" ? "float" : "main", pin: "none", minimum: WINDOW_MINIMUM, rect: rect ?? { x: 40, y: 40, width: 640, height: 560 }, minimized: false, maximized: false });
+      this.activate(id);
+      this.publish();
+      return id;
+    });
+  }
+  updateDocument(id: string, patch: Partial<Pick<ConversationDocument, "ref" | "title" | "projectName" | "route" | "page" | "pagePhase">>) {
+    const current = this.metadata.documents.find(doc => doc.id === id);
+    if (!current || !documentPatchChanged(current, patch)) return;
+    this.batch(() => {
+      this.metadata = { ...this.metadata, documents: this.metadata.documents.map(doc => doc.id === id ? { ...doc, ...patch } : doc) };
+      const view = this.state.views.find(view => view.documentId === id);
+      if (view && patch.title !== undefined) this.manager.patch(view.id, { title: patch.title });
+      this.publish();
+    });
+  }
+  close(id: string) {
+    this.pendingDock.delete(id);
+    const record = this.manager.get(id);
+    if (record) {
+      if (record.content.kind === "conversation") {
+        const document = this.metadata.documents.find(doc => doc.id === record.content.documentId);
+        // 只有带会话身份的窗口才值得进回收站；纯草稿关掉就是关掉。
+        if (document && (document.ref.sessionId || document.ref.historyId || document.ref.previewThreadId)) this.rememberClosed(document, record);
+        this.closedDocuments.add(record.content.documentId);
+      }
+      this.hosts.existing(record.content.documentId)?.tools?.store.removeConversationPanel(id);
+    }
+    this.manager.remove(id); this.pruneClosedDocuments(); this.settleActive();
+  }
+  private rememberClosed(document: ConversationDocument, record: WorkbenchWindow) {
+    const entry: ClosedConversation = {
+      id: crypto.randomUUID(), ref: document.ref, title: document.title,
+      ...(document.projectName ? { projectName: document.projectName } : {}),
+      placement: record.placement === "main" ? "main" : record.placement === "native" ? "native" : "float",
+      rect: record.rect, closedAt: Date.now(),
+    };
+    const key = conversationKey(document.ref);
+    this.closedStack = [entry, ...this.closedStack.filter(item => conversationKey(item.ref) !== key)].slice(0, RECENTLY_CLOSED_LIMIT);
+  }
+  /** 把回收站里的窗口恢复到原来的身份与位置（主区 / 浮窗 / 独立窗口）。 */
+  restoreClosed(entryId: string): string | undefined {
+    const entry = this.closedStack.find(item => item.id === entryId);
+    if (!entry) return undefined;
+    this.closedStack = this.closedStack.filter(item => item.id !== entryId);
+    const viewId = this.open(entry.ref, "float", entry.rect, entry.title);
+    if (entry.placement === "main") {
+      if (this.manager.get(viewId)?.placement !== "main") this.dock(viewId);
+    } else if (entry.placement === "native") this.float(viewId, entry.rect, true);
+    return viewId;
+  }
+  /** Nothing visible is left: minimized conversations stay (and keep the shared chrome); only an empty workspace starts a new conversation. */
+  private settleActive() {
+    if (this.windows.getSnapshot().activeId || this.manager.getSnapshot().records.some(record => !record.minimized)) return;
+    const next = this.recentViews()[0];
+    if (!next) { this.open({ targetId: null, draftId: crypto.randomUUID() }); return; }
+    if (next.documentId === this.metadata.activeDocumentId && next.id === this.metadata.activeViewId) return;
+    this.metadata = { ...this.metadata, activeDocumentId: next.documentId, activeViewId: next.id };
+    this.publish();
+  }
+  float(id: string, rect?: Rect, native = false) {
+    const record = this.manager.get(id);
+    if (record?.placement === "docked") this.hosts.existing(record.content.documentId)?.tools?.store.removeConversationPanel(id);
+    this.manager.transaction(() => { this.manager.float(id, rect, native); this.manager.patch(id, { pin: native ? "window" : record?.pin === "window" || record?.pin === "topmost" ? "none" : record?.pin ?? "none" }); });
+    this.activate(id);
+  }
+  dock(id: string) {
+    const record = this.manager.get(id);
+    if (record?.placement === "docked") this.hosts.existing(record.content.documentId)?.tools?.store.removeConversationPanel(id);
+    this.manager.transaction(() => {
+      for (const record of this.manager.getSnapshot().records) if (record.placement === "main" && record.id !== id) this.manager.remove(record.id);
+      this.manager.float(id);
+      this.manager.patch(id, { placement: "main", pin: "none" });
+    });
+    this.activate(id);
+  }
+  setPin(id: string, pin: DockPinMode) {
+    this.manager.setPin(id, pin);
+  }
+  setWindow(id: string, patch: Partial<Pick<ConversationView, "rect" | "nativeRect" | "minimized" | "maximized">>) {
+    this.manager.transaction(() => {
+      if (patch.rect) this.manager.float(id, patch.rect);
+      if (patch.minimized) this.manager.minimize(id);
+      else if (patch.minimized === false) this.manager.activate(id);
+      this.manager.patch(id, { ...(patch.nativeRect ? { nativeRect: patch.nativeRect } : {}), ...(patch.maximized !== undefined ? { maximized: patch.maximized } : {}) });
+    });
+    if (patch.minimized) this.settleActive();
+  }
+  snapCell(id: string) { return this.manager.cell(id); }
+  snapView(id: string, template: SnapTemplate, cell: number) { this.manager.snap(id, { template, cell }); }
+  resizeSnap(geometry: SnapRatios | SnapNode) { const snap = this.manager.getSnapshot().snap; if (snap) this.manager.resize("columns" in geometry ? snapTree(snap.template, geometry) : geometry); }
+  dismissSnapAssist() { this.manager.dismissAssist(); }
+  shared(patch: Partial<Pick<ConversationWorkspaceLayout, "sidebarWidth" | "sidebarVisible" | "panelWidth" | "bottomHeight" | "railCollapsed">>) {
+    if (Object.entries(patch).every(([key, value]) => this.metadata[key as keyof WorkspaceMetadata] === value)) return;
+    this.metadata = { ...this.metadata, ...patch }; this.publish();
+  }
+}

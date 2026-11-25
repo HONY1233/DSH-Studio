@@ -1,0 +1,185 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./vite.config" without a file extension (vitest.config.ts:3:38). Add the file extension
+  - import "./productionPreviewBoundary" without a file extension (vite.config.ts:4:48). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+2:58:32 PM [vite] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic', jsxImportSource: undefined }`
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/conversationWorkspace/Workspace.integration.test.tsx[2m > [22mconversation windows[2m > [22mdrags an original sidebar row into a float while keeping one shared left, right and bottom region
+[31m[1mAssertionError[22m[39m: expected null not to be null
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mdata-density[39m=[32m"standard"[39m
+  [33mdata-light[39m=[32m"std soft"[39m
+  [33mdata-preview[39m=[32m"off"[39m
+  [33mdata-preview-marks[39m=[32m"off"[39m
+  [33mdata-theme[39m=[32m"light"[39m
+  [33mlang[39m=[32m"en"[39m
+  [33mstyle[39m=[32m"--font-ui: var(--font-ui-default); --font-terminal: var(--font-mono-default); --font-output: var(--font-ui-default); --font-output-code: var(--font-mono-default); --ui-font-scale: 1; --output-font-scale: 1; --terminal-font-size: 12px;"[39m
+[36m>[39m
+  [36m<head>[39m
+    [36m<title>[39m
+      [0mDSH Studio — Workbench[0m
+    [36m</title>[39m
+  [36m</head>[39m
+  [36m<body[39m
+    [33mclass[39m=[32m""[39m
+  [36m>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"conversation-workspace has-conversation-windows"[39m
+        [33mstyle[39m=[32m"--sidebar-w: 272px; --panel-w: 640px; --cw-bottom-height: 240px;"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33maria-busy[39m=[32m"false"[39m
+            [33mclass[39m=[32m"cw-shared-content cw-shared-background"[39m
+            [33mdata-conversation-owner[39m=[32m"1062fdff-4818-41cf-bd30-c907542e4f3f"[39m
+          [36m/>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cw-title-slot"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-busy[39m=[32m"false"[39m
+            [33mclass[39m=[32m"cw-shared-content cw-shared-title"[39m
+            [33mdata-conversation-owner[39m=[32m"1062fdff-4818-41cf-bd30-c907542e4f3f"[39m
+          [36m>[39m
+            [36m<header[39m
+              [33mclass[39m=[32m"app-titlebar"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-controls[39m=[32m"sidebar"[39m
+                [33maria-expanded[39m=[32m"true"[39m
+                [33maria-label[39m=[32m"Collapse Sidebar"[39m
+                [33mclass[39m=[32m"icon-btn"[39m
+                [33mdata-dock-entry[39m=[32m"left"[39m
+                [33mdata-tip[39m=[32m"Collapse"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"icon"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                [36m>[39m
+                  [36m<rect[39m
+                    [33mheight[39m=[32m"11"[39m
+                    [33mrx[39m=[32m"1.2"[39m
+                    [33mwidth[39m=[32m"12"[39m
+                    [33mx[39m=[32m"2"[39m
+                    [33my[39m=[32m"2.5"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M6 2.5v11"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Back"[39m
+                [33mclass[39m=[32m"icon-btn"[39m
+                [33mdata-tip[39m=[32m"Back"[39m
+                [33mdisabled[39m=[32m""[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"icon"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M13 8H3M7.5 3.5 3 8l4.5 4.5"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Forward"[39m
+                [33mclass[39m=[32m"icon-btn"[39m
+                [33mdata-tip[39m=[32m"Forward"[39m
+                [33mdisabled[39m=[32m""[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"icon"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M3 8h10M8.5 3.5 13 8l-4.5 4.5"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</button>[39m
+              [36m<nav[39m
+                [33maria-label[39m=[32m"App Menu"[39m
+                [33mclass[39m=[32m"title-menus"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"title-menu"[39m
+                [36m>[39m
+                  [36m<button[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"menu"[39m
+                    [33mclass[39m=[32m"title-menu-btn"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mFile[0m
+                  [36m</button>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"title-menu"[39m
+                [36m>[39m
+                  [36m<button[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"menu"[39m
+                    [33mclass[39m=[32m"title-menu-btn"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mEdit[0m
+                  [36m</button>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"title-menu"[39m
+                [36m>[39m
+                  [36m<button[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"menu"[39m
+                    [33mclass[39m=[32m"title-menu-btn"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mView[0m
+                  [36m</button>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"title-menu"[39m
+                [36m>[39m
+                  [36m<button[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"menu"[39m
+                    [33mclass[39m=[32m"title-menu-btn"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mHelp[0m
+                  [36m</button>[39m
+                [36m</div>[39m
+              [36m</nav>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"titlebar-end"[39m
+              [36m/>[39m
+            [36m</header>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cw-shell"[39m
+          [33mdata-dock-workbench[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"c...
+[36m [2m❯[22m src/conversationWorkspace/Workspace.integration.test.tsx:[2m775:102[22m[39m
+
+[90m [2m❯[22m runWithExpensiveErrorDiagnosticsDisabled ../../node_modules/@testing-library/dom/dist/config.js:[2m47:12[22m[39m
+[90m [2m❯[22m checkCallback ../../node_modules/@testing-library/dom/dist/wait-for.js:[2m124:77[22m[39m
+[90m [2m❯[22m Timeout.checkRealTimersCallback ../../node_modules/@testing-library/dom/dist/wait-for.js:[2m118:16[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+

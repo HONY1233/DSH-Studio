@@ -1,0 +1,16 @@
+{
+  "name": "@dsh-studio/dsh-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH Web Host API 适配层：进程守护、HTTP/WS 传输、事件投影、命令路由",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./wire": "./src/wire/index.js",
+    "./supervisor": "./src/supervisor/index.js"
+  },
+  "dependencies": {
+    "@dsh-studio/contract": "0.1.0"
+  }
+}

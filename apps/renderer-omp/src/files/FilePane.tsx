@@ -1,0 +1,224 @@
+import { useExecutionTarget } from "../workspaces/ExecutionTargets";
+import { useSurfaceDocument } from "../dock/SurfaceContext";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import type { WorkspaceId } from "@omp-studio/client-contract";
+import type { FilePanelDescriptor, FileViewMode } from "../dock/types";
+import type { FileResource } from "../../../desktop/src/file-viewer-shared";
+import { MarkdownText } from "../conversation/markdown";
+import { GitPatch } from "../git/GitPatch";
+import { repositoryPathForWorkspaceFile } from "../git/workspacePaths";
+import { DiffDisplayMode } from "../conversation/ChangesPanel";
+import { Icon } from "../icons";
+import { useI18n } from "../i18n";
+import { fileManagerName } from "../platformCopy";
+import type { FileMenuAction } from "../menus";
+import { usePreviewMode } from "../preview/PreviewContext";
+import { previewFile, previewFileBlob, previewFilePatch } from "../preview/filesPreview";
+import { FileDocumentContext } from "./fileLinks";
+import { fileBadge, fileKind, formatBytes, textEditable } from "./fileTypes";
+import type { FileDocument } from "./fileDocuments";
+import type { FileViewerActions } from "./fileActions";
+import { DEFAULT_EDITOR_PREFS, useEditorDisplayPrefs } from "./filePreferences";
+import { EMPTY_MARKS, parsePatchMarks } from "./gitMarks";
+import { FileHeader, MOD_KEY, type FileMenuEntry, type FileModeOption, type FileTool } from "./FileHeader";
+import { FileStatusBar } from "./FileStatusBar";
+import type { EditorCommands, EditorController, EditorCursor } from "./FileTextEditor";
+import { OfficePane } from "./OfficePane";
+import { MARKDOWN_SPLIT_MIN_WIDTH, markdownModes, useMarkdownScroll } from "./markdownView";
+
+const TextEditor = lazy(() => import("./FileTextEditor"));
+const PdfPane = lazy(() => import("./PdfPane"));
+const SpreadsheetPane = lazy(() => import("./SpreadsheetPane"));
+const NARROW_WIDTH = 560;
+
+export default function FilePane({ id, descriptor, session, visible, onSettings, onViewState, actions }: { id: string; descriptor: FilePanelDescriptor; session: FileDocument; visible: boolean; onSettings: () => void; onViewState: (patch: Partial<FilePanelDescriptor>) => void; actions?: FileViewerActions | undefined }) {
+  const state = useSyncExternalStore(session.subscribe, session.getSnapshot), { preview, marks } = usePreviewMode();
+  const { t, resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh", surface = useSurfaceDocument();
+  const kind = fileKind(descriptor.path), editable = textEditable(descriptor.path), badge = fileBadge(descriptor.path);
+  const surfaceVisible = useSyncExternalStore(useCallback(notify => { surface.addEventListener("visibilitychange", notify); return () => surface.removeEventListener("visibilitychange", notify); }, [surface]), useCallback(() => surface.visibilityState !== "hidden", [surface]));
+  const active = visible && surfaceVisible, needsResource = !editable || (kind === "spreadsheet" && !state.loaded && Boolean(state.error));
+  const [resource, setResource] = useState<FileResource | null>(null), [error, setError] = useState(""), [reload, setReload] = useState(0);
+  const [mode, setMode] = useState<FileViewMode>(descriptor.mode ?? (kind === "markdown" || kind === "spreadsheet" ? "preview" : "source"));
+  const { prefs, setFont, toggleWrap } = useEditorDisplayPrefs(preview);
+  const [cursor, setCursor] = useState<EditorCursor | null>(null), [info, setInfo] = useState("");
+  const [patch, setPatch] = useState(""), [splitDiff, setSplitDiff] = useState(false);
+  const [notice, setNotice] = useState(""), [width, setWidth] = useState(900);
+  const controller = useRef<EditorController | null>(null), pane = useRef<HTMLElement>(null);
+  const { markdownRef, followEditor, previewScroll } = useMarkdownScroll(controller);
+  useEffect(() => { session.setVisible(id, active); if (active) void session.refresh(); return () => session.setVisible(id, false); }, [id, session, active]);
+  useEffect(() => { if (active && editable && !state.loaded) void session.load(); }, [session, editable, state.file.version, active]);
+  useEffect(() => { if (preview && active && editable && state.loaded && !state.dirty) void session.load(); }, [preview, active, editable, resolvedLanguage]);
+  useEffect(() => {
+    setError(""); setResource(null);
+    if (!visible || !needsResource) return;
+    let alive = true, lease: string | undefined, blob: string | undefined;
+    if (preview) {
+      const fixture = previewFile(descriptor.path, descriptor.workspaceId);
+      void previewFileBlob(fixture).then(sample => { if (sample && alive) { blob = URL.createObjectURL(sample); setResource({ id: "demo", url: blob, file: { ...fixture, size: sample.size } }); } }).catch(error => { if (alive) setError(String(error)); });
+    } else if (globalThis.ompStudioChrome?.files) {
+      void globalThis.ompStudioChrome.files.open({ targetId: descriptor.targetId, workspaceId: descriptor.workspaceId, path: descriptor.path, ...(descriptor.source ? { source: descriptor.source } : {}) }).then(result => { lease = result.id; if (alive) setResource(result); else void globalThis.ompStudioChrome?.files?.release(result.id); }).catch(error => { if (alive) setError(error instanceof Error ? error.message : String(error)); });
+    } else setError(zh ? "此连接没有桌面文件资源通道" : "Desktop file resource channel unavailable on this connection");
+    return () => { alive = false; if (lease) void globalThis.ompStudioChrome?.files?.release(lease); if (blob) URL.revokeObjectURL(blob); };
+  }, [descriptor.path, descriptor.source, descriptor.targetId, descriptor.workspaceId, state.file.version, preview, reload, visible, needsResource]);
+  // Working-tree patch for the gutter and Diff view; a non-repository or failed query simply shows nothing.
+  useEffect(() => {
+    if (!active) return;
+    if (!editable || descriptor.source === "system") { setPatch(""); return; }
+    if (preview) { setPatch(previewFilePatch(descriptor.path, zh)); return; }
+    let alive = true;
+    void session.client().then(async client => {
+      const workspaceId = descriptor.workspaceId as WorkspaceId;
+      const repository = await client.query("git.repository.summary", { workspaceId });
+      if (!alive || !repository.isRepository) return undefined;
+      return client.query("git.diff.get", { workspaceId, path: repositoryPathForWorkspaceFile(state.file.path, repository.workspacePrefix), target: "working" });
+    }).then(result => { if (alive) setPatch(result && !result.binary ? result.patch : ""); }, () => { if (alive) setPatch(""); });
+    return () => { alive = false; };
+  }, [editable, preview, session, descriptor.source, descriptor.path, descriptor.workspaceId, state.file.path, state.file.version, reload, active, preview ? zh : false]);
+  useEffect(() => { const element = pane.current; if (!element) return; const observer = new ResizeObserver(([entry]) => { if (entry) setWidth(entry.contentRect.width); }); observer.observe(element); return () => observer.disconnect(); }, []);
+  useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(""), 1800); return () => clearTimeout(timer); }, [notice]);
+
+  const source = resource?.url;
+  const gitMarks = useMemo(() => patch ? parsePatchMarks(patch) : EMPTY_MARKS, [patch]);
+  const git = gitMarks.additions || gitMarks.deletions ? { additions: gitMarks.additions, deletions: gitMarks.deletions } : null;
+  const narrow = width < NARROW_WIDTH, canSplit = kind === "markdown" && width >= MARKDOWN_SPLIT_MIN_WIDTH;
+  const fallback: FileViewMode = kind === "markdown" || kind === "spreadsheet" ? "preview" : "source";
+  const view: FileViewMode = !editable ? "preview" : mode === "diff" ? (git ? "diff" : fallback) : mode === "split" ? (canSplit ? "split" : "preview") : kind === "text" ? "source" : mode;
+  const showsEditor = editable && state.loaded && (view === "source" || view === "split");
+  const changeMode = (next: FileViewMode) => { setMode(next); onViewState({ mode: next }); };
+  const modes: FileModeOption[] | null = !editable ? null : [
+    ...(kind === "markdown" ? markdownModes(zh, canSplit)
+      : kind === "spreadsheet" ? [{ id: "preview", label: zh ? "表格" : "Table", icon: "table" }, { id: "source", label: zh ? "源码" : "Source", icon: "code" }] as FileModeOption[]
+      : [{ id: "source", label: zh ? "编辑" : "Edit", icon: "code" }] as FileModeOption[]),
+    ...(git ? [{ id: "diff", label: "Diff", icon: "diff" }] as FileModeOption[] : []),
+  ];
+
+  const name = state.file.name || descriptor.title, relativePath = state.file.path || descriptor.path;
+  const copy = (text: string, done: string) => { void (surface.defaultView?.navigator.clipboard ?? navigator.clipboard).writeText(text).then(() => setNotice(done), () => setNotice(zh ? "复制失败" : "Copy failed")); };
+  const addContext = async (lines?: readonly [number, number]) => {
+    if (!actions) return;
+    try {
+      let path = relativePath;
+      if (!preview && descriptor.source !== "system" && actions.contextWorkspaceId !== descriptor.workspaceId) {
+        const projects = await (await session.client()).query("projects.list", {});
+        const root = projects.workspaces.find(project => project.workspaceId === descriptor.workspaceId)?.root;
+        if (!root) throw new Error(zh ? "无法找到文件所属项目" : "Cannot find the file's project");
+        path = `${root.replace(/[\\/]+$/, "")}/${relativePath}`;
+      }
+      actions.addContext({ path, label: name, lines });
+      setNotice(lines ? (zh ? `已添加第 ${lines[0] === lines[1] ? lines[0] : `${lines[0]}–${lines[1]}`} 行到对话` : `Added ${lines[0] === lines[1] ? `line ${lines[0]}` : `lines ${lines[0]}–${lines[1]}`} to conversation`) : (zh ? "已添加到对话" : "Added to conversation"));
+    } catch (error) { setNotice(error instanceof Error ? error.message : String(error)); }
+  };
+  const { inventory } = useExecutionTarget();
+  const wsl = inventory.profiles.some(profile => profile.id === descriptor.targetId && profile.kind === "wsl");
+  const desktopReason = preview ? (zh ? "预览演示中不可用" : "Unavailable in preview demo") : descriptor.targetId && (!wsl || descriptor.source === "system") ? (zh ? "远程文件请先下载，再用本机应用打开" : "Download remote files before opening with a local app") : !actions || !globalThis.ompStudioChrome?.openFile ? (zh ? "仅桌面工作台可用" : "Available in desktop app only") : undefined;
+  const shell = (action: FileMenuAction) => {
+    if (desktopReason) return;
+    if (descriptor.source !== "system") { actions?.runShell(descriptor.workspaceId, action, { path: relativePath, name, kind: "file" }, descriptor.targetId ?? null); return; }
+    const chrome = globalThis.ompStudioChrome!;
+    const operation = action.type === "openSystem" ? chrome.systemFileOpen({ path: relativePath })
+      : action.type === "openWith" ? chrome.systemFileOpenWith({ path: relativePath, openerId: action.openerId as "vscode" | "cursor" | "windsurf" | "choose" })
+      : action.type === "reveal" ? chrome.systemFileReveal({ path: relativePath }) : undefined;
+    void operation?.then(result => { if (result.status === "failed") setNotice(result.message); }).catch(error => setNotice(String(error)));
+  };
+  const refresh = () => { if (editable && !state.dirty) void session.load(); else void session.refresh(); setReload(value => value + 1); };
+  const commands: EditorCommands = {
+    onCursor: setCursor, onReady: value => { controller.current = value; if (!value) setCursor(null); },
+    onToggleWrap: toggleWrap, onFontSize: setFont, onCopy: text => copy(text, zh ? "已复制选区" : "Copied selection"),
+    ...(actions ? { onAddSelection: (selection: { from: number; to: number }) => addContext([selection.from, selection.to]) } : {}),
+  };
+
+  const tools: FileTool[] = narrow ? [] : [
+    ...(showsEditor ? [{ id: "search", icon: "search", tip: zh ? `查找 / 替换（${MOD_KEY} F）` : `Find / Replace (${MOD_KEY} F)`, run: () => controller.current?.search() }, { id: "wrap", icon: "wrap", tip: zh ? "自动换行（Alt Z）" : "Word wrap (Alt Z)", active: prefs.wrap, run: toggleWrap }] as FileTool[] : []),
+    { id: "refresh", icon: "refresh", tip: zh ? "从磁盘刷新" : "Reload from disk", run: refresh },
+  ];
+  const menu: FileMenuEntry[] = [
+    ...(narrow ? [
+      ...(showsEditor ? [{ kind: "item", id: "search", label: zh ? "查找 / 替换" : "Find / Replace", icon: "search", kbd: `${MOD_KEY} F`, run: () => controller.current?.search() }, { kind: "item", id: "wrap", label: prefs.wrap ? (zh ? "关闭自动换行" : "Disable word wrap") : (zh ? "自动换行" : "Word wrap"), icon: "wrap", kbd: "Alt Z", run: toggleWrap }] as FileMenuEntry[] : []),
+      { kind: "item", id: "refresh", label: zh ? "从磁盘刷新" : "Reload from disk", icon: "refresh", run: refresh }, { kind: "sep", id: "s0" },
+    ] as FileMenuEntry[] : []),
+    ...(descriptor.source === "system" ? [{ kind: "item", id: "copy-absolute", label: t("shell.copyAbsolutePath"), icon: "copy", run: () => copy(relativePath, zh ? "已复制路径" : "Copied path") }] as FileMenuEntry[] : [
+      { kind: "item", id: "copy-relative", label: t("shell.copyRelativePath"), icon: "copy", run: () => copy(relativePath, zh ? "已复制相对路径" : "Copied relative path") },
+      { kind: "item", id: "copy-absolute", label: t("shell.copyAbsolutePath"), icon: "copy", disabled: !!desktopReason, tip: desktopReason, run: () => shell({ type: "copyAbsolute" }) },
+    ] as FileMenuEntry[]),
+    ...(editable && state.loaded ? [{ kind: "item", id: "copy-content", label: zh ? "复制全部内容" : "Copy all contents", icon: "file", run: () => copy(state.text, zh ? "已复制文件内容" : "Copied file contents") }] as FileMenuEntry[] : []),
+    { kind: "sep", id: "s1" },
+    { kind: "item", id: "reveal", label: t("shell.fileRevealInExplorer", { fileManager: fileManagerName(t) }), icon: "folder-open", disabled: !!desktopReason, tip: desktopReason, run: () => shell({ type: "reveal" }) },
+    { kind: "item", id: "open-system", label: zh ? "使用系统应用打开" : "Open with system app", icon: "external", disabled: !!desktopReason, tip: desktopReason, run: () => shell({ type: "openSystem" }) },
+    ...(!desktopReason ? actions?.openers.map((opener): FileMenuEntry => ({ kind: "item", id: `open-${opener.id}`, label: zh ? `用 ${opener.name} 打开` : `Open with ${opener.name}`, icon: "code", run: () => shell({ type: "openWith", openerId: opener.id }) })) ?? [] : []),
+    { kind: "item", id: "download", label: zh ? "下载副本…" : "Download copy…", icon: "download", disabled: preview, tip: preview ? (zh ? "预览演示中不可用" : "Unavailable in preview demo") : undefined, run: () => { void globalThis.ompStudioChrome?.files?.export({ targetId: descriptor.targetId, workspaceId: descriptor.workspaceId, path: descriptor.path, ...(descriptor.source ? { source: descriptor.source } : {}) }).catch(error => setError(String(error))); } },
+    { kind: "sep", id: "s2" },
+    { kind: "item", id: "context", label: zh ? "添加到对话" : "Add to conversation", icon: "at", disabled: !actions, tip: actions ? (zh ? "在对话输入框插入文件引用" : "Insert file reference in composer") : (zh ? "此窗口没有关联的对话" : "No conversation linked to this window"), run: () => addContext() },
+    ...(showsEditor && cursor?.selected ? [{ kind: "item", id: "context-selection", label: zh ? "添加选中行到对话" : "Add selected lines to conversation", icon: "at", kbd: `${MOD_KEY} Shift L`, disabled: !actions, run: () => { const selection = controller.current?.selection(); if (selection) addContext([selection.from, selection.to]); } }] as FileMenuEntry[] : []),
+    ...(showsEditor ? [{ kind: "sep", id: "s3" }, { kind: "zoom", id: "zoom", value: prefs.fontSize, onChange: setFont }] as FileMenuEntry[] : []),
+  ];
+
+  const markdown = useMemo(() => <FileDocumentContext.Provider value={{ targetId: descriptor.targetId, workspaceId: descriptor.workspaceId, basePath: descriptor.path, preview, ...(descriptor.source ? { source: descriptor.source } : {}) }}><MarkdownText text={state.text} /></FileDocumentContext.Provider>,
+    [state.text, descriptor.path, descriptor.source, descriptor.targetId, descriptor.workspaceId, preview]);
+  const editor = (onScrollRatio?: (ratio: number) => void) => state.loaded
+    ? <TextEditor viewId={id} session={session} descriptor={descriptor} onViewState={onViewState} readOnly={!state.file.writable} wrap={prefs.wrap} fontSize={prefs.fontSize} gitMarks={gitMarks} commands={commands} onScrollRatio={onScrollRatio} />
+    : <FileEmpty badge={badge} loading={state.loading} title={state.loading ? (zh ? "正在读取文本…" : "Loading text…") : (zh ? "无法读取此文件" : "Unable to read this file")} />;
+
+  let body: ReactNode;
+  if (!visible && (view === "preview" || view === "diff")) body = null;
+  else if (view === "diff") body = <div className="file-diff"><div className="file-subbar"><span className="file-subbar-title"><Icon name="diff" extra="sm" />{zh ? "工作区改动" : "Working-tree changes"}</span><span className="file-delta"><b className="add">+{gitMarks.additions}</b><b className="del">−{gitMarks.deletions}</b></span><span className="file-subbar-spacer" /><DiffDisplayMode split={splitDiff} onSplit={setSplitDiff} /></div><div className={`file-diff-body diff-scroll${splitDiff ? " diff-split" : ""}`}><GitPatch patch={hunksOnly(patch)} split={splitDiff} /></div></div>;
+  else if (editable && (view === "source" || kind === "text")) body = editor();
+  else if (editable && kind === "markdown" && view === "split") body = <div className="file-split">{editor(followEditor)}<div ref={markdownRef} className="file-markdown" onScroll={previewScroll}>{visible ? markdown : null}</div></div>;
+  else if (kind === "markdown") body = <div className="file-markdown">{markdown}</div>;
+  else if (kind === "office") body = <OfficePane resource={resource} preview={preview} onSettings={onSettings} initialPage={descriptor.page} onPage={page => onViewState({ page })} />;
+  else if (kind === "pdf" && source) body = <PdfPane url={source} initialPage={descriptor.page} onPage={page => onViewState({ page })} onPages={pages => setInfo(zh ? `${pages} 页` : `${pages} pages`)} />;
+  else if (kind === "image" && source) body = <ImagePane url={source} name={name} onInfo={setInfo} />;
+  else if ((kind === "audio" || kind === "video") && source) body = <MediaPane kind={kind} url={source} visible={visible} time={descriptor.time} onTime={time => onViewState({ time })} onInfo={setInfo} />;
+  else if (kind === "spreadsheet" && ((editable && state.loaded) || source)) body = <SpreadsheetPane {...(editable && state.loaded ? { text: state.text } : { url: source })} />;
+  else body = <FileEmpty badge={badge} loading={!error} title={error ? (zh ? "无法在窗口中显示" : "Cannot display in window") : (zh ? "正在读取文件…" : "Loading file…")} detail={error ? (zh ? "可以刷新重试，或下载后用系统应用打开。" : "Try refreshing, or download and open with a system app.") : undefined} />;
+
+  const size = formatBytes(resource?.file.size ?? state.file.size);
+  return <section ref={pane} className={`file-pane${narrow ? " is-narrow" : ""}`} aria-label={descriptor.title}>
+    <FileHeader outsideProject={descriptor.source === "system"} path={relativePath} badge={badge} dirty={state.dirty} readOnly={editable && state.loaded && !state.file.writable} demo={preview && marks} git={git}
+      modes={modes} mode={view} onMode={changeMode} tools={tools} menu={menu} onCopyPath={() => copy(relativePath, descriptor.source === "system" ? (zh ? "已复制路径" : "Copied path") : (zh ? "已复制相对路径" : "Copied relative path"))}
+      save={editable && (state.dirty || state.saving) ? { saving: state.saving, disabled: !state.dirty || state.saving || !state.file.writable, run: () => { void session.save(); } } : null} />
+    {state.external ? <div className="file-banner is-warning" role="status"><Icon name="alert" extra="sm" /><span>{zh ? "磁盘上的文件已被修改，你的本地修改已保留。" : "File changed on disk. Your local edits are preserved."}</span><span className="file-banner-actions"><button className="btn small outline" onClick={() => { void session.compare(); }}>{zh ? "比较" : "Compare"}</button><button className="btn small outline" onClick={() => { void session.load(true); }}>{zh ? "重新加载" : "Reload"}</button><button className="btn small primary" onClick={() => { void session.save(true); }}>{zh ? "用本地修改覆盖" : "Overwrite with mine"}</button></span></div> : null}
+    {error || state.error ? <div className="file-banner is-error" role="alert"><Icon name="alert-c" extra="sm" /><span>{error || state.error}</span><span className="file-banner-actions"><button className="btn small outline" onClick={refresh}>{zh ? "重试" : "Retry"}</button></span></div> : null}
+    <div className="file-content"><Suspense fallback={<FileEmpty badge={badge} loading title={zh ? "正在加载查看器…" : "Loading viewer…"} />}>
+      {body}
+      {state.diskText !== undefined ? <div className="file-disk-comparison"><header><span><Icon name="lock" extra="sm" />{zh ? "磁盘版本（只读）" : "Disk version (read-only)"}</span><span className="file-banner-actions"><button className="btn small outline" onClick={() => { void session.load(true); }}>{zh ? "采用磁盘版本" : "Use disk version"}</button><button className="icon-btn" aria-label={zh ? "关闭比较" : "Close comparison"} data-tip={zh ? "关闭比较" : "Close comparison"} onClick={() => session.hideComparison()}><Icon name="x" extra="sm" /></button></span></header><TextEditor session={session} descriptor={descriptor} value={state.diskText} onViewState={() => {}} readOnly wrap={prefs.wrap} fontSize={prefs.fontSize} /></div> : null}
+    </Suspense>{notice ? <div className="file-toast" role="status"><Icon name="check" extra="sm" />{notice}</div> : null}</div>
+    <FileStatusBar cursor={showsEditor ? cursor : null} onGoto={() => controller.current?.gotoLine()} git={editable ? git : null} language={badge.label}
+      format={editable && state.loaded ? state.format : undefined} size={size} extra={info && !editable ? <span className="file-status-item">{info}</span> : null}
+      fontSize={showsEditor ? prefs.fontSize : undefined} defaultFontSize={DEFAULT_EDITOR_PREFS.fontSize} onResetFont={() => setFont(null)}
+      saved={editable && state.loaded ? state.saving ? "saving" : state.dirty ? "dirty" : "saved" : undefined} />
+  </section>;
+}
+
+/** The window already names the file, so the `diff --git` / `---` / `+++` preamble is noise. */
+const hunksOnly = (patch: string) => { const start = patch.search(/^@@ /mu); return start > 0 ? patch.slice(start) : patch; };
+
+function FileEmpty({ badge, title, detail, loading = false }: { badge: { badge: string; tone: string }; title: string; detail?: string | undefined; loading?: boolean }) {
+  return <div className="file-empty"><span className={`file-badge is-large tone-${badge.tone}${loading ? " is-loading" : ""}`} aria-hidden="true">{badge.badge}</span><h3>{title}</h3>{detail ? <p>{detail}</p> : null}</div>;
+}
+
+function ImagePane({ url, name, onInfo }: { url: string; name: string; onInfo: (info: string) => void }) {
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const [scale, setScale] = useState<number | null>(null), [rotation, setRotation] = useState(0), [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
+  const viewport = useRef<HTMLDivElement>(null), drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const fitted = natural && viewport.current ? Math.min(1, (viewport.current.clientWidth - 32) / natural.width, (viewport.current.clientHeight - 32) / natural.height) : 1;
+  const zoom = (factor: number) => setScale(value => Math.min(8, Math.max(0.1, (value ?? fitted) * factor)));
+  return <div className="file-image"><div className="file-subbar">
+    <span className="file-seg"><button type="button" className={scale === null ? "active" : ""} onClick={() => setScale(null)} data-tip={zh ? "适应窗口" : "Fit to window"}><Icon name="expand" extra="sm" />{zh ? "适应" : "Fit"}</button><button type="button" className={scale === 1 ? "active" : ""} onClick={() => setScale(1)} data-tip={zh ? "实际大小" : "Actual size"}>1:1</button></span>
+    <span className="file-zoom"><button type="button" aria-label={zh ? "缩小" : "Zoom out"} onClick={() => zoom(1 / 1.25)}>−</button><span>{Math.round((scale ?? fitted) * 100)}%</span><button type="button" aria-label={zh ? "放大" : "Zoom in"} onClick={() => zoom(1.25)}>+</button></span>
+    <button type="button" className="icon-btn" aria-label={zh ? "旋转 90°" : "Rotate 90°"} data-tip={zh ? "旋转 90°" : "Rotate 90°"} onClick={() => setRotation(value => value + 90)}><Icon name="rotate" extra="sm" /></button>
+  </div><div className="file-image-canvas" ref={viewport} onWheel={event => { if (event.ctrlKey || event.metaKey) { event.preventDefault(); zoom(event.deltaY < 0 ? 1.1 : 1 / 1.1); } }} onPointerDown={event => { const element = viewport.current!; drag.current = { x: event.clientX, y: event.clientY, left: element.scrollLeft, top: element.scrollTop }; element.setPointerCapture(event.pointerId); }} onPointerMove={event => { if (drag.current && viewport.current) { viewport.current.scrollLeft = drag.current.left - event.clientX + drag.current.x; viewport.current.scrollTop = drag.current.top - event.clientY + drag.current.y; } }} onPointerUp={() => { drag.current = null; }}><img src={url} alt={name} draggable={false} onLoad={event => { const image = event.currentTarget; setNatural({ width: image.naturalWidth, height: image.naturalHeight }); onInfo(`${image.naturalWidth} × ${image.naturalHeight}`); }} style={{ maxWidth: scale === null ? "100%" : "none", maxHeight: scale === null ? "100%" : "none", zoom: scale ?? 1, transform: `rotate(${rotation}deg)` }} /></div></div>;
+}
+function MediaPane({ kind, url, visible, time = 0, onTime, onInfo }: { kind: "audio" | "video"; url: string; visible: boolean; time?: number | undefined; onTime: (time: number) => void; onInfo: (info: string) => void }) {
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const surface = useSurfaceDocument();
+  const ref = useRef<HTMLVideoElement & HTMLAudioElement>(null), [error, setError] = useState("");
+  const latest = useRef(onTime); latest.current = onTime;
+  useEffect(() => { if (!visible) ref.current?.pause(); }, [visible]);
+  useEffect(() => { const change = () => { if (surface.visibilityState === "hidden") ref.current?.pause(); }; surface.addEventListener("visibilitychange", change); return () => surface.removeEventListener("visibilitychange", change); }, [surface]);
+  useEffect(() => { const element = ref.current; return () => { if (element) { latest.current(element.currentTime); element.pause(); } }; }, []);
+  const Tag = kind === "video" ? "video" : "audio";
+  const duration = (seconds: number) => Number.isFinite(seconds) ? `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}` : "";
+  return <div className={`file-media is-${kind}`}>{kind === "audio" ? <span className="file-badge is-large tone-accent" aria-hidden="true">AUD</span> : null}<Tag ref={ref} src={url} controls preload="metadata" onLoadedMetadata={() => { const element = ref.current; if (!element) return; element.currentTime = time; onInfo([duration(element.duration), kind === "video" && element.videoWidth ? `${element.videoWidth} × ${element.videoHeight}` : ""].filter(Boolean).join(" · ")); }} onPause={() => latest.current(ref.current?.currentTime ?? 0)} onSeeked={() => latest.current(ref.current?.currentTime ?? 0)} onError={() => setError(zh ? "当前播放器不能解码此媒体。请下载或使用系统应用打开。" : "The player cannot decode this media. Download it or open with a system app.")} />{error ? <p className="file-error" role="alert">{error}</p> : null}</div>;
+}

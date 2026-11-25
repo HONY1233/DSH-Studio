@@ -1,0 +1,268 @@
+src/App.composerPerf.test.tsx	1/4
+- keeps draft books across execution-target remounts
+  AssertionError: expected null not to be null
+src/App.contextStrip.test.tsx	1/5
+- shows the full context strip attached above the composer on a new conversation
+  AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+src/App.dockRegion.test.tsx	2/8
+- keeps left card headers grip-free, including tools moved into the sidebar
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/^Git Branches/`
+- keeps the right sidebar to one tab row and puts add next to the last tab
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/^Git Branches/`
+src/CapabilitiesPage.command-manifest.test.tsx	3/3
+- CapabilitiesPage command manifest queries and renders only Runtime manifest commands, including dynamic commands
+  TestingLibraryElementError: Unable to find an accessible element with the role "tab" and name `/Slash Commands/`
+- CapabilitiesPage command manifest refreshes the caller after an authoritative /pin action
+  TestingLibraryElementError: Unable to find an accessible element with the role "tab" and name `/Slash Commands/`
+- CapabilitiesPage command manifest keeps preview fixtures and does not query the Runtime manifest
+  TestingLibraryElementError: Unable to find an accessible element with the role "tab" and name `/Slash Commands/`
+src/CapabilitiesPage.test.tsx	2/7
+- CapabilitiesPage lists builtin slash commands in real mode and runs ones that need no args
+  TestingLibraryElementError: Unable to find an accessible element with the role "tab" and name `/Slash Commands/`
+- CapabilitiesPage does not send MCP or slash Host commands from preview actions
+  TestingLibraryElementError: Unable to find an accessible element with the role "tab" and name `/Slash Commands/`
+src/ComposerModePicker.test.tsx	1/9
+- Composer grouped tools keeps attachments, mentions, and slash commands reachable through the plus menu
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "@ 引用文件、文件夹、Agent 或 Skill"
+src/DiagnosticsPage.test.tsx	17/31
+- Runtime installation handoff installs an imported stable artifact using its verified channel
+  Error: Unable to find an element with the text: 托管 Runtime 已安装. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- Runtime installation handoff installs an imported canary artifact using its verified channel
+  Error: Unable to find an element with the text: 托管 Runtime 已安装. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- Runtime installation handoff keeps the downloaded artifact channel even when preferences now select stable
+  Error: Unable to find an element with the text: 托管 Runtime 已更新. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- Runtime update compatibility shows the desktop blocker and never falls back to local installation
+  TestingLibraryElementError: Unable to find an element with the text: Runtime 更新需先升级桌面. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- Runtime update compatibility distinguishes a local-only check from an online update check
+  Error: Unable to find an element with the text: 已检查本地 Runtime 工件，未检查在线更新. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- Runtime update compatibility demonstrates the same blocker without using Host data or writes
+  TestingLibraryElementError: Unable to find an element with the text: Runtime 更新需先升级桌面. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- DiagnosticsPage keeps Runtime maintenance local in preview
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "回滚 Runtime 并重启应用"
+- DiagnosticsPage reports rollback errors and blocks other maintenance while rollback is running
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "回滚 Runtime 并重启应用"
+- DiagnosticsPage shows the update hero and version tiles in preview
+  TestingLibraryElementError: Unable to find an element with the text: 有可用 Runtime 更新. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- DiagnosticsPage confirms reinstall in preview without calling Host
+  TestingLibraryElementError: Unable to find an accessible element with the role "dialog" and name "重装托管 Runtime？"
+- DiagnosticsPage shows a real update-available installer from the Host read model
+  TestingLibraryElementError: Unable to find an element with the text: 有可用 Runtime 更新. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- DiagnosticsPage shows a Chinese launch-failure reason in the preview fail scenario
+  TestingLibraryElementError: Unable to find an element with the text: Runtime 安装失败. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- DiagnosticsPage shows a Chinese unavailable reason from the Host read model
+  TestingLibraryElementError: Unable to find an element with the text: 未选择工作区，Runtime 不会启动. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- DiagnosticsPage shows a Chinese disconnect reason from the Host read model
+  TestingLibraryElementError: Unable to find an element with the text: Runtime 进程已退出. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- DiagnosticsPage recheck ensures a disconnected runtime instead of only re-querying
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "重新连接 Runtime"
+- DiagnosticsPage re-probes a Runtime that a transient first-install probe failure rejected
+  TestingLibraryElementError: Unable to find an element with the text: Runtime 未被接受. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- DiagnosticsPage confirms a forced Runtime restart
+  TestingLibraryElementError: Unable to find an accessible element with the role "dialog" and name "重启 Runtime？"
+src/ExplorerTree.test.tsx	2/22
+- RealFileTree opens the file ⋯ menu with the standard items and dispatches actions
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "在资源管理器中打开"
+- RealFileTree disables desktop-dependent ⋯ items with a reason when the handler is unavailable
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "在资源管理器中打开"
+src/HomePage.test.tsx	1/12
+- HomePage identity keeps an honest omp status when Runtime is down
+  TestingLibraryElementError: Unable to find an element with the text: Runtime 不可用. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/ModelConfigPage.test.tsx	1/20
+- keeps catalog updates local and visibly marked in preview mode
+  Error: Unable to find an element with the text: 2026.10. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/Runtime18104.test.tsx	1/6
+- makes billed message prediction an explicit opt-in and keeps demo changes local
+  AssertionError: expected 'true' to be 'false' // Object.is equality
+src/RuntimeSettings.test.tsx	2/8
+- Runtime settings seam shows configured notes separately from effective state and never restarts a Runtime implicitly
+  TestingLibraryElementError: Unable to find an element with the text: /已保存，需重启 Runtime/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+- Runtime settings seam announces a pending Runtime update
+  AssertionError: expected undefined to be truthy
+src/SettingsPage.test.tsx	1/20
+- settings navigation and real preferences saves local appearance and startup settings; reset affects only its own section
+  TestingLibraryElementError: Unable to find an accessible element with the role "option" and name "Light"
+src/SettingsSecondBatch.test.tsx	1/4
+- shows only the selected memory backend in preview without writing real settings
+  TestingLibraryElementError: Unable to find an element with the text: 演示设置已更新。. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/agents/AgentDetailPanel.test.tsx	1/6
+- Agent dock entry points opens BTW again after the workbench remounts and keeps the previous draft
+  Error: Unable to find role="tab" and name "BTW"
+src/agents/AgentRosterMeter.test.tsx	1/2
+- Agent status in dock chrome updates initially folded headers and compact icons without mounting an Agent body
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Agents · 8 个子代理 · 1 失败 · 3 运行 · 4 未运行/`
+src/backgroundTasks/BackgroundTasksDock.test.tsx	1/11
+- opens selected details beside the retained card and shares service stop state
+  AssertionError: expected false to be true // Object.is equality
+src/capabilities/ResourcesWorkspace.test.tsx	1/10
+- URI resources uses all four preview protocols, preserves local edits, and hides demo copy with marks off without Host calls
+  TestingLibraryElementError: Found multiple elements with the text: 演示
+src/composer/ChipComposer.test.tsx	1/52
+- ChipComposer keeps /btw on the submit path for explicit rejection instead of parking it in the queue
+  AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times
+src/conversation/ConversationEmpty.test.tsx	1/1
+- keeps the disconnected welcome free of reconnect and diagnostics actions
+  TestingLibraryElementError: Unable to find an element with the text: /尚未连接 Runtime/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/conversation/TaskProgressDock.test.tsx	1/3
+- keeps preview markings visible while retaining the partial warning and ordinary file-open labels
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "打开 src/applied.ts"
+src/conversation/ToolBody.test.tsx	2/12
+- shows native Eval restart status and structured fallback attempts
+  ReferenceError: hasComputerMedia is not defined
+- ToolBody: 代码视图语法高亮 在 Bash 命令头与 Eval 代码格中产出语法着色节点
+  ReferenceError: hasComputerMedia is not defined
+src/conversation/jobs.test.tsx	1/6
+- Eval structured views shows a table view in place of the printed text it stands for
+  ReferenceError: hasComputerMedia is not defined
+src/conversationWorkspace/Workspace.integration.test.tsx	5/50
+- conversation windows keeps the shell and cached directory present during delayed context loading without reconnecting on focus
+  AssertionError: expected <div class="app" id="appRoot" …(1)>…(2)</div> to be null
+- conversation windows drags an original sidebar row into a float while keeping one shared left, right and bottom region
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Offline token counter"
+- conversation windows restores the most recently used visible window after close and minimize without reacting to hover
+  ReferenceError: hasComputerMedia is not defined
+- conversation windows moves the breadcrumb into window title rows and lists conversation tabs only once the main area is empty
+  AssertionError: expected null not to be null
+- conversation windows keeps the tabs usable while a new conversation window is still loading
+  AssertionError: expected <div class="app" id="appRoot" …(1)>…(2)</div> to be null
+src/conversationWorkspace/residency.test.tsx	2/8
+- keeps only the displayed conversation engine and closes replaced contexts while offline
+  AssertionError: expected 2 to be 1 // Object.is equality
+- releases a context even when switching away before its bootstrap completes
+  AssertionError: expected undefined to be defined
+src/deck/PlanEditor.test.tsx	1/14
+- plan split editing defaults overall annotations to collapsed, retains text and includes folded notes in feedback
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Overall annotations Has notes"
+src/dock/NativeFloat.test.tsx	1/1
+- mirrors preview state into native float documents and keeps an independent CSS mark
+  TypeError: The URL must be of scheme file
+src/dock/lifetime.test.tsx	8/37
+- dock content lifetime removes the annotations backdrop as soon as a title drag starts
+  Error: Unable to fire a "pointerdown" event - please provide a DOM element.
+- dock content lifetime keeps focus in the first annotations and returns it when Esc closes the window
+  TypeError: Cannot read properties of null (reading 'getAttribute')
+- dock tab chrome uses a standalone page until a second tool joins and preserves its body on collapse
+  AssertionError: expected '资源管理器' to be 'Explorer' // Object.is equality
+- dock tab chrome reveals each strip's left-edge grip only near the edge
+  AssertionError: expected false to be true // Object.is equality
+- dock tab chrome opens a new tab from the strip's pinned add button
+  AssertionError: expected undefined to be defined
+- live dock drag interrupts a snap animation without queuing motion or losing the live body
+  AssertionError: expected "vi.fn()" to be called once, but got 0 times
+- live dock drag finishes the snap curve after an early drop while committing layout immediately
+  AssertionError: expected undefined to be true // Object.is equality
+- live dock drag does not restart a landing animation for subpixel layout rounding
+  AssertionError: expected "vi.fn()" to be called once, but got 0 times
+src/dock/model.test.ts	19/40
+- dock layouts puts the quick card in the conversation rail when Git is dragged there
+  AssertionError: expected false to be true // Object.is equality
+- dock layouts keeps the original tab order when a group including Git is dropped in the rail
+  AssertionError: expected false to be true // Object.is equality
+- dock layouts restores an old IDA rail placement as a quick card with an independently opened workspace
+  AssertionError: expected [ 'environment', 'context' ] to include 'disassembler-quick'
+- dock layouts restores agent detail at its chosen position and unminimizes the same floating group
+  AssertionError: expected false to be true // Object.is equality
+- dock layouts starts with Explorer, expanded Environment and Background tasks, collapsed Context/Git/Agents and hidden empty right and populated bottom
+  AssertionError: expected undefined to be 'float' // Object.is equality
+- dock layouts moves the whole Terminal module and reorders tabs without duplicating or mutating it
+  AssertionError: expected false to be true // Object.is equality
+- dock layouts preserves source order and active tab when a whole group becomes cards or joins another group
+  TypeError: Cannot read properties of undefined (reading 'collapsed')
+- dock layouts creates two equal groups, routes further edges to existing groups, and cleans empty groups
+  AssertionError: expected false to be true // Object.is equality
+- dock layouts retains group identity on floating and remembers float geometry across hide/reopen
+  TypeError: Cannot set properties of undefined (setting 'collapsed')
+- dock layouts restores separately hidden tabs in original order even when reopened backwards
+  TypeError: Cannot set properties of undefined (setting 'collapsed')
+- dock layouts open finds the moved panel, expands cards, restores minimized floats and raises them
+  TypeError: Cannot read properties of undefined (reading 'id')
+- dock layouts locks movement and sizing but not browsing, hiding, reopening, folding or explicit presets
+  TypeError: Cannot read properties of undefined (reading 'id')
+- dock layouts normalizes persisted layouts once while retaining recoverable panels
+  AssertionError: expected [ [ 'changes' ], [ 'git' ] ] to deeply equal [ [ 'changes' ], …(1) ]
+- dock layouts ships independent default, focus and debugging templates
+  AssertionError: expected false to be true // Object.is equality
+- dock empty regions collapses the right region when its last group leaves, keeping size and other regions
+  TypeError: Cannot read properties of undefined (reading 'collapsed')
+- dock empty regions collapses the bottom region when its last group leaves but keeps expansion and size
+  AssertionError: expected false to be true // Object.is equality
+- dock empty regions collapses right and bottom when their last module is hidden
+  AssertionError: expected false to be true // Object.is equality
+- dock empty regions shows an explicitly opened empty region until the user closes it again
+  TypeError: Cannot read properties of undefined (reading 'collapsed')
+- dock empty regions leaves empty left cards and an empty rail alone, and never touches the conversation
+  AssertionError: expected false to be true // Object.is equality
+src/dock/railPresentation.test.tsx	2/6
+- rail title menus and context presentation opens panel actions on title right-click without toggling the card
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Environment"
+- rail title menus and context presentation supports Shift+F10 and returns focus to the title on Escape
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Environment"
+src/dock/store.test.ts	5/43
+- dock persistence and session scope centers and dims annotations again after closing, including after a restart
+  TypeError: Cannot read properties of undefined (reading 'rect')
+- dock persistence and session scope removes the annotations mask on docking, minimizing or pinning
+  TypeError: Cannot read properties of undefined (reading 'id')
+- dock persistence and session scope preserves tab selection and float raising without offering an undo step
+  AssertionError: expected [] to have a length of 1 but got +0
+- legacy layout migration migrates global/project layouts once into named presets, preserving old values and BTW geometry
+  AssertionError: expected [] to have a length of 2 but got +0
+- legacy layout migration restores old docked BTW to the right group without automatically opening the region
+  TypeError: Cannot read properties of undefined (reading 'layout')
+src/dock/windows.test.ts	1/29
+- unified workbench windows recenters annotations and restores its backdrop after its managed window closes
+  TypeError: Cannot read properties of undefined (reading 'rect')
+src/embed/websiteEmbed.test.tsx	1/4
+- keeps full shell chrome without preview-switch, switches routes without echo or confirm, and reports internal navigation
+  Error: Unable to find role="button" and name `/^Statistics$/i`
+src/environment/environmentCard.test.tsx	1/13
+- EnvironmentCard tints the machine glyph and names the state when the Runtime is not up
+  AssertionError: expected '运行时连接中' to be 'Runtime 连接中' // Object.is equality
+src/fileBrowser/FileBrowserPanel.test.tsx	1/17
+- file browser keeps a column folder selected for F2 and allows keyboard navigation into its children
+  AssertionError: expected 'false' to be 'true' // Object.is equality
+src/git/GitQuickCard.test.tsx	1/7
+- shares preview staging and commit drafts with the full view and adds a PR reference without Host writes
+  TestingLibraryElementError: Unable to find an element with the placeholder text of: Commit message
+src/history/TimeTravel.test.tsx	2/3
+- requires a risk confirmation before enabling from the conversation entry
+  Error: Unable to find role="button" and name "Time Travel 开启"
+- preview enable and restore only change local UI
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Time Travel 开启"
+src/media/microphoneAccess.test.tsx	1/6
+- file manager copy names Finder on macOS and keeps File Explorer everywhere else
+  AssertionError: expected 'shell.fileManagerLinux' to be 'shell.fileManagerWindows' // Object.is equality
+src/models/SessionOptionsPane.test.tsx	1/3
+- keeps preset writes in preview local and requires confirmation before replacing roles
+  Error: Unable to find role="button" and name "review 生效中"
+src/models/WebSearchPanel.test.tsx	1/5
+- does not offer credential writes while Runtime is disconnected
+  TestingLibraryElementError: Unable to find an element with the text: 连接支持此功能的 Runtime 后，可查看和管理凭据。. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+src/sidebar/AppSidebar.threadRowMenu.test.tsx	5/6
+- AppSidebar thread row more menu opens the top-bar thread actions on a history row and routes the pick to onThreadRowAction
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Fork 当前对话"
+- AppSidebar thread row more menu keeps preview demo rows honest: session actions disabled, archive stays local
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Fork 当前对话"
+- AppSidebar thread row more menu keeps the right Fork gate for a saved current streaming session
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Fork 当前对话"
+- AppSidebar thread row more menu keeps the right Fork gate for a saved background streaming resident
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Fork 当前对话"
+- AppSidebar thread row more menu keeps the right Fork gate for a saved background compacting resident
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "Fork 当前对话"
+src/usage/TokenUsagePanel.test.tsx	2/3
+- launches the separate counter without embedding tools or context actions in usage
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "离线 Token 计数"
+- shows an honest empty state and keeps the separate counter available
+  TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "离线 Token 计数"
+src/workspaces/ExecutionTargets.test.tsx	5/11
+- preview target selection never connects to a real SSH host
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name `/dev-linux/`
+- keeps authentication inside the connection dialog and identifies the target system automatically
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name "添加 SSH 连接"
+- refreshes WSL distributions, translates the mounted menu and connects the ensured profile
+  Error: Unable to find role="menuitem" and name `/Ubuntu.*运行中/`
+- omits the group when WSL discovery reports unavailable
+  Error: Unable to find role="menuitem" and name `/Test/`
+- WSL preview keeps the selected distro and directory draft across language changes without touching the Host
+  TestingLibraryElementError: Unable to find an accessible element with the role "menuitem" and name `/Ubuntu-24.04/`
+src/agents/deck/AgentDeck.test.tsx	1/16
+- Agents deck shows agent messaging as unavailable in real mode without a Runtime to read it, with no invented messages
+  TestingLibraryElementError: Unable to find an element with the text: 读不到 Agent 间通讯. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.

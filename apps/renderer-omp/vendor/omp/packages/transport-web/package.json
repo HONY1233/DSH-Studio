@@ -1,0 +1,30 @@
+{
+  "name": "@omp-studio/transport-web",
+  "version": "0.2.8",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./browser": {
+      "types": "./dist/src/browser-client.d.ts",
+      "default": "./dist/src/browser-client.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:built": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@omp-studio/client-contract": "0.2.8"
+  }
+}

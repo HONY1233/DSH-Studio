@@ -1,0 +1,37 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.1.1 [39m[90m/home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp[39m
+
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22mpreserves an explicitly hidden saved background task layout[32m 4[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22muses English labels for the browser and preview places[32m 296[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mchooses the default view at 380 px[32m 67[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22mpublishes collapsed and icon summaries before the body is ever mounted[32m 252[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22mrefreshes a folded native-window summary while the main document is hidden[32m 33[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22mshows an unreadable folded summary for an unavailable session instead of loading[32m 4[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mchooses the default view at 720 px[32m 79[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22mopens selected details beside the retained card and shares service stop state[32m 175[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mchooses the default view at 1120 px[32m 82[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22mswitches different tasks inside one right-side page without opening a float[32m 150[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mrestores the explicit view after a temporary narrow-window downgrade[32m 130[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22mkeeps using the focused other window even though the card click focuses the conversation[32m 110[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22mcreates a right-side twin instead of moving an unfocused background task window[32m 157[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22malways prefers the existing right-side page over a focused float[32m 92[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22menters a folder and navigates up, back and forward[33m 390[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22mreveals and switches the same right-side page when its region is hidden[32m 80[2mms[22m[39m
+ [32m✓[39m src/backgroundTasks/BackgroundTasksDock.test.tsx[2m > [22mdoes not restore a minimized other window instead of opening the right sidebar[32m 125[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mkeeps a column folder selected for F2 and allows keyboard navigation into its children[33m 315[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22muses Alt+Left for history without also navigating to the parent folder[33m 471[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mfilters the current folder in narrow tree view[32m 269[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mcreates, renames and confirms recycling at 720 px with preview=true and marks=true[33m 788[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mcreates, renames and confirms recycling at 720 px with preview=true and marks=false[33m 779[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mcreates, renames and confirms recycling at 720 px with preview=false and marks=false[33m 765[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mcreates, renames and confirms recycling at 1120 px with preview=true and marks=false[33m 767[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mopens external files with system identity and project files with workspace identity[32m 36[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mdisables local shell and recycling for remote files[32m 273[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mkeeps the real Host unused when the dock browser is in preview mode[32m 191[2mms[22m[39m
+ [32m✓[39m src/fileBrowser/FileBrowserPanel.test.tsx[2m > [22mfile browser[2m > [22mnavigates directory aliases to their canonical location without expanding a cycle[32m 162[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m28 passed[39m[22m[90m (28)[39m
+[2m   Start at [22m 14:34:15
+[2m   Duration [22m 6.92s[2m (tests 79%, environment 11%, transform 6%, import 4%)[22m
+

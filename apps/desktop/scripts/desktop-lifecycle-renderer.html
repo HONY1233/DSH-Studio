@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DSH lifecycle test fixture — not a production build</title>
+  <style>
+    body { margin: 0; padding: 32px; background: #0f1115; color: #e5e7eb; font: 14px/1.6 system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; border: 1px solid #374151; border-radius: 12px; padding: 24px; }
+    h1 { margin-top: 0; font-size: 20px; }
+    .mark { display: inline-block; margin-bottom: 16px; padding: 4px 10px; border: 1px solid #f59e0b; border-radius: 999px; color: #fbbf24; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; border-radius: 8px; background: #111827; }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="mark">TEST FIXTURE · 非生产构建</span>
+    <h1>Desktop lifecycle probe</h1>
+    <p>此页面只创建两个真实 WSL PTY、等待 Runtime ready，并关闭真实主窗口。它不发送 prompt，不代表 renderer 构建验收。</p>
+    <pre id="status">starting</pre>
+  </main>
+  <script>
+    const status = document.querySelector('#status')
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+    const report = (value) => { status.textContent = JSON.stringify(value, null, 2) }
+    const post = async (path, value) => {
+      await fetch(path, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(value),
+      })
+    }
+
+    async function waitFor(predicate, timeoutMs = 15000) {
+      const started = Date.now()
+      while (!predicate()) {
+        if (Date.now() - started >= timeoutMs) throw new Error('timed out waiting for terminal markers')
+        await wait(50)
+      }
+    }
+
+    async function run() {
+      const runtimeReady = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('runtime ready timeout')), 30000)
+        window.dsh.onReady((info) => {
+          clearTimeout(timer)
+          resolve(info)
+        })
+      })
+      if (runtimeReady?.name !== 'deepseek-harness-sdk-runtime') throw new Error('unexpected runtime identity')
+
+      let nativeData = ''
+      let ompData = ''
+      window.dsh.onTerminalData((data) => { nativeData += data })
+      window.ompStudioTerminal.onData((payload) => { ompData += payload?.data ?? '' })
+
+      const native = await window.dsh.terminalStart()
+      const omp = await window.ompStudioTerminal.create({ cols: 100, rows: 30 })
+      window.dsh.terminalWrite('printf "DSH_DESKTOP_NATIVE_READY\\n"\r')
+      window.ompStudioTerminal.write(omp.id, 'printf "DSH_DESKTOP_OMP_READY\\n"\r')
+      await waitFor(() => nativeData.includes('DSH_DESKTOP_NATIVE_READY') && ompData.includes('DSH_DESKTOP_OMP_READY'))
+
+      const ready = {
+        runtime: runtimeReady,
+        native: { id: native.id, pid: native.pid },
+        omp: { id: omp.id, pid: omp.pid },
+        markers: ['DSH_DESKTOP_NATIVE_READY', 'DSH_DESKTOP_OMP_READY'],
+        fixture: 'not-a-production-build',
+      }
+      report({ phase: 'ready', ...ready })
+      await post('/ready', ready)
+
+      for (;;) {
+        try {
+          const response = await fetch('/close', { cache: 'no-store' })
+          if (response.ok) break
+        } catch {
+          // The parent closes the server only after this window has exited.
+        }
+        await wait(100)
+      }
+      report({ phase: 'closing', ...ready })
+      window.close()
+    }
+
+    run().catch((error) => {
+      report({ phase: 'failed', error: error.stack ?? String(error) })
+      post('/failed', { error: error.stack ?? String(error) }).finally(() => window.close())
+    })
+  </script>
+</body>

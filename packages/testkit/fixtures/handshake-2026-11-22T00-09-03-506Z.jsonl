@@ -1,0 +1,6 @@
+{"dir":"out","frame":{"jsonrpc":"2.0","id":"req_1","method":"initialize","params":{"cwd":"/home/qtt199/projects/dsh","provider":"deepseek-official","model":"deepseek-flash","approvalRequests":true}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","id":"req_1","result":{"serverInfo":{"name":"deepseek-harness-sdk-runtime","version":"0.0.1"}}}}
+{"dir":"out","frame":{"jsonrpc":"2.0","id":"req_2","method":"session/resume","params":{"sessionId":"spike-mwr291zf"}}}
+{"dir":"in","frame":{"jsonrpc":"2.0","id":"req_2","result":{}}}
+{"dir":"out","frame":{"jsonrpc":"2.0","id":"req_3","method":"shutdown"}}
+{"dir":"in","frame":{"jsonrpc":"2.0","id":"req_3","result":{}}}

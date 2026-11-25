@@ -1,0 +1,14 @@
+{
+  "repository": "https://github.com/the-snowpear/omp-studio.git",
+  "tag": "v0.2.8",
+  "commit": "f27b73dd08ceed572bad7d56c24299611ca859b1",
+  "sourcePaths": [
+    "packages/testkit/src/index.ts",
+    "packages/testkit/src/types.ts",
+    "packages/testkit/src/fixtures.ts",
+    "packages/testkit/src/suite.ts",
+    "packages/testkit/src/conversation-fixtures.ts",
+    "packages/testkit/src/conversation-safety.ts"
+  ],
+  "purpose": "Renderer test and local fixture support only; excluded from the production dependency boundary."
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@dsh-studio/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@dsh-studio/contract": "0.1.0",
+    "@dsh-studio/host-services": "0.1.0",
+    "@dsh-studio/runtime-client": "0.1.0",
+    "@dsh-studio/workbench-core": "0.1.0"
+  },
+  "devDependencies": {
+    "electron": "^45.4.1"
+  }
+}

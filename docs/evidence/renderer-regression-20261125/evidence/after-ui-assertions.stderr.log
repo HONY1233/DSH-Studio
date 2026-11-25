@@ -1,0 +1,949 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./vite.config" without a file extension (vitest.config.ts:3:38). Add the file extension
+  - import "./productionPreviewBoundary" without a file extension (vite.config.ts:4:48). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+2:46:00 PM [vite] warning: `esbuild` option was specified by "vite:react-babel" plugin. This option is deprecated, please use `oxc` instead.
+`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. Set VITE_DEPRECATION_TRACE=1 to see where it is called.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic', jsxImportSource: undefined }`
+[vite:react-babel] We recommend switching to `@vitejs/plugin-react-oxc` for improved performance. More information at https://vite.dev/rolldown
+[90mstderr[2m | src/capabilities/ResourcesWorkspace.test.tsx[2m > [22m[2mURI resources[2m > [22m[2mshows ANSI colors across log pages and replaces decorations when rereading
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+[90mstderr[2m | src/capabilities/ResourcesWorkspace.test.tsx[2m > [22m[2mURI resources[2m > [22m[2mshows ANSI colors across log pages and replaces decorations when rereading
+[22m[39mTypeError: textRange(...).getClientRects is not a function
+    at TextTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2143:51[90m)[39m
+    at LineTile.coordsIn [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:2056:27[90m)[39m
+    at DocView.coordsAt [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:3308:21[90m)[39m
+    at EditorView.coordsAtPos [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8611:29[90m)[39m
+    at RectangleMarker.forRange [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9379:28[90m)[39m
+    at Object.markers [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9647:51[90m)[39m
+    at LayerView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:9536:27[90m)[39m
+    at [90mfile:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8252:34
+    at Array.map (<anonymous>)
+    at EditorView.measure [90m(file:///home/qtt199/projects/dsh-studio-xg0/apps/renderer-omp/[39mnode_modules/[4m@codemirror/view[24m/dist/index.js:8250:42[90m)[39m
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/App.dockRegion.test.tsx[2m > [22mkeeps left card headers grip-free, including tools moved into the sidebar
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an accessible element with the role "button" and name `/^Git Branches/`
+
+Here are the accessible roles:
+
+  separator:
+
+  Name "Adjust right panel width":
+  [36m<div[39m
+    [33maria-label[39m=[32m"Adjust right panel width"[39m
+    [33maria-orientation[39m=[32m"vertical"[39m
+    [33maria-valuemax[39m=[32m"640"[39m
+    [33maria-valuemin[39m=[32m"360"[39m
+    [33maria-valuenow[39m=[32m"480"[39m
+    [33mclass[39m=[32m"sp-resizer"[39m
+    [33mid[39m=[32m"spResizer"[39m
+    [33mrole[39m=[32m"separator"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+
+  --------------------------------------------------region:
+
+  Name "Right sidebar":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Right sidebar"[39m
+    [33mclass[39m=[32m"dock-group-region dock-group-region-right"[39m
+    [33mdata-dock-focus-region[39m=[32m"right"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  Name "Common tools":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Common tools"[39m
+    [33mclass[39m=[32m"dock-launcher-section"[39m
+  [36m/>[39m
+
+  Name "More tools":
+  [36m<section[39m
+    [33maria-label[39m=[32m"More tools"[39m
+    [33mclass[39m=[32m"dock-launcher-section"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  tablist:
+
+  Name "Tool tabs":
+  [36m<div[39m
+    [33maria-label[39m=[32m"Tool tabs"[39m
+    [33mclass[39m=[32m"dock-tabs"[39m
+    [33mrole[39m=[32m"tablist"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  presentation:
+
+  Name "":
+  [36m<div[39m
+    [33mclass[39m=[32m"dock-tab is-active dock-launcher-tab"[39m
+    [33mrole[39m=[32m"presentation"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  tab:
+
+  Name "New tab":
+  [36m<button[39m
+    [33maria-selected[39m=[32m"true"[39m
+    [33mclass[39m=[32m"dock-tab-label"[39m
+    [33mrole[39m=[32m"tab"[39m
+    [33mtabindex[39m=[32m"0"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "New tab":
+  [36m<button[39m
+    [33maria-expanded[39m=[32m"false"[39m
+    [33maria-haspopup[39m=[32m"menu"[39m
+    [33maria-label[39m=[32m"New tab"[39m
+    [33mclass[39m=[32m"dock-tab-add dock-icon-button dock-menu-button"[39m
+    [33mdata-tip[39m=[32m"New tab"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Full screen":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Full screen"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mclass[39m=[32m"dock-icon-button dock-fullscreen-toggle"[39m
+    [33mdata-tip[39m=[32m"Full screen"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "FilesOpen elsewhere; opens another here":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-card"[39m
+    [33mdata-tint[39m=[32m"orange"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "TerminalNow in Bottom bar · Region hidden":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-card"[39m
+    [33mdata-tint[39m=[32m"violet"[39m
+    [33mdata-tip[39m=[32m"Move here from Bottom bar · Region hidden"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "ChangesReview code changes and diffs":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-card"[39m
+    [33mdata-tint[39m=[32m"green"[39m
+    [33mdata-tip[39m=[32m"Open Changes here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "GitBranches, commits and staging":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-card"[39m
+    [33mdata-tint[39m=[32m"rose"[39m
+    [33mdata-tip[39m=[32m"Open Git here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "AgentsOpen elsewhere; opens another here":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-card"[39m
+    [33mdata-tint[39m=[32m"teal"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "File Browser":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip"[39m
+    [33mdata-tint[39m=[32m"indigo"[39m
+    [33mdata-tip[39m=[32m"Browse files across the computer"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Git quick card":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"rose"[39m
+    [33mdata-tip[39m=[32m"Move here from Conversation tools · Collapsed"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Environment":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"cyan"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Context":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"indigo"[39m
+    [33mdata-tip[39m=[32m"Move here from Conversation tools · Collapsed"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Context viewer":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip"[39m
+    [33mdata-tint[39m=[32m"indigo"[39m
+    [33mdata-tip[39m=[32m"Inspect context entries"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Runtime state":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip"[39m
+    [33mdata-tint[39m=[32m"violet"[39m
+    [33mdata-tip[39m=[32m"Permissions, model, usage and commands"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Session-local files":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip"[39m
+    [33mdata-tint[39m=[32m"indigo"[39m
+    [33mdata-tip[39m=[32m"Browse and edit session files"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Background tasks":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"blue"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Problems":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"rose"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Tests":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"green"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Output":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"cyan"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Full output":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip"[39m
+    [33mdata-tint[39m=[32m"green"[39m
+    [33mdata-tip[39m=[32m"Read background logs linked in the conversation"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "DSH logs":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"orange"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Preview logs":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"blue"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  [36m<header[39m
+    [33mclass[39m=[32m"dock-launcher-head"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "New tab":
+  [36m<h2 />[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"dock-launcher-foot"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<aside[39m
+  [33maria-label[39m=[32m"Right Panel"[39m
+  [33mclass[39m=[32m"side-panel open"[39m
+  [33mid[39m=[32m"sidePanel"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-label[39m=[32m"Adjust right panel width"[39m
+    [33maria-orientation[39m=[32m"vertical"[39m
+    [33maria-valuemax[39m=[32m"640"[39m
+    [33maria-valuemin[39m=[32m"360"[39m
+    [33maria-valuenow[39m=[32m"480"[39m
+    [33mclass[39m=[32m"sp-resizer"[39m
+    [33mid[39m=[32m"spResizer"[39m
+    [33mrole[39m=[32m"separator"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+  [36m<section[39m
+    [33maria-label[39m=[32m"Right sidebar"[39m
+    [33mclass[39m=[32m"dock-group-region dock-group-region-right"[39m
+    [33mdata-dock-focus-region[39m=[32m"right"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"dock-groups"[39m
+      [33mdata-dock-empty[39m=[32m"right"[39m
+      [33mdata-dock-groups[39m=[32m"right"[39m
+      [33mstyle[39m=[32m"--dock-group-ratio: 0.5;"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dock-launcher dock-launcher-right"[39m
+        [33mdata-dock-launcher[39m=[32m"right"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dock-tab-strip dock-launcher-strip"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"Tool tabs"[39m
+            [33mclass[39m=[32m"dock-tabs"[39m
+            [33mrole[39m=[32m"tablist"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"dock-tab is-active dock-launcher-tab"[39m
+              [33mrole[39m=[32m"presentation"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-selected[39m=[32m"true"[39m
+                [33mclass[39m=[32m"dock-tab-label"[39m
+                [33mrole[39m=[32m"tab"[39m
+                [33mtabindex[39m=[32m"0"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"icon sm"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M2 5.5V12a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 14 12V5.5M2 5.5V4a1.5 1.5 0 0 1 1.5-1.5H7l1.2 3H14"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M8 7.6v3.8M6.1 9.5h3.8"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [36m<span>[39m
+                  [0mNew tab[0m
+                [36m</span>[39m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33maria-haspopup[39m=[32m"menu"[39m
+            [33maria-label[39m=[32m"New tab"[39m
+            [33mclass[39m=[32m"dock-tab-add dock-icon-button dock-menu-button"[39m
+            [33mdata-tip[39m=[32m"New tab"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"icon sm"[39m
+              [33mviewBox[39m=[32m"0 0 16 16"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M8 3v10M3 8h10"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"dock-toolbar-spacer"[39m
+          [36m/>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Full screen"[39m
+            [33maria-pressed[39m=[32m"false"[39m
+            [33mclass[39m=[32m"dock-icon-button dock-fullscreen-toggle"[39m
+            [33mdata-tip[39m=[32m"Full screen"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"icon sm"[39m
+              [33mviewBox[39m=[32m"0 0 16 16"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M9.2 2.5h4.3V6.8M13.5 2.5 9 7M6.8 13.5H2.5V9.2M2.5 13.5 7 9"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dock-launcher-body"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"dock-launcher-inner"[39m
+          [36m>[39m
+            [36m<header[39m
+              [33mclass[39m=[32m"dock-launcher-head"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"dock-launcher-mark"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"icon"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M2 5.5V12a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 14 12V5.5M2 5.5V4a1.5 1.5 0 0 1 1.5-1.5H7l1.2 3H14"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M8 7.6v3.8M6.1 9.5h3.8"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</span>[39m
+              [36m<div>[39m
+                [36m<h2>[39m
+                  [0mNew tab[0m
+                [36m</h2>[39m
+                [36m<p>[39m
+                  [0mPick a tool to open here, or drag a tab in.[0m
+                [36m</p>[39m
+              [36m</div>[39m
+            [36m</header>[39m
+            [36m<section[39m
+              [33maria-label[39m=[32m"Common tools"[39m
+              [33mclass[39m=[32m"dock-launcher-section"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"dock-launcher-label"[39m
+              [36m>[39m
+                [0mCommon[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"dock-launcher-grid"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"dock-launcher-card"[39m
+                  [33mdata-tint[39m=[32m"orange"[39m
+                  [33mdata-tip[39m=[32m"Open another one here"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"dock-launcher-ic"[39m
+                  [36m>[39m
+                    [36m<svg[39m
+                      [33maria-hidden[39m=[32m"true"[39m
+     ...
+[90m [2m❯[22m Object.getElementError ../../node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m ../../node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m ../../node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m ../../node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m src/App.dockRegion.test.tsx:[2m208:78[22m[39m
+    [90m206|[39m   [35mawait[39m [34mtoggleRegion[39m([32m"Right sidebar"[39m)[33m;[39m
+    [90m207|[39m   console.log("[DEBUG-dock-launcher]", document.querySelector("#sidePa…
+    [90m208|[39m   fireEvent.click(within(document.querySelector<HTMLElement>("#sidePan…
+    [90m   |[39m                                                                              [31m^[39m
+    [90m209|[39m   fireEvent.contextMenu(document.querySelector<HTMLElement>('#sidePane…
+    [90m210|[39m   fireEvent[33m.[39m[34mclick[39m(screen[33m.[39m[34mgetByRole[39m([32m"menuitem"[39m[33m,[39m { name[33m:[39m [32m"Move to"[39m }))[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/App.dockRegion.test.tsx[2m > [22mkeeps the right sidebar to one tab row and puts add next to the last tab
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an accessible element with the role "button" and name `/^Git Branches/`
+
+Here are the accessible roles:
+
+  separator:
+
+  Name "Adjust right panel width":
+  [36m<div[39m
+    [33maria-label[39m=[32m"Adjust right panel width"[39m
+    [33maria-orientation[39m=[32m"vertical"[39m
+    [33maria-valuemax[39m=[32m"640"[39m
+    [33maria-valuemin[39m=[32m"360"[39m
+    [33maria-valuenow[39m=[32m"480"[39m
+    [33mclass[39m=[32m"sp-resizer"[39m
+    [33mid[39m=[32m"spResizer"[39m
+    [33mrole[39m=[32m"separator"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+
+  --------------------------------------------------region:
+
+  Name "Right sidebar":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Right sidebar"[39m
+    [33mclass[39m=[32m"dock-group-region dock-group-region-right"[39m
+    [33mdata-dock-focus-region[39m=[32m"right"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  Name "Common tools":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Common tools"[39m
+    [33mclass[39m=[32m"dock-launcher-section"[39m
+  [36m/>[39m
+
+  Name "More tools":
+  [36m<section[39m
+    [33maria-label[39m=[32m"More tools"[39m
+    [33mclass[39m=[32m"dock-launcher-section"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  tablist:
+
+  Name "Tool tabs":
+  [36m<div[39m
+    [33maria-label[39m=[32m"Tool tabs"[39m
+    [33mclass[39m=[32m"dock-tabs"[39m
+    [33mrole[39m=[32m"tablist"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  presentation:
+
+  Name "":
+  [36m<div[39m
+    [33mclass[39m=[32m"dock-tab is-active dock-launcher-tab"[39m
+    [33mrole[39m=[32m"presentation"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  tab:
+
+  Name "New tab":
+  [36m<button[39m
+    [33maria-selected[39m=[32m"true"[39m
+    [33mclass[39m=[32m"dock-tab-label"[39m
+    [33mrole[39m=[32m"tab"[39m
+    [33mtabindex[39m=[32m"0"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "New tab":
+  [36m<button[39m
+    [33maria-expanded[39m=[32m"false"[39m
+    [33maria-haspopup[39m=[32m"menu"[39m
+    [33maria-label[39m=[32m"New tab"[39m
+    [33mclass[39m=[32m"dock-tab-add dock-icon-button dock-menu-button"[39m
+    [33mdata-tip[39m=[32m"New tab"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Full screen":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Full screen"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mclass[39m=[32m"dock-icon-button dock-fullscreen-toggle"[39m
+    [33mdata-tip[39m=[32m"Full screen"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "FilesOpen elsewhere; opens another here":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-card"[39m
+    [33mdata-tint[39m=[32m"orange"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "TerminalNow in Bottom bar · Region hidden":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-card"[39m
+    [33mdata-tint[39m=[32m"violet"[39m
+    [33mdata-tip[39m=[32m"Move here from Bottom bar · Region hidden"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "ChangesReview code changes and diffs":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-card"[39m
+    [33mdata-tint[39m=[32m"green"[39m
+    [33mdata-tip[39m=[32m"Open Changes here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "GitBranches, commits and staging":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-card"[39m
+    [33mdata-tint[39m=[32m"rose"[39m
+    [33mdata-tip[39m=[32m"Open Git here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "AgentsOpen elsewhere; opens another here":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-card"[39m
+    [33mdata-tint[39m=[32m"teal"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "File Browser":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip"[39m
+    [33mdata-tint[39m=[32m"indigo"[39m
+    [33mdata-tip[39m=[32m"Browse files across the computer"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Git quick card":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"rose"[39m
+    [33mdata-tip[39m=[32m"Move here from Conversation tools · Collapsed"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Environment":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"cyan"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Context":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"indigo"[39m
+    [33mdata-tip[39m=[32m"Move here from Conversation tools · Collapsed"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Context viewer":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip"[39m
+    [33mdata-tint[39m=[32m"indigo"[39m
+    [33mdata-tip[39m=[32m"Inspect context entries"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Runtime state":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip"[39m
+    [33mdata-tint[39m=[32m"violet"[39m
+    [33mdata-tip[39m=[32m"Permissions, model, usage and commands"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Session-local files":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip"[39m
+    [33mdata-tint[39m=[32m"indigo"[39m
+    [33mdata-tip[39m=[32m"Browse and edit session files"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Background tasks":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"blue"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Problems":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"rose"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Tests":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"green"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Output":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"cyan"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Full output":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip"[39m
+    [33mdata-tint[39m=[32m"green"[39m
+    [33mdata-tip[39m=[32m"Read background logs linked in the conversation"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "DSH logs":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"orange"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Preview logs":
+  [36m<button[39m
+    [33mclass[39m=[32m"dock-launcher-chip is-placed"[39m
+    [33mdata-tint[39m=[32m"blue"[39m
+    [33mdata-tip[39m=[32m"Open another one here"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  [36m<header[39m
+    [33mclass[39m=[32m"dock-launcher-head"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "New tab":
+  [36m<h2 />[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"dock-launcher-foot"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<aside[39m
+  [33maria-label[39m=[32m"Right Panel"[39m
+  [33mclass[39m=[32m"side-panel open"[39m
+  [33mid[39m=[32m"sidePanel"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-label[39m=[32m"Adjust right panel width"[39m
+    [33maria-orientation[39m=[32m"vertical"[39m
+    [33maria-valuemax[39m=[32m"640"[39m
+    [33maria-valuemin[39m=[32m"360"[39m
+    [33maria-valuenow[39m=[32m"480"[39m
+    [33mclass[39m=[32m"sp-resizer"[39m
+    [33mid[39m=[32m"spResizer"[39m
+    [33mrole[39m=[32m"separator"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+  [36m<section[39m
+    [33maria-label[39m=[32m"Right sidebar"[39m
+    [33mclass[39m=[32m"dock-group-region dock-group-region-right"[39m
+    [33mdata-dock-focus-region[39m=[32m"right"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"dock-groups"[39m
+      [33mdata-dock-empty[39m=[32m"right"[39m
+      [33mdata-dock-groups[39m=[32m"right"[39m
+      [33mstyle[39m=[32m"--dock-group-ratio: 0.5;"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dock-launcher dock-launcher-right"[39m
+        [33mdata-dock-launcher[39m=[32m"right"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dock-tab-strip dock-launcher-strip"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"Tool tabs"[39m
+            [33mclass[39m=[32m"dock-tabs"[39m
+            [33mrole[39m=[32m"tablist"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"dock-tab is-active dock-launcher-tab"[39m
+              [33mrole[39m=[32m"presentation"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-selected[39m=[32m"true"[39m
+                [33mclass[39m=[32m"dock-tab-label"[39m
+                [33mrole[39m=[32m"tab"[39m
+                [33mtabindex[39m=[32m"0"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"icon sm"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M2 5.5V12a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 14 12V5.5M2 5.5V4a1.5 1.5 0 0 1 1.5-1.5H7l1.2 3H14"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M8 7.6v3.8M6.1 9.5h3.8"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [36m<span>[39m
+                  [0mNew tab[0m
+                [36m</span>[39m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33maria-haspopup[39m=[32m"menu"[39m
+            [33maria-label[39m=[32m"New tab"[39m
+            [33mclass[39m=[32m"dock-tab-add dock-icon-button dock-menu-button"[39m
+            [33mdata-tip[39m=[32m"New tab"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"icon sm"[39m
+              [33mviewBox[39m=[32m"0 0 16 16"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M8 3v10M3 8h10"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"dock-toolbar-spacer"[39m
+          [36m/>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Full screen"[39m
+            [33maria-pressed[39m=[32m"false"[39m
+            [33mclass[39m=[32m"dock-icon-button dock-fullscreen-toggle"[39m
+            [33mdata-tip[39m=[32m"Full screen"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"icon sm"[39m
+              [33mviewBox[39m=[32m"0 0 16 16"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M9.2 2.5h4.3V6.8M13.5 2.5 9 7M6.8 13.5H2.5V9.2M2.5 13.5 7 9"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dock-launcher-body"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"dock-launcher-inner"[39m
+          [36m>[39m
+            [36m<header[39m
+              [33mclass[39m=[32m"dock-launcher-head"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"dock-launcher-mark"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"icon"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M2 5.5V12a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 14 12V5.5M2 5.5V4a1.5 1.5 0 0 1 1.5-1.5H7l1.2 3H14"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M8 7.6v3.8M6.1 9.5h3.8"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</span>[39m
+              [36m<div>[39m
+                [36m<h2>[39m
+                  [0mNew tab[0m
+                [36m</h2>[39m
+                [36m<p>[39m
+                  [0mPick a tool to open here, or drag a tab in.[0m
+                [36m</p>[39m
+              [36m</div>[39m
+            [36m</header>[39m
+            [36m<section[39m
+              [33maria-label[39m=[32m"Common tools"[39m
+              [33mclass[39m=[32m"dock-launcher-section"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"dock-launcher-label"[39m
+              [36m>[39m
+                [0mCommon[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"dock-launcher-grid"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"dock-launcher-card"[39m
+                  [33mdata-tint[39m=[32m"orange"[39m
+                  [33mdata-tip[39m=[32m"Open another one here"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"dock-launcher-ic"[39m
+                  [36m>[39m
+                    [36m<svg[39m
+                      [33maria-hidden[39m=[32m"true"[39m
+     ...
+[90m [2m❯[22m Object.getElementError ../../node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m ../../node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m ../../node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m ../../node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m src/App.dockRegion.test.tsx:[2m223:78[22m[39m
+    [90m221|[39m   [34mexpect[39m([34msideShown[39m())[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m222|[39m   console.log("[DEBUG-dock-launcher]", document.querySelector("#sidePa…
+    [90m223|[39m   fireEvent.click(within(document.querySelector<HTMLElement>("#sidePan…
+    [90m   |[39m                                                                              [31m^[39m
+    [90m224|[39m   const right = document.querySelector<HTMLElement>("#sidePanel .dock-…
+    [90m225|[39m   [90m// The region label row is gone; the tab row is the panel header.[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+

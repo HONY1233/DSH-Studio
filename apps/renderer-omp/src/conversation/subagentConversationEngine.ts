@@ -1,0 +1,162 @@
+import type { ClientEvent, ConversationItem, SessionId, StudioClient } from "@omp-studio/client-contract";
+import { CONVERSATION_LIMITS, utf8ByteLength } from "@omp-studio/client-contract";
+import type { AgentId, ConversationTarget } from "@omp-studio/studio-protocol";
+import { previewSubagentConversationItems, previewSubagentConversationStream } from "../preview/subagentConversation";
+import { asClientError, identityKey, isStaleCursorError } from "./conversationHost";
+import { createConversationSource } from "./conversationSource";
+import { ConversationStore } from "./conversationStore";
+import type { ConversationState, TimelineRow } from "./conversationViewModel";
+import type { SubagentHubTarget } from "./toolMeta";
+import { registerRendererResource } from "../rendererResources";
+import { isZh } from "../i18n";
+
+export type SubagentConversationClient = Pick<StudioClient, "query" | "subscribe">;
+export type SubagentConversationEngineInput = { readonly preview: boolean; readonly previewStream?: boolean; readonly previewItems: readonly ConversationItem[]; readonly client: SubagentConversationClient | null; readonly target: SubagentHubTarget | null; readonly runtimeConnected: boolean; readonly parentSessionId?: SessionId; readonly liveSessionId?: SessionId };
+export type SubagentConversationSnapshot = { readonly state: ConversationState; readonly rows: readonly TimelineRow[]; readonly demo: boolean; readonly loadingOlder: boolean; readonly identityKey: string };
+/** Numeric-only counters for the diagnostics sampler; never rows, text or ids. */
+export type SubagentConversationEngineDiagnostics = { readonly disposed: number; readonly rows: number; readonly listeners: number; readonly openBufferEvents: number; readonly openBufferBytes: number };
+export type SubagentConversationEngine = { getSnapshot(): SubagentConversationSnapshot; subscribe(listener: () => void): () => void; start(): void; setActive(active: boolean, connected: boolean): void; dispose(): void; loadOlder(): Promise<void>; reload(): Promise<void>; getDiagnostics(): SubagentConversationEngineDiagnostics };
+
+let generation = 10_000;
+/** Engines created and not yet disposed; only the open subagent pane should hold one. */
+let activeEngines = 0;
+export function activeSubagentConversationEngineCount(): number { return activeEngines; }
+const OPEN_BUFFER_MAX_BYTES = 2 * 1024 * 1024;
+export function createSubagentConversationEngine(input: SubagentConversationEngineInput): SubagentConversationEngine {
+  activeEngines += 1;
+  const parentSessionId = input.parentSessionId ?? input.liveSessionId;
+  const initialSessionId = parentSessionId ?? ("unavailable" as SessionId);
+  const store = new ConversationStore({ target: { sessionId: initialSessionId, ...(input.target === null ? {} : { agentId: input.target.agentId }) }, identity: parentSessionId === undefined ? null : { sessionId: parentSessionId }, generation: generation++ });
+  const listeners = new Set<() => void>(); let disposed = false; let started = false; let loadingOlder = false; let token = 0;
+  let active = false;
+  let connected = input.runtimeConnected;
+  let unsubscribe: (() => void) | undefined; let conversationSessionId: SessionId | undefined; let watermark = 0; let buffered: Array<Extract<ClientEvent, { kind: "conversation.changed" }>> = []; let bufferedBytes = 0; let bufferOverflowed = false;
+  let liveTarget: ConversationTarget | undefined;
+  let previewTimers: Array<ReturnType<typeof setTimeout>> = [];
+  function stopPreviewStream(): void { previewTimers.forEach(clearTimeout); previewTimers = []; }
+  let snapshot: SubagentConversationSnapshot = { ...store.getSnapshot(), demo: input.preview, loadingOlder, identityKey: identityKey(store.getSnapshot().state.identity) };
+  const offStore = store.subscribe(() => publish());
+  const unregisterDiagnostics = registerRendererResource("engines", () => ({ rows: snapshot.rows.length, listeners: listeners.size,
+    openBufferEvents: buffered.length, openBufferBytes: bufferedBytes }));
+  function publish(): void { if (disposed) return; const value = store.getSnapshot(); snapshot = { ...value, demo: input.preview, loadingOlder, identityKey: identityKey(value.state.identity) }; for (const listener of listeners) listener(); }
+  function applyLiveEvent(event: Extract<ClientEvent, { kind: "conversation.changed" }>): void {
+    if (event.streamSeq <= watermark) return;
+    if (event.streamSeq !== watermark + 1) {
+      store.requireResync(isZh() ? "子 Agent 对话流序号不连续，正在重新同步。" : "Subagent conversation stream sequence gap detected; resyncing.");
+      void hydrate(true);
+      return;
+    }
+    watermark = event.streamSeq;
+    store.applyEvent(event.update, event.streamSeq);
+  }
+  function onEvent(event: ClientEvent): void {
+    if (!active || disposed) return;
+    if (event.kind === "resync.required") { store.requireResync(event.reason); void hydrate(true); return; }
+    if (event.kind !== "conversation.changed") return;
+    if (conversationSessionId === undefined) {
+      const bytes = utf8ByteLength(JSON.stringify(event));
+      if (bytes > OPEN_BUFFER_MAX_BYTES) { buffered = []; bufferedBytes = 0; bufferOverflowed = true; return; }
+      buffered.push(event); bufferedBytes += bytes;
+      while (bufferedBytes > OPEN_BUFFER_MAX_BYTES && buffered.length > 0) { bufferOverflowed = true; bufferedBytes -= utf8ByteLength(JSON.stringify(buffered.shift())); }
+      return;
+    }
+    if (event.sessionId !== conversationSessionId) return;
+    applyLiveEvent(event);
+  }
+  async function hydrate(resyncing = false): Promise<void> {
+    if (disposed || !active) return;
+    const current = ++token; loadingOlder = false; buffered = []; bufferedBytes = 0; bufferOverflowed = false; conversationSessionId = undefined; watermark = 0;
+    if (input.target === null) { store.setUnavailable(isZh() ? "没有可读取的子 Agent 对话。" : "No subagent conversation available."); return; }
+    store.setLoading(resyncing);
+    if (input.preview) {
+      stopPreviewStream();
+      const sessionId = `preview-child:${parentSessionId ?? "preview"}:${input.target.agentId}` as SessionId;
+      store.resolveTarget(sessionId);
+      store.hydrate({ items: input.previewItems, headCursor: "preview" as never, hasMoreBefore: false });
+      if (input.previewStream) previewTimers = previewSubagentConversationStream(input.target.agentId, sessionId).map(({ afterMs, event }, index) =>
+        setTimeout(() => store.applyEvent(event, index + 1), afterMs));
+      return;
+    }
+    if (parentSessionId === undefined) { store.setUnavailable(isZh() ? "没有可读取的子 Agent 对话。" : "No subagent conversation available."); return; }
+    if (input.client === null) { store.setUnavailable(isZh() ? "当前环境无法读取子 Agent 对话。" : "Cannot read subagent conversations in this environment."); return; }
+    const source = createConversationSource(input.client);
+    const target: ConversationTarget = { kind: "agent", parentSessionId, agentId: input.target.agentId as AgentId };
+    liveTarget = undefined;
+    try {
+      if (connected && input.liveSessionId === parentSessionId) {
+        liveTarget = target;
+        const opened = await source.open(target, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT);
+        if (disposed || current !== token) return; const resolvedSessionId = opened.target.conversationSessionId; conversationSessionId = resolvedSessionId; store.resolveTarget(resolvedSessionId, opened.page.runtimeEpoch);
+        watermark = opened.live.watermark;
+        if (opened.live.status === "resyncRequired") {
+          store.hydrate(opened.page, [], watermark);
+          store.requireResync(opened.live.reason);
+        } else {
+          store.hydrate(opened.page, opened.live.events.map((event) => ({ streamSeq: event.streamSeq, update: event.update })), watermark);
+        }
+        const queued = buffered; const overflowed = bufferOverflowed; buffered = []; bufferedBytes = 0; bufferOverflowed = false;
+        if (overflowed) { store.requireResync(isZh() ? "打开子 Agent 对话期间的事件缓冲已满，正在重新同步。" : "Event buffer filled while opening subagent conversation; resyncing."); void hydrate(true); return; }
+        for (const event of queued) if (event.sessionId === conversationSessionId) applyLiveEvent(event);
+      } else {
+        const page = await source.readArchive(parentSessionId, input.target.agentId, undefined, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT);
+        if (disposed || current !== token) return; conversationSessionId = page.sessionId; store.resolveTarget(page.sessionId); store.hydrate(page);
+      }
+    } catch (cause) {
+      if (disposed || current !== token) return;
+      liveTarget = undefined;
+      try {
+        const page = await source.readArchive(parentSessionId, input.target.agentId, undefined, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT);
+        if (disposed || current !== token) return; conversationSessionId = page.sessionId; store.resolveTarget(page.sessionId); store.hydrate(page);
+      } catch (fallback) { if (!disposed && current === token) store.setError(asClientError(fallback ?? cause)); }
+    }
+  }
+  async function loadOlder(): Promise<void> {
+    if (disposed || !active || loadingOlder || input.client === null || input.target === null || parentSessionId === undefined) return;
+    const cursor = store.getOlderCursor(); if (cursor === undefined) return; loadingOlder = true; publish(); const current = token; const source = createConversationSource(input.client);
+    try { const page = liveTarget !== undefined && connected ? await source.readLiveOlder(liveTarget, cursor, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT) : await source.readArchive(parentSessionId, input.target.agentId, cursor, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT); if (!disposed && current === token) store.prepend(page); }
+    catch (cause) { if (disposed || current !== token) return; const error = asClientError(cause); if (isStaleCursorError(error)) await hydrate(true); else store.setError(error); }
+    finally { if (!disposed && current === token) { loadingOlder = false; publish(); } }
+  }
+  function setActive(next: boolean, online: boolean): void {
+    if (disposed || (started && next === active && online === connected)) return;
+    const wasStarted = started;
+    active = next; connected = online;
+    token += 1;
+    stopPreviewStream();
+    unsubscribe?.(); unsubscribe = undefined;
+    buffered = []; bufferedBytes = 0; loadingOlder = false;
+    if (!active) return;
+    started = true;
+    if (!input.preview && input.client !== null && connected) unsubscribe = createConversationSource(input.client).subscribe(onEvent);
+    // Offline leaves the already-read conversation visible. A cold historical
+    // target can still read its archive without a live Runtime.
+    if (connected || !wasStarted || input.preview) void hydrate(snapshot.rows.length > 0);
+  }
+  return {
+    getSnapshot: () => snapshot, subscribe(listener) { if (disposed) return () => {}; listeners.add(listener); return () => listeners.delete(listener); },
+    start() { setActive(true, input.runtimeConnected); },
+    setActive,
+    // Same shape as the main engine's dispose: listeners go first so the
+    // blanking is never broadcast, then the published snapshot is replaced by
+    // the store's empty one so a retained engine cannot hold the child transcript.
+    dispose() {
+      if (disposed) return; disposed = true; token += 1;
+      unregisterDiagnostics();
+      stopPreviewStream();
+      unsubscribe?.(); unsubscribe = undefined; offStore(); listeners.clear();
+      store.dispose();
+      const value = store.getSnapshot();
+      snapshot = { ...value, demo: input.preview, loadingOlder: false, identityKey: identityKey(value.state.identity) };
+      buffered = []; bufferedBytes = 0; bufferOverflowed = false; loadingOlder = false;
+      liveTarget = undefined; conversationSessionId = undefined; watermark = 0;
+      activeEngines -= 1;
+    },
+    loadOlder,
+    reload: () => hydrate(true),
+    getDiagnostics: () => ({ disposed: disposed ? 1 : 0, rows: snapshot.rows.length, listeners: listeners.size, openBufferEvents: buffered.length, openBufferBytes: bufferedBytes }),
+  };
+}
+
+export function subagentEngineInput(input: Omit<SubagentConversationEngineInput, "previewItems">): SubagentConversationEngineInput {
+  return { ...input, previewItems: input.preview && input.target !== null ? previewSubagentConversationItems(input.target.agentId) : [] };
+}

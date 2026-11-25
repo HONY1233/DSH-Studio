@@ -1,0 +1,54 @@
+{
+  "name": "dsh-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop workbench for DeepSeek Harness",
+  "main": "apps/desktop/src/main.js",
+  "workspaces": [
+    "apps/desktop",
+    "apps/renderer",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "dev:renderer": "npm -w @dsh-studio/renderer run dev",
+    "dev:electron": "wait-on tcp:127.0.0.1:5173 && npm -w @dsh-studio/desktop run start",
+    "dev:omp": "concurrently -k -n vite,electron -c cyan,magenta \"npm --prefix apps/renderer-omp run dev\" \"npm run dev:omp:electron\"",
+    "dev:omp:electron": "wait-on tcp:127.0.0.1:5174 && set DSH_RENDERER_URL=http://127.0.0.1:5174&& npm -w @dsh-studio/desktop run start",
+    "handshake": "node packages/runtime-client/examples/handshake.mjs",
+    "check": "node packages/testkit/scripts/check-architecture.mjs && node packages/testkit/scripts/check-entrypoint-alignment.mjs && npm -w @dsh-studio/renderer run build && npm test",
+    "build:omp": "npm --prefix apps/renderer-omp run build",
+    "dist": "npm run build:omp && electron-builder --win nsis --x64",
+    "dist:dir": "npm run build:omp && electron-builder --win dir --x64",
+    "bench": "npm -w @dsh-studio/testkit run bench",
+    "test": "npm -w @dsh-studio/testkit run test",
+    "descriptors:extract": "wsl -d ubuntu -e node packages/testkit/scripts/extract-descriptors.mjs",
+    "smoke:supervisor": "node packages/testkit/scripts/supervisor-smoke.mjs",
+    "upstream:fetch": "powershell -ExecutionPolicy Bypass -File scripts/upstream-fetch.ps1",
+    "upstream:triage": "node scripts/upstream-triage.mjs",
+    "upstream:adopt": "node scripts/upstream-adopt.mjs",
+    "studio:build": "npm -w @studio/ui-shell run build",
+    "studio:test": "npm -w @studio/ui-shell exec -- vitest run",
+    "studio:typecheck": "tsc -p packages/studio-ui --noEmit",
+    "studio:bench:tools": "cd packages/studio-ui && npx rolldown scripts/bench-fold-tools.ts -o /tmp/bench-tools.mjs --format esm && node /tmp/bench-tools.mjs"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "concurrently": "^9.1.2",
+    "electron-builder": "26.18.0",
+    "electron-updater": "6.8.11",
+    "jsdom": "^29.1.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1",
+    "wait-on": "^8.0.2"
+  },
+  "dependencies": {
+    "node-pty": "^1.1.0"
+  },
+  "allowScripts": {
+    "node-pty@1.1.0": true
+  }
+}

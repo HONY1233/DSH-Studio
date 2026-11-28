@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, WebContentsView, dialog, ipcMain, session, shell, webContents } from 'electron'
+import { app, BrowserWindow, Menu, WebContentsView, dialog, ipcMain, screen, session, shell, webContents } from 'electron'
 import { existsSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, resolve } from 'node:path'
@@ -8,6 +8,8 @@ import { gitChanges, gitDiff, listDirectory, listSessions, readSessionEvents, re
 import { createStudioBridge } from './studio-bridge.js'
 import { createFileDraftStore } from './draft-store.js'
 import { createTerminalService } from './terminal-service.js'
+import { createNativeWindowService, installNativeWindowIpc } from './native-window-service.js'
+import { createNativeWindowFileStorage } from './native-window-file-storage.js'
 import {
   browserPartitionForWorkspace,
   createExternalUrlHandler,
@@ -55,6 +57,19 @@ const runtime = new RuntimeClient({
 
 let mainWindow = null
 let serverInfo = null
+let nativeWindows = null
+let removeNativeWindowIpc = null
+let nativeWindowStartupError = null
+const nativeContentUrl = pathToFileURL(resolve(here, 'native-content.html')).href
+const nativeWindowStorageKey = 'dsh.studio.native-windows.v1'
+
+function broadcastNativeWindows(windows, error = nativeWindowStartupError) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send('workbench:windows:state', {
+    windows,
+    error: error ? (error instanceof Error ? error.message : String(error)) : null,
+  })
+}
 
 // OMP-contract bridge consumed by the forked renderer (`apps/renderer-omp`).
 // `host` 里放需要 electron 能力（文件管理器、目录选择、回收站）的回调，
@@ -699,6 +714,7 @@ async function createWindow() {
   mainWindow.on('closed', () => {
     terminalService.disposeOwner(ownerId)
     disposeBrowserView()
+    nativeWindows?.detachAllFromMain()
     mainWindow = null
   })
 }
@@ -725,6 +741,28 @@ app.whenReady().then(async () => {
   })
   installMenu()
   await createWindow()
+  nativeWindows = createNativeWindowService({
+    BrowserWindow,
+    WebContentsView,
+    screen,
+    session: session.fromPartition('dsh-native-content-v1'),
+    contentUrl: nativeContentUrl,
+    preloadPath: resolve(here, 'native-content-preload.cjs'),
+    storage: createNativeWindowFileStorage(resolve(app.getPath('userData'), 'native-windows.json')),
+    storageKey: nativeWindowStorageKey,
+    getMainWindow: () => mainWindow,
+    devToolsEnabled,
+    onChange: broadcastNativeWindows,
+  })
+  removeNativeWindowIpc = installNativeWindowIpc({ ipcMain, service: nativeWindows, requireMainSender })
+  try {
+    await nativeWindows.restore()
+  } catch (error) {
+    nativeWindowStartupError = error
+    console.error('[studio] native window restore failed:', error)
+    broadcastNativeWindows([], error)
+  }
+  nativeWindows.watchDisplays()
   await bootRuntime()
 }).catch((error) => {
   console.error('[studio] boot failed:', error)
@@ -743,6 +781,10 @@ app.on('before-quit', (event) => {
   void (async () => {
     terminalService.disposeAll()
     disposeBrowserView()
+    nativeWindows?.flush()
+    nativeWindows?.disposeAll()
+    removeNativeWindowIpc?.()
+    removeNativeWindowIpc = null
     try {
       await runtime.stop()
     } catch (error) {

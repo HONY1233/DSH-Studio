@@ -59,10 +59,16 @@ describe('snapZones', () => {
     expect(zones.some((z) => z.kind === 'edge')).toBe(true)
   })
 
-  it('宽度不足以分两栏时只保留顶部落区', () => {
+  it('宽度不足以分两栏时保留顶部与底部落区', () => {
     const narrow = { x: 0, y: 0, w: 500, h: 600 }
     const zones = snapZones(narrow)
-    expect(zones.map((z) => z.kind)).toEqual(['top'])
+    expect(zones.map((z) => z.kind)).toEqual(['top', 'bottom'])
+  })
+
+  it('底部边缘命中下半屏停靠区', () => {
+    const zones = snapZones(WORK)
+    expect(pickZone({ x: 600, y: 780 }, zones)?.dest).toEqual({ to: 'edge', region: 'bottom' })
+    expect(pickZone({ x: 600, y: 780 }, zones)?.rect).toEqual({ x: 0, y: 400, w: 1200, h: 400 })
   })
 
   it('面板最小尺寸大于分区时该落区消失', () => {

@@ -7,6 +7,7 @@ import type { WorkbenchLabels } from './workbench-view.js'
 
 const zh: WorkbenchLabels = {
   workspace: '工作台',
+  regions: { sidebar: '侧栏', right: '右栏', bottom: '底栏' },
   separator: '调整分栏比例',
   tabs: {
     list: '窗口标签',
@@ -18,6 +19,12 @@ const zh: WorkbenchLabels = {
     closeWindow: '关闭窗口',
     minimize: '最小化',
     restore: '恢复窗口',
+    moveWindow: '移动窗口',
+    lock: '锁定窗口',
+    unlock: '解锁窗口',
+    group: '与相邻浮窗分组',
+    ungroup: '取消分组',
+    pinControl: '窗口固定级别',
     pin: {
       none: '浮窗',
       workspace: '固定在工作区',
@@ -37,6 +44,7 @@ const zh: WorkbenchLabels = {
 
 const en: WorkbenchLabels = {
   workspace: 'Workbench',
+  regions: { sidebar: 'Sidebar', right: 'Right', bottom: 'Bottom' },
   separator: 'Resize split',
   tabs: {
     list: 'Window tabs',
@@ -48,6 +56,12 @@ const en: WorkbenchLabels = {
     closeWindow: 'Close window',
     minimize: 'Minimize',
     restore: 'Restore window',
+    moveWindow: 'Move window',
+    lock: 'Lock window',
+    unlock: 'Unlock window',
+    group: 'Group with adjacent float',
+    ungroup: 'Ungroup float',
+    pinControl: 'Window pin level',
     pin: {
       none: 'Float',
       workspace: 'Pinned to workspace',

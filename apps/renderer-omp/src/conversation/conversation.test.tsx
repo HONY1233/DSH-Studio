@@ -79,6 +79,82 @@ describe("createConversationEngine", () => {
     engine.dispose();
   });
 
+  it("reconnects after the contiguous watermark, deduplicates replay, and falls back when the journal has a gap", async () => {
+    let listener: ((event: never) => void) | undefined;
+    const message = (itemId: string, role: "user" | "assistant", text: string) => ({
+      kind: "message", itemId, parentId: null, createdAt: "now", role,
+      content: [{ type: "text", text }],
+    });
+    const live = (streamSeq: number, item: ReturnType<typeof message>) => ({
+      streamSeq,
+      eventSeq: streamSeq,
+      update: { kind: "conversation.message.completed", sessionId, item },
+    });
+    const firstPage = { ...page, items: [message("user", "user", "hello")] };
+    const recoveredPage = { ...page, items: [
+      message("user", "user", "hello"),
+      message("assistant-2", "assistant", "two"),
+      message("user-3", "user", "three"),
+    ] };
+    const fallbackPage = { ...page, items: [
+      ...recoveredPage.items,
+      message("assistant-fallback", "assistant", "fallback"),
+    ] };
+    const query = vi.fn(async (_name: string, input: { afterStreamSeq?: number }) => {
+      if (input.afterStreamSeq === undefined) {
+        return { ...opened, page: firstPage, live: { status: "complete" as const, watermark: 1, events: [] } };
+      }
+      if (input.afterStreamSeq === 1) {
+        return { ...opened, page: recoveredPage, live: { status: "complete" as const, watermark: 3, events: [
+          live(2, message("assistant-2", "assistant", "two")),
+          live(3, message("user-3", "user", "three")),
+        ] } };
+      }
+      return { ...opened, page: fallbackPage, live: { status: "complete" as const, watermark: 5, events: [
+        live(5, message("assistant-partial", "assistant", "must not appear")),
+      ] } };
+    }) as unknown as ConversationClient["query"];
+    const engine = createConversationEngine({
+      preview: false,
+      client: { query, subscribe: (_scope, next) => { listener = next as (event: never) => void; return () => {}; } },
+      identity: { sessionId, runtimeEpoch: epoch }, canRead: true, runtimeConnected: true, previewItems: [],
+    });
+    try {
+      engine.start();
+      await vi.waitFor(() => expect(engine.getSnapshot().state.hydrateStatus).toBe("ready"));
+      listener?.({
+        kind: "conversation.changed", cursor: "2", authorityId: "authority", runtimeEpoch: epoch,
+        stateVersion: 1, occurredAt: "now", sessionId, streamSeq: 3, eventSeq: 3,
+        update: { kind: "conversation.message.completed", sessionId, item: message("user-3", "user", "three") },
+      } as never);
+      await vi.waitFor(() => expect(query).toHaveBeenCalledTimes(2));
+      expect(query).toHaveBeenLastCalledWith("conversation.open", expect.objectContaining({ afterStreamSeq: 1 }));
+      await vi.waitFor(() => expect(engine.getSnapshot().rows).toHaveLength(3));
+      const recoveredRows = engine.getSnapshot().rows;
+      listener?.({
+        kind: "conversation.changed", cursor: "3", authorityId: "authority", runtimeEpoch: epoch,
+        stateVersion: 1, occurredAt: "now", sessionId, streamSeq: 2, eventSeq: 2,
+        update: { kind: "conversation.message.completed", sessionId, item: message("assistant-2", "assistant", "two") },
+      } as never);
+      expect(engine.getSnapshot().rows).toEqual(recoveredRows);
+
+      listener?.({
+        kind: "conversation.changed", cursor: "4", authorityId: "authority", runtimeEpoch: epoch,
+        stateVersion: 1, occurredAt: "now", sessionId, streamSeq: 5, eventSeq: 5,
+        update: { kind: "conversation.message.completed", sessionId, item: message("assistant-partial", "assistant", "must not appear") },
+      } as never);
+      await vi.waitFor(() => expect(query).toHaveBeenCalledTimes(3));
+      expect(query).toHaveBeenLastCalledWith("conversation.open", expect.objectContaining({ afterStreamSeq: 3 }));
+      await vi.waitFor(() => expect(engine.getSnapshot().state.hydrateStatus).toBe("ready"));
+      expect(engine.getSnapshot().rows).toHaveLength(4);
+      const assistantText = (row: ReturnType<typeof engine.getSnapshot>["rows"][number]): string[] => row.type === "assistant"
+        ? row.segments.filter((segment) => segment.type === "text").map((segment) => segment.text)
+        : [];
+      expect(engine.getSnapshot().rows.flatMap(assistantText)).toContain("fallback");
+      expect(engine.getSnapshot().rows.flatMap(assistantText)).not.toContain("must not appear");
+    } finally { engine.dispose(); }
+  });
+
   it("can paginate again after a stale cursor reloads the conversation", async () => {
     let olderReads = 0;
     const paged = { ...opened, page: { ...page, olderCursor: "older" as never, hasMoreBefore: true } };

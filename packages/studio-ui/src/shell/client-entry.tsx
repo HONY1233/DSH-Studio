@@ -17,11 +17,13 @@
 
 import type { ReactNode } from 'react'
 
+import { adaptUsageFromEvent } from '@dsh-studio/workbench-core'
 import { DerivedCache } from '../session-derived/cache.js'
 import { PanelRegistry } from '../ui-panel-host/registry.js'
 import { createSessionPort, type SessionsFace } from '../ui-session-views/client.js'
 import { createSessionLeaseRegistry } from '../ui-session-views/leases.js'
 import { createSessionTabViewLabels } from '../ui-session-views/labels.js'
+import { SessionViewStore } from '../ui-session-views/session-view-store.js'
 import { createEmptyController, type WorkbenchController } from '../ui-workbench/controller.js'
 import { createWorkbenchLabels } from '../ui-workbench/labels.js'
 import { registerBuiltinPanels } from './builtin-panels.js'
@@ -135,8 +137,20 @@ function applyInner(ctx: StudioClientContext): void {
   })
 
   const derived = new DerivedCache({ capacity: 8 })
+  const ownerStore = new SessionViewStore()
   // 事件订阅的唯一入口：同一会话只订一次，避免第二个窗口挂载时 reset 重折。
-  const hub = new SessionEventHub({ cache: derived })
+  const hub = new SessionEventHub({
+    cache: derived,
+    onEntries: (sessionId, entries) => {
+      const rawEntries = hub.getWindowSnapshot(sessionId)?.entries ?? []
+      for (const entry of entries) {
+        const raw = rawEntries.find((item) => item.event.seq === entry.seq)
+        if (!raw) continue
+        const record = adaptUsageFromEvent({ ...raw.event, sessionId })
+        if (record) ownerStore.addUsageRecord(record)
+      }
+    },
+  })
   const controller: WorkbenchController = createEmptyController()
 
   const labels = createWorkbenchLabels('zh')
@@ -172,6 +186,7 @@ function applyInner(ctx: StudioClientContext): void {
           leases={leases}
           derived={derived}
           hub={hub}
+          store={ownerStore}
           panels={panels}
           labels={labels}
           sessionLabels={sessionLabels}
@@ -210,26 +225,40 @@ function applyInner(ctx: StudioClientContext): void {
     console.warn('[studio] 内建面板注册失败', error)
   }
 
+  let debug: object | undefined
   try {
-    // 真机排查钩子。DSH 自己也用 `window.__DSH_BOOT__` 暴露引导状态，同一套路。
+    debug = {
+      controller,
+      leases,
+      derived,
+      hub,
+      ownerStore,
+      get fileUpload() {
+        return fileUploadSlot.get()
+      },
+      /** 当前所有会话的引用计数快照（谁在保活、几份）。 */
+      inspect: () => leases.snapshot(),
+      stats: () => derived.stats(),
+    }
     Object.defineProperty(globalThis, '__STUDIO_DEBUG__', {
       configurable: true,
-      value: {
-        controller,
-        leases,
-        derived,
-        hub,
-        get fileUpload() {
-          return fileUploadSlot.get()
-        },
-        /** 当前所有会话的引用计数快照（谁在保活、几份）。 */
-        inspect: () => leases.snapshot(),
-        stats: () => derived.stats(),
-      },
+      writable: true,
+      value: debug,
     })
   } catch (error) {
     console.warn('[studio] 调试钩子挂载失败', error)
   }
+
+  // Shared source/store/lease state belongs to this plugin instance. Unload
+  // releases Host references even when no React view remains mounted.
+  ctx.effect?.(() => () => {
+    hub.dispose()
+    ownerStore.dispose()
+    leases.dispose()
+    if (debug && (globalThis as { __STUDIO_DEBUG__?: unknown }).__STUDIO_DEBUG__ === debug) {
+      delete (globalThis as { __STUDIO_DEBUG__?: unknown }).__STUDIO_DEBUG__
+    }
+  })
 
   // 打印时条件注入可能还没触发（fileUpload 服务可能在本插件之后挂载），
   // 所以这里只能说"尚未就绪"——就绪后输入框的附件入口会自己变可用。

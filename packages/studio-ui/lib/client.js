@@ -7,6 +7,1173 @@ window.__ModuleLoader__.load({
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 let react = require("react");
 let react_jsx_runtime = require("react/jsx-runtime");
+let react_dom = require("react-dom");
+// ../workbench-core/src/control.js
+const ControlErrorCode = Object.freeze({
+	INVALID_ARGUMENT: "INVALID_ARGUMENT",
+	NOT_FOUND: "NOT_FOUND",
+	CONFLICT: "CONFLICT",
+	CAPABILITY_UNAVAILABLE: "CAPABILITY_UNAVAILABLE",
+	UNSUPPORTED: "UNSUPPORTED",
+	OWNER_MISMATCH: "OWNER_MISMATCH",
+	SEQUENCE_GAP: "SEQUENCE_GAP",
+	BUFFER_OVERFLOW: "BUFFER_OVERFLOW",
+	LIMIT_EXCEEDED: "LIMIT_EXCEEDED",
+	CORRUPT_RECORD: "CORRUPT_RECORD",
+	STORAGE_FAILED: "STORAGE_FAILED",
+	INTERNAL: "INTERNAL"
+});
+Object.freeze({
+	"session.cancel": "当前 Runtime 没有经批准的按轮次取消方法",
+	"session.steer": "当前 Runtime 没有经批准的运行中插话方法",
+	"session.queue.enqueue": "当前 Runtime 没有经批准的幂等消息队列",
+	"session.queue.cancel": "当前 Runtime 没有可取消的运行时消息队列",
+	"session.queue.remove": "当前 Runtime 没有可取消的运行时消息队列",
+	"session.queue.list": "界面本地待发状态不等于可读取的运行时队列",
+	"session.queue.position": "当前 Runtime 没有可读取的队列位置；本地顺序不是 Runtime position",
+	"session.draft.save": "Runtime 草稿同步未接入；只能在本地保存未提交草稿"
+});
+Object.freeze({
+	"draft.local": Object.freeze({
+		grade: "local-only",
+		source: "client",
+		reason: "仅本地草稿，不代表 Runtime 已接收"
+	}),
+	"events.local": Object.freeze({
+		grade: "local-only",
+		source: "client",
+		reason: "仅客户端事件路由，不代表 Runtime 支持重放"
+	}),
+	"usage.local": Object.freeze({
+		grade: "local-only",
+		source: "client",
+		reason: "仅本地用量适配与账本"
+	})
+});
+var ControlError = class extends Error {
+	constructor(code, message, details = {}) {
+		super(message);
+		this.name = "ControlError";
+		this.code = code;
+		this.details = details;
+	}
+	toJSON() {
+		return {
+			code: this.code,
+			message: this.message,
+			details: cloneJson(this.details)
+		};
+	}
+};
+function isPlainRecord(value) {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+	const prototype = Object.getPrototypeOf(value);
+	return prototype === Object.prototype || prototype === null;
+}
+function cloneJson(value) {
+	if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+	if (typeof value === "number" && Number.isFinite(value)) return value;
+	if (Array.isArray(value)) return value.map(cloneJson);
+	if (isPlainRecord(value)) {
+		const out = {};
+		for (const key of Object.keys(value)) out[key] = cloneJson(value[key]);
+		return out;
+	}
+	throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "控制数据必须是可 JSON 序列化的值");
+}
+function stableStringify(value) {
+	if (value === null || typeof value !== "object") return JSON.stringify(value);
+	if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+	return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+}
+Object.freeze({
+	"session.cancel": "session/turn.cancel",
+	"session.steer": "session/turn.steer",
+	"session.queue.enqueue": "session/queue.enqueue",
+	"session.queue.cancel": "session/queue.cancel",
+	"session.queue.remove": "session/queue.cancel",
+	"session.queue.list": "session/queue.list",
+	"session.queue.position": "session/queue.enqueue",
+	"session.draft.save": "session/draft.put"
+});
+// ../workbench-core/src/drafts.js
+/** Pure per-session draft state. Local pending is never a Runtime queue claim. */
+const DRAFT_SCHEMA_VERSION = 1;
+function assertSessionId(sessionId) {
+	if (typeof sessionId !== "string" || sessionId.length === 0 || sessionId.length > 512) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "sessionId 必须是非空字符串");
+}
+function assertRevision(revision) {
+	if (!Number.isSafeInteger(revision) || revision < 0) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "draft revision 必须是非负安全整数");
+}
+function assertTimestamp(value, name = "updatedAt") {
+	if (typeof value !== "string" || value.length === 0) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, `${name} 必须是非空时间字符串`);
+}
+function assertAttachments(value) {
+	if (!Array.isArray(value)) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "attachments 必须是数组");
+	const ids = /* @__PURE__ */ new Set();
+	for (const attachment of value) {
+		if (!isPlainRecord(attachment) || typeof attachment.id !== "string" || !attachment.id || ids.has(attachment.id)) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "每个附件必须具有唯一 id");
+		ids.add(attachment.id);
+	}
+}
+function createDraftState() {
+	return {
+		schemaVersion: DRAFT_SCHEMA_VERSION,
+		sessions: {}
+	};
+}
+function getDraft(state, sessionId) {
+	assertSessionId(sessionId);
+	if (!isPlainRecord(state?.sessions)) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "草稿状态缺少 sessions");
+	return state.sessions[sessionId] ?? null;
+}
+function ensureDraft(state, sessionId) {
+	assertSessionId(sessionId);
+	if (!isPlainRecord(state?.sessions)) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "草稿状态缺少 sessions");
+	if (!state.sessions[sessionId]) state.sessions[sessionId] = {
+		sessionId,
+		draftId: `draft:${sessionId}`,
+		revision: 0,
+		body: "",
+		attachments: [],
+		submission: null,
+		updatedAt: null
+	};
+	return state.sessions[sessionId];
+}
+function copyState(state) {
+	return cloneJson(state);
+}
+function assertExpected(draft, expectedRevision) {
+	assertRevision(expectedRevision);
+	if (draft.revision !== expectedRevision) throw new ControlError(ControlErrorCode.CONFLICT, "草稿 revision 已变化，拒绝覆盖", {
+		expectedRevision,
+		actualRevision: draft.revision
+	});
+}
+function updateDraft(state, sessionId, expectedRevision, patch, updatedAt) {
+	const next = copyState(state);
+	const draft = ensureDraft(next, sessionId);
+	assertExpected(draft, expectedRevision);
+	if (!isPlainRecord(patch)) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "patch 必须是对象");
+	if ("body" in patch) {
+		if (typeof patch.body !== "string" || patch.body.length > 1e6) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "body 必须是不超过 1,000,000 字符的字符串");
+		draft.body = patch.body;
+	}
+	if ("attachments" in patch) {
+		assertAttachments(patch.attachments);
+		draft.attachments = cloneJson(patch.attachments);
+	}
+	assertTimestamp(updatedAt);
+	draft.revision += 1;
+	draft.updatedAt = updatedAt;
+	return next;
+}
+function beginDraftSubmission(state, sessionId, expectedRevision, submissionId, updatedAt) {
+	const next = copyState(state);
+	const draft = ensureDraft(next, sessionId);
+	assertExpected(draft, expectedRevision);
+	if (typeof submissionId !== "string" || !submissionId || submissionId.length > 512) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "submissionId 必须是非空字符串");
+	assertTimestamp(updatedAt);
+	if (draft.submission && ["sending", "local-queued"].includes(draft.submission.state)) {
+		if (draft.submission.submissionId === submissionId) return state;
+		throw new ControlError(ControlErrorCode.CONFLICT, "该会话已有未结算的本地提交");
+	}
+	draft.submission = {
+		submissionId,
+		state: "sending",
+		origin: "local-unsubmitted",
+		runtimeAccepted: false,
+		runtimeQueued: false,
+		draftRevision: draft.revision,
+		snapshot: {
+			body: draft.body,
+			attachments: cloneJson(draft.attachments)
+		},
+		error: null
+	};
+	draft.revision += 1;
+	draft.updatedAt = updatedAt;
+	return next;
+}
+function settleDraft(state, sessionId, submissionId, targetState, updatedAt, error = null) {
+	const next = copyState(state);
+	const draft = ensureDraft(next, sessionId);
+	if (!draft.submission || draft.submission.submissionId !== submissionId) throw new ControlError(ControlErrorCode.NOT_FOUND, "未找到对应的本地提交");
+	assertTimestamp(updatedAt);
+	draft.submission.state = targetState;
+	draft.submission.runtimeAccepted = targetState === "accepted";
+	draft.submission.runtimeQueued = false;
+	draft.submission.error = error == null ? null : cloneJson(error);
+	draft.revision += 1;
+	draft.updatedAt = updatedAt;
+	return next;
+}
+function queueDraftLocally(state, sessionId, submissionId, updatedAt) {
+	return settleDraft(state, sessionId, submissionId, "local-queued", updatedAt);
+}
+function acceptDraftSubmission(state, sessionId, submissionId, updatedAt) {
+	return settleDraft(state, sessionId, submissionId, "accepted", updatedAt);
+}
+function failDraftSubmission(state, sessionId, submissionId, error, updatedAt) {
+	return settleDraft(state, sessionId, submissionId, "failed", updatedAt, error);
+}
+function cancelDraftSubmission(state, sessionId, submissionId, updatedAt) {
+	const next = copyState(state);
+	const draft = ensureDraft(next, sessionId);
+	if (!draft.submission || draft.submission.submissionId !== submissionId) throw new ControlError(ControlErrorCode.NOT_FOUND, "未找到对应的本地提交");
+	assertTimestamp(updatedAt);
+	draft.submission = null;
+	draft.revision += 1;
+	draft.updatedAt = updatedAt;
+	return next;
+}
+const USAGE_NUMERIC_FIELDS = Object.freeze([
+	"uncachedInputTokens",
+	"inputTokens",
+	"outputTokens",
+	"cacheReadTokens",
+	"cacheWriteTokens",
+	"reasoningTokens",
+	"contextTokens",
+	"maxTokens"
+]);
+/**
+* Non-cryptographic deterministic fingerprint for deduplication/integrity
+* checks. It is not a credential hash or a security boundary.
+*/
+function rawUsageHash(value) {
+	const canonical = stableStringify(value);
+	if (typeof canonical !== "string") throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "rawUsageHash 只能处理可 JSON 序列化的值");
+	let first = 2166136261;
+	let second = 2654435769;
+	for (let index = 0; index < canonical.length; index += 1) {
+		const code = canonical.charCodeAt(index);
+		first = Math.imul(first ^ code, 16777619) >>> 0;
+		second = Math.imul(second ^ code + index, 2246822507) >>> 0;
+	}
+	return `${first.toString(16).padStart(8, "0")}${second.toString(16).padStart(8, "0")}`;
+}
+function validAttribution(value) {
+	return isPlainRecord(value) && typeof value.sessionId === "string" && value.sessionId.length > 0;
+}
+function normalizeUsage(raw) {
+	const normalized = {};
+	let knownFields = 0;
+	for (const field of USAGE_NUMERIC_FIELDS) {
+		if (!(field in raw)) continue;
+		const value = raw[field];
+		if (!Number.isSafeInteger(value) || value < 0) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, `usage.${field} 必须是非负安全整数`);
+		normalized[field] = value;
+		knownFields += 1;
+	}
+	if (knownFields === 0) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "usage 没有可识别的 token 字段");
+	return normalized;
+}
+function adaptUsage(raw, attribution, options = {}) {
+	if (!isPlainRecord(raw)) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "raw usage 必须是对象");
+	if (!validAttribution(attribution)) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "usage attribution 缺少 sessionId");
+	if (!isPlainRecord(options)) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "usage options 必须是对象");
+	const normalized = normalizeUsage(raw);
+	const hash = rawUsageHash(raw);
+	const record = {
+		schemaVersion: 1,
+		usageId: `usage:${rawUsageHash({
+			sessionId: attribution.sessionId,
+			turnId: attribution.turnId ?? null,
+			messageId: attribution.messageId ?? null,
+			eventType: attribution.eventType ?? null,
+			eventId: attribution.eventId ?? null,
+			sequence: attribution.sequence ?? null
+		})}:${hash}`,
+		rawUsageHash: hash,
+		attribution: cloneJson(attribution),
+		observedAt: options.observedAt ?? attribution.observedAt ?? null,
+		normalized,
+		raw: cloneJson(raw),
+		correctionOf: options.correctionOf ?? null
+	};
+	if (record.correctionOf !== null && (typeof record.correctionOf !== "string" || !record.correctionOf)) throw new ControlError(ControlErrorCode.INVALID_ARGUMENT, "correctionOf 必须是非空 usageId");
+	return record;
+}
+/** Extract only real usage positions; missing turn/end usage stays null. */
+function adaptUsageFromEvent(event) {
+	if (!isPlainRecord(event) || typeof event.type !== "string") return null;
+	let raw = null;
+	let source = null;
+	if (event.type === "assistant/message" && isPlainRecord(event.data?.usage)) {
+		raw = event.data.usage;
+		source = "assistant/message.data.usage";
+	} else if (event.type === "turn/end") {
+		if (isPlainRecord(event.data?.usage)) {
+			raw = event.data.usage;
+			source = "turn/end.data.usage";
+		} else if (isPlainRecord(event.data?.result?.usage)) {
+			raw = event.data.result.usage;
+			source = "turn/end.data.result.usage";
+		}
+	}
+	if (!raw) return null;
+	return adaptUsage(raw, {
+		sessionId: event.sessionId,
+		turnId: event.data?.turn ?? event.data?.turnId ?? null,
+		messageId: event.data?.message?.id ?? event.data?.messageId ?? null,
+		eventType: event.type,
+		eventId: event.eventId ?? null,
+		sequence: event.sequence ?? null,
+		source,
+		observedAt: event.occurredAt ?? null
+	}, { observedAt: event.occurredAt ?? null });
+}
+function validateUsageRecord(record) {
+	if (!isPlainRecord(record) || record.schemaVersion !== 1) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "usage schemaVersion 不受支持");
+	if (typeof record.usageId !== "string" || !record.usageId) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "usageId 缺失");
+	if (!isPlainRecord(record.raw) || rawUsageHash(record.raw) !== record.rawUsageHash) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "rawUsageHash 与原始用量不一致");
+	if (!validAttribution(record.attribution)) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "usage attribution 无效");
+	if (!isPlainRecord(record.normalized)) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "normalized usage 缺失");
+	normalizeUsage(record.normalized);
+	for (const field of USAGE_NUMERIC_FIELDS) if (Object.hasOwn(record.raw, field) !== Object.hasOwn(record.normalized, field) || record.raw[field] !== record.normalized[field]) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, `normalized usage 与 raw usage 的 ${field} 不一致`);
+	if (record.correctionOf !== null && (typeof record.correctionOf !== "string" || !record.correctionOf)) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "correctionOf 无效");
+	return true;
+}
+// ../workbench-core/src/ledger.js
+/** Pure idempotent UsageLedger with visible corruption and correction replay. */
+const LEDGER_SCHEMA_VERSION = 1;
+function hasCorrectionCycle(state, record) {
+	const visited = /* @__PURE__ */ new Set([record.usageId]);
+	let current = record;
+	while (current?.correctionOf) {
+		const targetId = current.correctionOf;
+		if (visited.has(targetId)) return true;
+		visited.add(targetId);
+		current = state.records[targetId] ?? state.pendingCorrections[targetId];
+	}
+	return false;
+}
+function activeUsageRecords(state) {
+	return Object.values(state.records).filter((record) => record.active).map(cloneJson);
+}
+function serializeUsageLedger(state) {
+	if (!isPlainRecord(state) || state.schemaVersion !== LEDGER_SCHEMA_VERSION) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "UsageLedger 格式或版本不受支持");
+	return JSON.stringify(state);
+}
+function restoreUsageLedger(serialized) {
+	if (typeof serialized !== "string") throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "UsageLedger 快照必须是 JSON 字符串");
+	let state;
+	try {
+		state = JSON.parse(serialized);
+	} catch {
+		throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "UsageLedger 快照不是合法 JSON");
+	}
+	if (!isPlainRecord(state) || state.schemaVersion !== LEDGER_SCHEMA_VERSION || !Number.isSafeInteger(state.revision) || state.revision < 0 || !isPlainRecord(state.records) || !isPlainRecord(state.pendingCorrections) || !Array.isArray(state.corruptions)) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "UsageLedger 快照结构无效");
+	for (const record of [...Object.values(state.records), ...Object.values(state.pendingCorrections)]) validateUsageRecord(record);
+	for (const record of Object.values(state.records)) if (typeof record.active !== "boolean" || record.supersededBy !== null && typeof record.supersededBy !== "string" || record.supersedes !== null && typeof record.supersedes !== "string" || record.correctionOf && !state.records[record.correctionOf]) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "UsageLedger 修正链或有效状态无效");
+	for (const record of Object.values(state.pendingCorrections)) if (!record.correctionOf || state.records[record.correctionOf] || hasCorrectionCycle(state, record)) throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "UsageLedger 待应用修正无效");
+	for (const corruption of state.corruptions) if (!isPlainRecord(corruption) || typeof corruption.corruptionId !== "string" || typeof corruption.reason !== "string" || typeof corruption.message !== "string") throw new ControlError(ControlErrorCode.CORRUPT_RECORD, "UsageLedger 损坏报告无效");
+	return state;
+}
+const USAGE_GRANULARITIES = Object.freeze([
+	"day",
+	"week",
+	"month",
+	"year"
+]);
+const FLOW_FIELDS = Object.freeze([
+	"uncachedInputTokens",
+	"inputTokens",
+	"outputTokens",
+	"cacheReadTokens",
+	"cacheWriteTokens",
+	"reasoningTokens"
+]);
+const formatterCache = /* @__PURE__ */ new Map();
+function invalid$5(message) {
+	return new ControlError(ControlErrorCode.INVALID_ARGUMENT, message);
+}
+function pad(value, length = 2) {
+	return String(value).padStart(length, "0");
+}
+function assertOptionalString(value, name) {
+	if (value != null && (typeof value !== "string" || value.length === 0)) throw invalid$5(`${name} 必须是非空字符串`);
+	return value ?? null;
+}
+function parseInstant(value, name) {
+	if (typeof value !== "string" || value.length === 0) throw invalid$5(`${name} 必须是非空时间字符串`);
+	const milliseconds = Date.parse(value);
+	if (!Number.isFinite(milliseconds)) throw invalid$5(`${name} 不是合法时间`);
+	return {
+		value,
+		milliseconds
+	};
+}
+function normalizeOptions(options) {
+	if (!isPlainRecord(options)) throw invalid$5("usage read-model options 必须是对象");
+	const granularity = options.granularity ?? "day";
+	if (!USAGE_GRANULARITIES.includes(granularity)) throw invalid$5(`granularity 必须是 ${USAGE_GRANULARITIES.join("/")}`);
+	const timeZone = options.timeZone ?? "UTC";
+	try {
+		formatter(timeZone);
+	} catch {
+		throw invalid$5(`timeZone 不受支持：${timeZone}`);
+	}
+	const weekStartsOn = options.weekStartsOn ?? 1;
+	if (weekStartsOn !== 0 && weekStartsOn !== 1) throw invalid$5("weekStartsOn 必须是 0 或 1");
+	const from = options.from == null ? null : parseInstant(options.from, "from");
+	const to = options.to == null ? null : parseInstant(options.to, "to");
+	const asOf = options.asOf == null ? null : parseInstant(options.asOf, "asOf");
+	if (from && to && from.milliseconds > to.milliseconds) throw invalid$5("from 不能晚于 to");
+	const sessionId = assertOptionalString(options.sessionId, "sessionId");
+	const workspaceId = assertOptionalString(options.workspaceId, "workspaceId");
+	const turnId = assertOptionalString(options.turnId, "turnId");
+	let currentTurn = null;
+	if (options.currentTurn != null) {
+		if (!isPlainRecord(options.currentTurn)) throw invalid$5("currentTurn 必须是对象");
+		currentTurn = {
+			sessionId: assertOptionalString(options.currentTurn.sessionId, "currentTurn.sessionId"),
+			turnId: assertOptionalString(options.currentTurn.turnId, "currentTurn.turnId")
+		};
+		if (!currentTurn.sessionId || !currentTurn.turnId) throw invalid$5("currentTurn 需要 sessionId 和 turnId");
+	}
+	return {
+		granularity,
+		timeZone,
+		weekStartsOn,
+		from,
+		to,
+		asOf,
+		sessionId,
+		workspaceId,
+		turnId,
+		currentTurn
+	};
+}
+function formatter(timeZone) {
+	let value = formatterCache.get(timeZone);
+	if (!value) {
+		value = new Intl.DateTimeFormat("en-US", {
+			timeZone,
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+			hourCycle: "h23"
+		});
+		formatterCache.set(timeZone, value);
+	}
+	return value;
+}
+function localDate(milliseconds, timeZone) {
+	const parts = formatter(timeZone).formatToParts(new Date(milliseconds));
+	const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+	const year = Number(values.year);
+	const month = Number(values.month);
+	const day = Number(values.day);
+	if (![
+		year,
+		month,
+		day
+	].every(Number.isSafeInteger)) throw invalid$5("无法解析本地日期");
+	return {
+		year,
+		month,
+		day
+	};
+}
+function formatLocalDate({ year, month, day }) {
+	return `${pad(year, 4)}-${pad(month)}-${pad(day)}`;
+}
+/** Return a stable local-calendar bucket key for an instant. */
+function usageBucketKey(instant, options = {}) {
+	if (!isPlainRecord(options)) throw invalid$5("usage bucket options 必须是对象");
+	const normalized = normalizeOptions({
+		granularity: options.granularity,
+		timeZone: options.timeZone,
+		weekStartsOn: options.weekStartsOn
+	});
+	const date = localDate(parseInstant(instant, "instant").milliseconds, normalized.timeZone);
+	if (normalized.granularity === "day") return formatLocalDate(date);
+	if (normalized.granularity === "month") return `${pad(date.year, 4)}-${pad(date.month)}`;
+	if (normalized.granularity === "year") return pad(date.year, 4);
+	const delta = (new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay() - normalized.weekStartsOn + 7) % 7;
+	const start = new Date(Date.UTC(date.year, date.month - 1, date.day - delta));
+	return formatLocalDate({
+		year: start.getUTCFullYear(),
+		month: start.getUTCMonth() + 1,
+		day: start.getUTCDate()
+	});
+}
+function timestampOf(record) {
+	const value = record.observedAt ?? record.attribution?.observedAt ?? null;
+	if (typeof value !== "string" || value.length === 0) return null;
+	const milliseconds = Date.parse(value);
+	return Number.isFinite(milliseconds) ? {
+		value,
+		milliseconds
+	} : null;
+}
+function isPossibleDuplicate(record) {
+	return record.possibleDuplicate === true || record.attribution?.possibleDuplicate === true || typeof record.possibleDuplicateOf === "string" && record.possibleDuplicateOf.length > 0 || typeof record.attribution?.possibleDuplicateOf === "string" && record.attribution.possibleDuplicateOf.length > 0;
+}
+function isUnattributed(record) {
+	return record.attribution?.attribution === "unattributed" || record.attribution?.sessionId === "unattributed";
+}
+function sourceOf(record) {
+	return record.attribution?.source ?? record.source ?? "unknown";
+}
+function statusOf(record) {
+	return record.status ?? record.attribution?.status ?? "unknown";
+}
+function increment(object, key) {
+	object[key] = (object[key] ?? 0) + 1;
+}
+function sortedCounts(counts) {
+	return Object.fromEntries(Object.entries(counts).sort(([left], [right]) => left.localeCompare(right)));
+}
+function addSafe(total, value) {
+	const next = total + value;
+	if (!Number.isSafeInteger(next)) throw new ControlError(ControlErrorCode.BUFFER_OVERFLOW, "用量汇总超过安全整数范围");
+	return next;
+}
+function emptyTotals() {
+	return {
+		uncachedInputTokens: null,
+		inputTokens: null,
+		outputTokens: null,
+		cachedInputTokens: null,
+		cacheWriteTokens: null,
+		reasoningTokens: null,
+		cacheHitRate: null,
+		cacheHitRateBasis: null
+	};
+}
+function hasKnownFlow(record) {
+	return FLOW_FIELDS.some((field) => Object.hasOwn(record.normalized, field));
+}
+function cacheContribution(record) {
+	const includesCache = record.raw?.inputTokensIncludesCache;
+	if (typeof includesCache !== "boolean") return null;
+	const cached = record.normalized.cacheReadTokens;
+	const input = record.normalized.inputTokens;
+	if (!Number.isSafeInteger(cached) || !Number.isSafeInteger(input)) return null;
+	if (includesCache) {
+		if (input <= 0 || cached > input) return null;
+		return {
+			numerator: cached,
+			denominator: input,
+			basis: "cached/input"
+		};
+	}
+	const denominator = input + cached;
+	if (!Number.isSafeInteger(denominator) || denominator <= 0) return null;
+	return {
+		numerator: cached,
+		denominator,
+		basis: "cached/(input+cached)"
+	};
+}
+function summarize(records) {
+	const totals = emptyTotals();
+	const fieldCounts = Object.fromEntries(FLOW_FIELDS.map((field) => [field, 0]));
+	const fieldSums = Object.fromEntries(FLOW_FIELDS.map((field) => [field, 0]));
+	const cache = {
+		numerator: 0,
+		denominator: 0,
+		eligible: 0,
+		bases: /* @__PURE__ */ new Set()
+	};
+	let knownEvents = 0;
+	let unknownEvents = 0;
+	const requestIds = /* @__PURE__ */ new Set();
+	const statuses = {};
+	for (const record of records) {
+		if (hasKnownFlow(record)) knownEvents += 1;
+		else unknownEvents += 1;
+		const requestId = record.attribution?.requestId;
+		if (typeof requestId === "string" && requestId) requestIds.add(requestId);
+		increment(statuses, statusOf(record));
+		for (const field of FLOW_FIELDS) {
+			if (!Object.hasOwn(record.normalized, field)) continue;
+			fieldCounts[field] += 1;
+			fieldSums[field] = addSafe(fieldSums[field], record.normalized[field]);
+		}
+		const contribution = cacheContribution(record);
+		if (contribution) {
+			cache.numerator = addSafe(cache.numerator, contribution.numerator);
+			cache.denominator = addSafe(cache.denominator, contribution.denominator);
+			cache.eligible += 1;
+			cache.bases.add(contribution.basis);
+		}
+	}
+	for (const field of FLOW_FIELDS) if (fieldCounts[field] > 0) totals[field] = fieldSums[field];
+	totals.cachedInputTokens = totals.cacheReadTokens;
+	if (cache.eligible > 0 && cache.denominator > 0) {
+		totals.cacheHitRate = cache.numerator / cache.denominator;
+		totals.cacheHitRateBasis = cache.bases.size === 1 ? [...cache.bases][0] : "mixed";
+	}
+	return {
+		totals,
+		recordCount: records.length,
+		knownEvents,
+		unknownEvents,
+		requestCount: requestIds.size,
+		statuses: sortedCounts(statuses)
+	};
+}
+function latestContext(records) {
+	const candidates = records.filter((record) => Number.isSafeInteger(record.normalized.contextTokens) && Number.isSafeInteger(record.normalized.maxTokens)).map((record) => ({
+		record,
+		timestamp: timestampOf(record)
+	})).filter((item) => item.timestamp).sort((left, right) => right.timestamp.milliseconds - left.timestamp.milliseconds || left.record.usageId.localeCompare(right.record.usageId));
+	if (candidates.length === 0) return null;
+	const { record, timestamp } = candidates[0];
+	const usedTokens = record.normalized.contextTokens;
+	const windowTokens = record.normalized.maxTokens;
+	return {
+		usedTokens,
+		windowTokens,
+		ratio: windowTokens > 0 ? usedTokens / windowTokens : null,
+		source: sourceOf(record),
+		observedAt: timestamp.value
+	};
+}
+function compareRecords(left, right) {
+	return (timestampOf(left)?.milliseconds ?? -1) - (timestampOf(right)?.milliseconds ?? -1) || left.usageId.localeCompare(right.usageId);
+}
+function normalizeRecords(input) {
+	if (Array.isArray(input)) {
+		const records = input.map((record) => {
+			validateUsageRecord(record);
+			return cloneJson(record);
+		});
+		return {
+			records,
+			revision: null,
+			activeRecords: records.length
+		};
+	}
+	if (!isPlainRecord(input) || input.schemaVersion !== 1) throw invalid$5("usage read-model 输入必须是 UsageLedger 或 usage records 数组");
+	const ledger = restoreUsageLedger(serializeUsageLedger(input));
+	const records = activeUsageRecords(ledger);
+	for (const record of records) validateUsageRecord(record);
+	return {
+		records,
+		revision: ledger.revision,
+		activeRecords: records.length
+	};
+}
+/** Build the shared HomePage/ConversationHeader usage read model. */
+function createUsageReadModel(input, options = {}) {
+	const normalizedOptions = normalizeOptions(options);
+	const { records, revision, activeRecords } = normalizeRecords(input);
+	const sorted = [...records].sort(compareRecords);
+	const coverage = {
+		from: normalizedOptions.from?.value ?? null,
+		to: normalizedOptions.to?.value ?? null,
+		knownEvents: 0,
+		unknownEvents: 0,
+		unattributedEvents: 0,
+		possibleDuplicateEvents: 0,
+		unknownTimeEvents: 0,
+		futureEvents: 0,
+		outOfRangeEvents: 0,
+		excludedByScopeEvents: 0,
+		sources: {},
+		statuses: {}
+	};
+	const included = [];
+	for (const record of sorted) {
+		if (normalizedOptions.sessionId && record.attribution?.sessionId !== normalizedOptions.sessionId) {
+			coverage.excludedByScopeEvents += 1;
+			continue;
+		}
+		if (normalizedOptions.workspaceId && record.attribution?.workspaceId !== normalizedOptions.workspaceId) {
+			coverage.excludedByScopeEvents += 1;
+			continue;
+		}
+		if (normalizedOptions.turnId && record.attribution?.turnId !== normalizedOptions.turnId) {
+			coverage.excludedByScopeEvents += 1;
+			continue;
+		}
+		increment(coverage.sources, sourceOf(record));
+		increment(coverage.statuses, statusOf(record));
+		if (isPossibleDuplicate(record)) {
+			coverage.possibleDuplicateEvents += 1;
+			continue;
+		}
+		const timestamp = timestampOf(record);
+		if (!timestamp) {
+			coverage.unknownTimeEvents += 1;
+			if (normalizedOptions.from || normalizedOptions.to || normalizedOptions.asOf) continue;
+			included.push({
+				record,
+				timestamp: null
+			});
+			continue;
+		}
+		if (normalizedOptions.asOf && timestamp.milliseconds > normalizedOptions.asOf.milliseconds) {
+			coverage.futureEvents += 1;
+			continue;
+		}
+		if (normalizedOptions.from && timestamp.milliseconds < normalizedOptions.from.milliseconds) {
+			coverage.outOfRangeEvents += 1;
+			continue;
+		}
+		if (normalizedOptions.to && timestamp.milliseconds > normalizedOptions.to.milliseconds) {
+			coverage.outOfRangeEvents += 1;
+			continue;
+		}
+		included.push({
+			record,
+			timestamp
+		});
+	}
+	const metricRecords = included.map((item) => item.record);
+	const summary = summarize(metricRecords);
+	coverage.knownEvents = summary.knownEvents;
+	coverage.unknownEvents = summary.unknownEvents;
+	coverage.unattributedEvents = metricRecords.filter(isUnattributed).length;
+	coverage.sources = sortedCounts(coverage.sources);
+	coverage.statuses = sortedCounts(coverage.statuses);
+	const timestamped = included.filter((item) => item.timestamp);
+	if (!coverage.from && timestamped.length > 0) coverage.from = timestamped[0].timestamp.value;
+	if (!coverage.to && timestamped.length > 0) coverage.to = timestamped.at(-1).timestamp.value;
+	const bucketMap = /* @__PURE__ */ new Map();
+	for (const { record, timestamp } of timestamped) {
+		const key = usageBucketKey(timestamp.value, normalizedOptions);
+		if (!bucketMap.has(key)) bucketMap.set(key, []);
+		bucketMap.get(key).push(record);
+	}
+	const buckets = [...bucketMap.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([key, bucketRecords]) => {
+		const bucketSummary = summarize(bucketRecords);
+		const times = bucketRecords.map(timestampOf).filter(Boolean).sort((left, right) => left.milliseconds - right.milliseconds);
+		return {
+			key,
+			granularity: normalizedOptions.granularity,
+			...bucketSummary,
+			sessionIds: [...new Set(bucketRecords.map((record) => record.attribution?.sessionId).filter(Boolean))].sort(),
+			firstObservedAt: times[0]?.value ?? null,
+			lastObservedAt: times.at(-1)?.value ?? null
+		};
+	});
+	let currentTurn = null;
+	if (normalizedOptions.currentTurn) {
+		const turnRecords = metricRecords.filter((record) => record.attribution?.sessionId === normalizedOptions.currentTurn.sessionId && record.attribution?.turnId === normalizedOptions.currentTurn.turnId);
+		if (turnRecords.length > 0) currentTurn = {
+			sessionId: normalizedOptions.currentTurn.sessionId,
+			turnId: normalizedOptions.currentTurn.turnId,
+			...summarize(turnRecords),
+			context: latestContext(turnRecords)
+		};
+	}
+	return {
+		schemaVersion: 1,
+		revision,
+		activeRecords,
+		granularity: normalizedOptions.granularity,
+		timeZone: normalizedOptions.timeZone,
+		weekStartsOn: normalizedOptions.weekStartsOn,
+		range: {
+			from: coverage.from,
+			to: coverage.to
+		},
+		totals: summary.totals,
+		recordCount: summary.recordCount,
+		knownEvents: summary.knownEvents,
+		unknownEvents: summary.unknownEvents,
+		requestCount: summary.requestCount,
+		statuses: summary.statuses,
+		cacheHitRateBasis: summary.totals.cacheHitRateBasis,
+		context: latestContext(metricRecords),
+		currentTurn,
+		buckets,
+		coverage,
+		lastUpdatedAt: timestamped.length > 0 ? timestamped.at(-1).timestamp.value : null
+	};
+}
+Object.freeze([
+	"none",
+	"workspace",
+	"application",
+	"window",
+	"topmost"
+]);
+Object.freeze(["conversation", "panel"]);
+Object.freeze(["internal", "native"]);
+function invalid$4(message, details = {}) {
+	return new ControlError(ControlErrorCode.INVALID_ARGUMENT, message, details);
+}
+function assertWorkbenchId(value, name = "id") {
+	if (typeof value !== "string" || value.length === 0 || value.length > 256 || /[\u0000-\u001f\u007f]/.test(value)) throw invalid$4(`${name} 必须是非空且不含控制字符的字符串`);
+	return value;
+}
+Object.freeze([
+	"move",
+	"split-before",
+	"split-after",
+	"tab",
+	"group"
+]);
+Object.freeze([
+	"files",
+	"changes",
+	"git",
+	"terminal",
+	"browser",
+	"computer",
+	"ssh",
+	"wsl",
+	"mcp",
+	"skills",
+	"agents",
+	"btw",
+	"voice",
+	"evaluation",
+	"time-travel"
+]);
+Object.freeze([
+	"opening",
+	"ready",
+	"busy",
+	"disconnected",
+	"error",
+	"closed"
+]);
+Object.freeze(["active", "released"]);
+function invalid$3(message, details = {}) {
+	return new ControlError(ControlErrorCode.INVALID_ARGUMENT, message, details);
+}
+function conversationKey(owner) {
+	if (!isPlainRecord(owner)) throw invalid$3("conversation owner 必须是对象");
+	if (owner.kind !== "draft" && owner.kind !== "session") throw invalid$3("owner.kind 必须是 draft 或 session");
+	assertWorkbenchId(owner.id, "owner.id");
+	return `${owner.kind}:${owner.id}`;
+}
+// ../workbench-core/src/window-lifecycle.js
+/**
+* Shared window lifecycle reducer (XC-01).
+*
+* Internal floats and native BrowserWindows have different rendering and
+* persistence adapters, but close/minimize/maximize/restore/attachment changes
+* must have identical state semantics. This module only transforms data; it
+* never touches Electron, React, storage, or the DOM.
+*/
+const WINDOW_LIFECYCLE_OPS = Object.freeze([
+	"put",
+	"close",
+	"minimize",
+	"maximize",
+	"restore",
+	"setTopmost",
+	"attach",
+	"detach"
+]);
+/** @typedef {{ readonly id: string, readonly minimized?: boolean, readonly maximized?: boolean, readonly topmost?: boolean, readonly attachedTo?: string | null }} WindowLifecycleState */
+/**
+* @typedef {'put' | 'close' | 'minimize' | 'maximize' | 'restore' | 'setTopmost' | 'attach' | 'detach'} WindowLifecycleOpKind
+* @typedef {
+*   | { readonly kind: 'put'; readonly window: WindowLifecycleState }
+*   | { readonly kind: 'close'; readonly id: string }
+*   | { readonly kind: 'minimize'; readonly id: string; readonly x?: number; readonly y?: number }
+*   | { readonly kind: 'maximize'; readonly id: string }
+*   | { readonly kind: 'restore'; readonly id: string }
+*   | { readonly kind: 'setTopmost'; readonly id: string; readonly topmost: boolean }
+*   | { readonly kind: 'attach'; readonly id: string; readonly attachedTo: string }
+*   | { readonly kind: 'detach'; readonly id: string }
+* } WindowLifecycleOp
+*/
+function validId(value) {
+	return typeof value === "string" && value.length > 0 && value.length <= 128;
+}
+function invalid$2(message) {
+	const error = new Error(message);
+	error.code = "INVALID_WINDOW_OPERATION";
+	throw error;
+}
+function assertOp(op) {
+	if (!op || typeof op !== "object" || !WINDOW_LIFECYCLE_OPS.includes(op.kind)) invalid$2("Unknown window lifecycle operation");
+	if (op.kind !== "put" && !validId(op.id)) invalid$2("Invalid window id");
+}
+/**
+* Apply one lifecycle operation without mutating the input collection.
+* Unknown ids are a no-op so late OS events are safe; malformed operations
+* and duplicate ids fail closed. Closing a host also detaches its children.
+*
+* @template {WindowLifecycleState} T
+* @param {readonly T[]} windows
+* @param {WindowLifecycleOp} op
+* @returns {T[]}
+*/
+function reduceWindowLifecycle(windows, op) {
+	if (!Array.isArray(windows)) invalid$2("Window collection must be an array");
+	assertOp(op);
+	const ids = /* @__PURE__ */ new Set();
+	for (const window of windows) {
+		if (!window || !validId(window.id)) invalid$2("Invalid window state");
+		if (ids.has(window.id)) invalid$2(`Duplicate window id: ${window.id}`);
+		ids.add(window.id);
+	}
+	if (op.kind === "put") {
+		if (!op.window || !validId(op.window.id)) invalid$2("Invalid window state");
+		const index = windows.findIndex((window) => window.id === op.window.id);
+		if (index < 0) return [...windows, op.window];
+		return windows.map((window, itemIndex) => itemIndex === index ? op.window : window);
+	}
+	if (op.kind === "close") return windows.filter((window) => window.id !== op.id).map((window) => window.attachedTo === op.id ? {
+		...window,
+		attachedTo: null
+	} : window);
+	if (op.kind === "detach") return windows.map((window) => window.id === op.id ? {
+		...window,
+		attachedTo: null
+	} : window);
+	if (op.kind === "attach") {
+		if (!validId(op.attachedTo)) invalid$2("Invalid window host id");
+		if (op.id === op.attachedTo) invalid$2("A window cannot host itself");
+		return windows.map((window) => window.id === op.id ? {
+			...window,
+			attachedTo: op.attachedTo
+		} : window);
+	}
+	if (op.kind === "setTopmost" && typeof op.topmost !== "boolean") invalid$2("topmost must be boolean");
+	return windows.map((window) => {
+		if (window.id !== op.id) return window;
+		switch (op.kind) {
+			case "minimize": return {
+				...window,
+				minimized: true
+			};
+			case "maximize": return {
+				...window,
+				minimized: false,
+				maximized: true
+			};
+			case "restore": return {
+				...window,
+				minimized: false,
+				maximized: false
+			};
+			case "setTopmost": return {
+				...window,
+				topmost: op.topmost
+			};
+			default: return window;
+		}
+	});
+}
+const APPROVAL_STATUSES = Object.freeze([
+	"pending",
+	"submitted",
+	"cancelled"
+]);
+function invalid$1(message) {
+	return new ControlError(ControlErrorCode.INVALID_ARGUMENT, message);
+}
+/** Business identity deliberately excludes host/window: same-session views share it. */
+function validateConversationIdentity(owner) {
+	conversationKey(owner);
+	return {
+		kind: owner.kind,
+		id: owner.id
+	};
+}
+function ownerDraft(state, owner) {
+	const key = conversationKey(owner);
+	const draft = getDraft(state, key);
+	return draft ? {
+		ownerKey: key,
+		...cloneJson(draft)
+	} : null;
+}
+function getOwnerDraft(state, owner) {
+	if (!isPlainRecord(state?.sessions)) throw invalid$1("draft state 必须是 createDraftState 的结果");
+	return ownerDraft(state, owner);
+}
+function updateOwnerDraft(state, owner, expectedRevision, patch, updatedAt) {
+	return updateDraft(state, conversationKey(owner), expectedRevision, patch, updatedAt);
+}
+function beginOwnerDraftSubmission(state, owner, expectedRevision, submissionId, updatedAt) {
+	return beginDraftSubmission(state, conversationKey(owner), expectedRevision, submissionId, updatedAt);
+}
+function queueOwnerDraftLocally(state, owner, submissionId, updatedAt) {
+	return queueDraftLocally(state, conversationKey(owner), submissionId, updatedAt);
+}
+function acceptOwnerDraftSubmission(state, owner, submissionId, updatedAt) {
+	return acceptDraftSubmission(state, conversationKey(owner), submissionId, updatedAt);
+}
+function failOwnerDraftSubmission(state, owner, submissionId, error, updatedAt) {
+	return failDraftSubmission(state, conversationKey(owner), submissionId, error, updatedAt);
+}
+function cancelOwnerDraftSubmission(state, owner, submissionId, updatedAt) {
+	return cancelDraftSubmission(state, conversationKey(owner), submissionId, updatedAt);
+}
+/** Move an accepted draft to its session identity without overwriting an existing draft. */
+function bindDraftOwnerToSession(state, { draftId, sessionId, submissionId, updatedAt }) {
+	for (const value of [
+		draftId,
+		sessionId,
+		submissionId
+	]) if (typeof value !== "string" || !value) throw invalid$1("draft/session/submission 身份必须是非空字符串");
+	const source = {
+		kind: "draft",
+		id: draftId
+	};
+	const target = {
+		kind: "session",
+		id: sessionId
+	};
+	const current = getOwnerDraft(state, source);
+	if (!current) throw new ControlError(ControlErrorCode.NOT_FOUND, "draft owner 不存在");
+	if (current.submission?.submissionId !== submissionId || current.submission.state !== "accepted") throw new ControlError(ControlErrorCode.CONFLICT, "只有 Runtime 已接收的草稿才能绑定 session");
+	if (getOwnerDraft(state, target)) throw new ControlError(ControlErrorCode.CONFLICT, "session 已有草稿，拒绝覆盖");
+	const next = cloneJson(state);
+	const { ownerKey: _ownerKey, ...snapshot } = current;
+	next.sessions[conversationKey(target)] = {
+		...cloneJson(snapshot),
+		sessionId,
+		draftId: `draft:${conversationKey(target)}`,
+		updatedAt
+	};
+	delete next.sessions[conversationKey(source)];
+	return next;
+}
+function normalizeApprovals(input) {
+	if (input == null) return [];
+	if (!Array.isArray(input)) throw invalid$1("approvals 必须是数组");
+	const ids = /* @__PURE__ */ new Set();
+	return input.map((item) => {
+		if (!isPlainRecord(item) || typeof item.interactionId !== "string" || !item.interactionId || typeof item.sessionId !== "string" || !item.sessionId) throw invalid$1("approval 缺少 interactionId/sessionId");
+		if (ids.has(item.interactionId)) throw invalid$1("approval interactionId 必须唯一");
+		ids.add(item.interactionId);
+		const status = item.status ?? "pending";
+		if (!APPROVAL_STATUSES.includes(status)) throw invalid$1("approval status 无效");
+		if (!Number.isSafeInteger(item.leaseGeneration ?? 1) || (item.leaseGeneration ?? 1) < 1) throw invalid$1("approval leaseGeneration 无效");
+		return {
+			interactionId: item.interactionId,
+			sessionId: item.sessionId,
+			leaseGeneration: item.leaseGeneration ?? 1,
+			kind: typeof item.kind === "string" ? item.kind : "approval",
+			approvalType: typeof item.approvalType === "string" ? item.approvalType : "unknown",
+			detail: isPlainRecord(item.detail) ? cloneJson(item.detail) : {},
+			status,
+			...typeof item.title === "string" ? { title: item.title } : {}
+		};
+	});
+}
+/** Project only approvals owned by this session. Drafts never inherit session approvals. */
+function projectApprovalsForOwner(input, owner) {
+	const identity = validateConversationIdentity(owner);
+	return normalizeApprovals(input).filter((item) => identity.kind === "session" && item.sessionId === identity.id);
+}
+/** Session usage is scoped by sessionId. A draft has no attributable Runtime usage. */
+function projectUsageForOwner(input, owner, options = {}) {
+	const identity = validateConversationIdentity(owner);
+	if (identity.kind === "draft") return null;
+	return createUsageReadModel(input ?? [], {
+		...options,
+		sessionId: identity.id
+	});
+}
+function projectToolsForOwner(input, owner) {
+	const identity = validateConversationIdentity(owner);
+	const registry = input ?? {};
+	if (!isPlainRecord(registry.workspaces) || !isPlainRecord(registry.toolInstances)) throw invalid$1("registry 缺少 workspaces/toolInstances");
+	const key = conversationKey(identity);
+	const workspace = registry.workspaces[key] ?? null;
+	return {
+		instances: Object.values(registry.toolInstances).filter((instance) => isPlainRecord(instance?.owner) && conversationKey(instance.owner) === key).map(cloneJson),
+		layout: workspace?.toolLayout ? cloneJson(workspace.toolLayout) : null,
+		leases: Array.isArray(workspace?.leases) ? cloneJson(workspace.leases) : []
+	};
+}
+/** Compose a read-only owner projection from independent local/Host inputs. */
+function composeSessionView(input = {}) {
+	if (!isPlainRecord(input)) throw invalid$1("SessionView input 必须是对象");
+	const owner = validateConversationIdentity(input.owner);
+	return {
+		schemaVersion: 1,
+		owner,
+		draft: projectDraftForOwner(input.drafts ?? createDraftState(), owner),
+		approvals: projectApprovalsForOwner(input.approvals, owner),
+		usage: projectUsageForOwner(input.usage, owner, input.usageOptions ?? {}),
+		tools: projectToolsForOwner(input.registry ?? {
+			workspaces: {},
+			toolInstances: {}
+		}, owner)
+	};
+}
+function projectDraftForOwner(state, owner) {
+	return getOwnerDraft(state, owner);
+}
+const WORKBENCH_LIMIT_KEYS = Object.freeze([
+	"maxTabsPerWorkspace",
+	"maxToolInstancesPerSession",
+	"maxInstancesPerTool",
+	"maxTerminalInstances",
+	"maxBrowserTabs",
+	"isolationQueueLength"
+]);
+const DEFAULT_WORKBENCH_LIMITS = Object.freeze({
+	schemaVersion: 1,
+	maxTabsPerWorkspace: 24,
+	maxToolInstancesPerSession: 16,
+	maxInstancesPerTool: 8,
+	maxTerminalInstances: 8,
+	maxBrowserTabs: 8,
+	isolationQueueLength: 128
+});
+function invalid(message, details = {}) {
+	return new ControlError(ControlErrorCode.INVALID_ARGUMENT, message, details);
+}
+function limitError(message, details) {
+	return new ControlError(ControlErrorCode.LIMIT_EXCEEDED, message, details);
+}
+function assertLimit(value, name) {
+	if (!Number.isSafeInteger(value) || value < 1 || value > 4096) throw invalid(`${name} 必须是 1..4096 的整数`);
+	return value;
+}
+/**
+* Validate and freeze one complete limits snapshot. Accepting a previously
+* normalised object makes it safe to pass limits down through several layers.
+*/
+function createWorkbenchLimits(input = {}) {
+	if (!isPlainRecord(input)) throw invalid("workbench limits 必须是对象");
+	if (input.schemaVersion !== void 0 && input.schemaVersion !== 1) throw invalid("workbench limits schemaVersion 不受支持");
+	const unknown = Object.keys(input).filter((key) => key !== "schemaVersion" && !WORKBENCH_LIMIT_KEYS.includes(key));
+	if (unknown.length > 0) throw invalid(`未知 workbench limit: ${unknown.join(", ")}`);
+	const limits = { schemaVersion: 1 };
+	for (const key of WORKBENCH_LIMIT_KEYS) limits[key] = assertLimit(input[key] ?? DEFAULT_WORKBENCH_LIMITS[key], key);
+	return Object.freeze(limits);
+}
+function inspectTabCountCapacity(used, limits) {
+	const config = createWorkbenchLimits(limits);
+	if (!Number.isSafeInteger(used) || used < 0) throw invalid("tab 数量必须是非负安全整数");
+	return {
+		allowed: used < config.maxTabsPerWorkspace,
+		resource: "views",
+		used,
+		limit: config.maxTabsPerWorkspace
+	};
+}
+function tabLimitError(capacity) {
+	return limitError(`工作区打开的 view 已达上限（${capacity.limit}）；请先关闭一个标签`, {
+		resource: capacity.resource,
+		used: capacity.used,
+		limit: capacity.limit
+	});
+}
+/** Reject a new tab count before it enters the layout; existing tabs stay untouched. */
+function assertTabCountCapacity(used, limits) {
+	const capacity = inspectTabCountCapacity(used, limits);
+	if (capacity.allowed) return capacity;
+	throw tabLimitError(capacity);
+}
+Object.freeze([
+	"available",
+	"limited",
+	"configured",
+	"unavailable",
+	"unsupported",
+	"unknown"
+]);
 // src/session-derived/cache.ts
 const DEFAULT_CAPACITY = 8;
 var DerivedCache = class {
@@ -725,7 +1892,232 @@ const en$1 = {
 function createSessionTabViewLabels(locale = "zh") {
 	return locale === "en" ? en$1 : zh$1;
 }
+// src/ui-session-views/session-view-store.ts
+/** Shared owner-scoped business state. The store is created by the host, never by React. */
+const EMPTY_REGISTRY = {
+	workspaces: {},
+	toolInstances: {},
+	leases: {}
+};
+/** Stable request IDs also work in non-secure browser test contexts. */
+let requestSequence = 0;
+function nextOwnerSubmissionId() {
+	requestSequence += 1;
+	return `draft-submit-${globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${requestSequence}`}`;
+}
+var SessionViewStore = class {
+	drafts = {
+		schemaVersion: 1,
+		sessions: {}
+	};
+	approvals = [];
+	usage = [];
+	registry = EMPTY_REGISTRY;
+	current;
+	projections = /* @__PURE__ */ new Map();
+	listeners = /* @__PURE__ */ new Set();
+	constructor() {
+		this.current = this.makeState();
+	}
+	getSnapshot = () => this.current;
+	subscribe = (listener) => {
+		this.listeners.add(listener);
+		return () => {
+			this.listeners.delete(listener);
+		};
+	};
+	getProjection(owner) {
+		const key = `${owner.kind}:${owner.id}`;
+		const cached = this.projections.get(key);
+		if (cached) return cached;
+		const projection = composeSessionView({
+			owner,
+			drafts: this.drafts,
+			approvals: this.approvals,
+			usage: this.usage,
+			registry: this.registry
+		});
+		this.projections.set(key, projection);
+		return projection;
+	}
+	getDraft(owner) {
+		const key = `${owner.kind}:${owner.id}`;
+		return this.projections.get(key)?.draft ?? getOwnerDraft(this.drafts, owner);
+	}
+	dispatchDraft(command, now = (/* @__PURE__ */ new Date()).toISOString()) {
+		const before = this.current;
+		const existing = this.getDraft(command.owner);
+		let drafts = this.drafts;
+		let expectedRevision = command.type === "update" || command.type === "begin" ? command.expectedRevision : existing?.revision ?? 0;
+		switch (command.type) {
+			case "update":
+				drafts = updateOwnerDraft(drafts, command.owner, command.expectedRevision, command.patch, now);
+				break;
+			case "begin":
+				if (existing?.submission && ["sending", "local-queued"].includes(existing.submission.state)) return {
+					changed: false,
+					revision: existing.revision,
+					draft: existing
+				};
+				drafts = beginOwnerDraftSubmission(drafts, command.owner, command.expectedRevision, command.submissionId, now);
+				expectedRevision = getOwnerDraft(drafts, command.owner)?.revision ?? expectedRevision;
+				break;
+			case "queue":
+				if (existing?.submission?.submissionId !== command.submissionId) return {
+					changed: false,
+					revision: existing?.revision ?? 0,
+					draft: existing
+				};
+				drafts = queueOwnerDraftLocally(drafts, command.owner, command.submissionId, now);
+				break;
+			case "settle": {
+				const submission = existing?.submission;
+				if (!submission || submission.submissionId !== command.submissionId || !["sending", "local-queued"].includes(submission.state)) return {
+					changed: false,
+					revision: existing?.revision ?? 0,
+					draft: existing
+				};
+				drafts = command.outcome === "accepted" ? acceptOwnerDraftSubmission(drafts, command.owner, command.submissionId, now) : command.outcome === "failed" ? failOwnerDraftSubmission(drafts, command.owner, command.submissionId, command.error ?? { message: "send failed" }, now) : cancelOwnerDraftSubmission(drafts, command.owner, command.submissionId, now);
+				if (command.outcome === "accepted" && existing.revision === command.expectedRevision) {
+					const settled = getOwnerDraft(drafts, command.owner);
+					if (settled) drafts = updateOwnerDraft(drafts, command.owner, settled.revision, {
+						body: "",
+						attachments: []
+					}, now);
+				}
+				break;
+			}
+		}
+		const changed = drafts !== this.drafts;
+		if (changed) this.commit({
+			...before,
+			drafts
+		});
+		const draft = getOwnerDraft(drafts, command.owner);
+		return {
+			changed,
+			revision: draft?.revision ?? expectedRevision,
+			draft
+		};
+	}
+	bindAcceptedDraft(input, now = (/* @__PURE__ */ new Date()).toISOString()) {
+		const drafts = bindDraftOwnerToSession(this.drafts, {
+			...input,
+			updatedAt: now
+		});
+		if (drafts !== this.drafts) this.commit({
+			...this.current,
+			drafts
+		});
+	}
+	/** Replace Host-owned approvals atomically. This never decides an approval locally. */
+	replaceApprovals(approvals) {
+		composeSessionView({
+			owner: {
+				kind: "session",
+				id: "__approval_validation__"
+			},
+			approvals
+		});
+		if (approvals === this.approvals) return;
+		this.commit({
+			...this.current,
+			approvals: [...approvals]
+		});
+	}
+	/**
+	* Reconcile one session's pending cards from `interaction.list`. Other
+	* sessions are untouched: a context only ever recovers its own session, and
+	* merging them here must not erase approvals still pending elsewhere.
+	*/
+	replaceSessionApprovals(sessionId, approvals) {
+		if (typeof sessionId !== "string" || sessionId.length === 0) throw new Error("sessionId 不能为空");
+		if (approvals.some((item) => item.sessionId !== sessionId)) throw new Error("replaceSessionApprovals 只能包含同一会话的审批");
+		const next = [...this.approvals.filter((item) => item.sessionId !== sessionId), ...approvals];
+		composeSessionView({
+			owner: {
+				kind: "session",
+				id: sessionId
+			},
+			approvals: next
+		});
+		if (next.length === this.approvals.length && next.every((item, index) => item === this.approvals[index])) return;
+		this.commit({
+			...this.current,
+			approvals: next
+		});
+	}
+	applyInteraction(event) {
+		if (event.kind === "interaction.required") {
+			if (!this.approvals.some((item) => item.interactionId === event.interaction.interactionId)) this.replaceApprovals([...this.approvals, event.interaction]);
+			return;
+		}
+		this.replaceApprovals(this.approvals.map((item) => item.interactionId === event.interactionId && item.leaseGeneration === event.leaseGeneration ? {
+			...item,
+			status: event.outcome
+		} : item));
+	}
+	/** Usage records are Host facts. Exact replay IDs are ignored; corrections remain explicit. */
+	addUsageRecord(record) {
+		composeSessionView({
+			owner: {
+				kind: "session",
+				id: "__usage_validation__"
+			},
+			usage: [record]
+		});
+		const usageId = record.usageId;
+		if (typeof usageId === "string" && this.usage.some((item) => item.usageId === usageId)) return;
+		this.commit({
+			...this.current,
+			usage: [...this.usage, record]
+		});
+	}
+	replaceRegistry(registry) {
+		if (!registry || typeof registry !== "object" || !registry.workspaces || !registry.toolInstances) throw new Error("registry 缺少 workspaces/toolInstances");
+		if (registry === this.registry) return;
+		this.commit({
+			...this.current,
+			registry
+		});
+	}
+	dispose() {
+		this.listeners.clear();
+		this.projections.clear();
+	}
+	makeState() {
+		return {
+			revision: 0,
+			drafts: this.drafts,
+			approvals: this.approvals,
+			usage: this.usage,
+			registry: this.registry
+		};
+	}
+	commit(next) {
+		this.drafts = next.drafts;
+		this.approvals = next.approvals;
+		this.usage = next.usage;
+		this.registry = next.registry;
+		this.current = {
+			...next,
+			revision: this.current.revision + 1
+		};
+		this.projections.clear();
+		for (const listener of [...this.listeners]) listener();
+	}
+};
 // src/workbench/layout.ts
+const REGION_IDS = [
+	"sidebar",
+	"right",
+	"bottom"
+];
+const DEFAULT_REGION_IDS = {
+	sidebar: "region-sidebar",
+	right: "region-right",
+	bottom: "region-bottom"
+};
 /** 最小分栏比例，防止某一格被拖成 0 像素。 */
 const MIN_RATIO = .12;
 let counter = 0;
@@ -752,6 +2144,30 @@ function emptyLayout(paneId) {
 		root: emptyPane(paneId),
 		floats: [],
 		minimized: []
+	};
+}
+/**
+* 在内存中补上 X4.2 固定区域，不修改传入对象。默认 id 已被旧数据占用时顺延，
+* 避免迁移制造重复 node/tab id。已经有 regions 的布局原样返回。
+*/
+function ensureWorkbenchRegions(layout) {
+	if (layout.regions) return layout;
+	const used = workbenchIds(layout);
+	const paneFor = (region) => {
+		const base = DEFAULT_REGION_IDS[region];
+		let id = base;
+		let suffix = 2;
+		while (used.has(id)) id = `${base}-${suffix++}`;
+		used.add(id);
+		return emptyPane(id);
+	};
+	return {
+		...layout,
+		regions: {
+			sidebar: paneFor("sidebar"),
+			right: paneFor("right"),
+			bottom: paneFor("bottom")
+		}
 	};
 }
 function makeTab(id, ref, title) {
@@ -786,6 +2202,45 @@ function findParentSplit(root, childId) {
 function panes(root) {
 	if (isPane(root)) return [root];
 	return root.children.flatMap(panes);
+}
+/** 固定区域条目；空区域也保留，且不经过 compact。 */
+function regionEntries(layout) {
+	if (!layout.regions) return [];
+	return REGION_IDS.map((id) => [id, layout.regions[id]]);
+}
+function findTabHost(layout, ref) {
+	if (ref.kind === "pane") return findPane(layout.root, ref.id);
+	if (ref.kind === "float") return layout.floats.find((float) => float.id === ref.id);
+	return regionEntries(layout).find(([, pane]) => pane.id === ref.id)?.[1];
+}
+/** 所有 id（node/region pane/float/tab）的集合，用于迁移与 mint 防冲突。 */
+function workbenchIds(layout) {
+	const ids = /* @__PURE__ */ new Set();
+	const visit = (node) => {
+		ids.add(node.id);
+		if (isPane(node)) node.tabs.forEach((tab) => ids.add(tab.id));
+		else node.children.forEach(visit);
+	};
+	visit(layout.root);
+	regionEntries(layout).forEach(([, pane]) => {
+		ids.add(pane.id);
+		pane.tabs.forEach((tab) => ids.add(tab.id));
+	});
+	layout.floats.forEach((float) => {
+		ids.add(float.id);
+		float.tabs.forEach((tab) => ids.add(tab.id));
+	});
+	return ids;
+}
+/** 遍历所有 tab，含固定区域和浮窗。 */
+function allTabs(layout) {
+	const inTree = panes(layout.root).flatMap((p) => p.tabs);
+	const inRegions = regionEntries(layout).flatMap(([, pane]) => pane.tabs);
+	return [
+		...inTree,
+		...inRegions,
+		...layout.floats.flatMap((f) => f.tabs)
+	];
 }
 function mapPanes(node, fn) {
 	if (isPane(node)) return fn(node);
@@ -875,6 +2330,90 @@ function assertFloat(layout, id) {
 	if (!node) throw new OpError(`float not found: ${id}`);
 	return node;
 }
+function assertHost(layout, ref) {
+	const host = findTabHost(layout, ref);
+	if (!host) throw new OpError(`${ref.kind} host not found: ${ref.id}`);
+	return host;
+}
+function assertRegion(layout, region) {
+	const pane = layout.regions?.[region];
+	if (!pane) throw new OpError(`region not found: ${region}`);
+	return pane;
+}
+function sameHost(a, b) {
+	return a.kind === b.kind && a.id === b.id;
+}
+/** 与 withTabs 不同：activeTab 缺省时真正删除该字段，保证快照级精确撤销。 */
+function replaceHostTabs(host, tabs, activeTab) {
+	const { activeTab: _activeTab, ...rest } = host;
+	return activeTab === void 0 ? {
+		...rest,
+		tabs
+	} : {
+		...rest,
+		tabs,
+		activeTab
+	};
+}
+function mapHost(layout, ref, next) {
+	if (ref.kind === "pane") return {
+		...layout,
+		root: mapPanes(layout.root, (pane) => pane.id === ref.id ? next : pane)
+	};
+	if (ref.kind === "float") return {
+		...layout,
+		floats: layout.floats.map((float) => float.id === ref.id ? next : float)
+	};
+	const entry = regionEntries(layout).find(([, pane]) => pane.id === ref.id);
+	if (!entry || !layout.regions) throw new OpError(`region host not found: ${ref.id}`);
+	const [region] = entry;
+	return {
+		...layout,
+		regions: {
+			...layout.regions,
+			[region]: next
+		}
+	};
+}
+function withRegionsFor(layout, refs) {
+	const added = !layout.regions && refs.some((ref) => ref.kind === "region");
+	return {
+		layout: added ? ensureWorkbenchRegions(layout) : layout,
+		added
+	};
+}
+function snapshotHost(layout, ref) {
+	const host = assertHost(layout, ref);
+	return {
+		kind: "setHostTabs",
+		host: ref,
+		tabs: host.tabs,
+		...host.activeTab === void 0 ? {} : { activeTab: host.activeTab }
+	};
+}
+/** Internal floats adapt their side-car minimization records to XC-01. */
+function reduceFloatLifecycle(layout, op) {
+	const reduced = reduceWindowLifecycle(layout.floats.map((float) => ({
+		id: float.id,
+		minimized: layout.minimized.some((item) => item.floatId === float.id)
+	})), op);
+	const byId = new Map(reduced.map((state) => [state.id, state]));
+	const floats = layout.floats.filter((float) => byId.has(float.id));
+	let minimized = layout.minimized.filter((item) => byId.get(item.floatId)?.minimized === true);
+	if (op.kind === "minimize") {
+		if (typeof op.x !== "number" || typeof op.y !== "number" || !Number.isFinite(op.x) || !Number.isFinite(op.y)) throw new OpError("minimize requires finite capsule coordinates");
+		if (byId.get(op.id)?.minimized && !minimized.some((item) => item.floatId === op.id)) minimized = [...minimized, {
+			floatId: op.id,
+			x: op.x,
+			y: op.y
+		}];
+	}
+	return {
+		...layout,
+		floats,
+		minimized
+	};
+}
 function activeAfterRemoval(tabs, removed, fallback) {
 	const idx = tabs.findIndex((t) => t.id === removed);
 	const rest = tabs.filter((t) => t.id !== removed);
@@ -896,11 +2435,9 @@ function withTabs(pane, tabs, activeTab) {
 function withFloatTabs(float, tabs, activeTab) {
 	const active = activeTab ?? tabs[tabs.length - 1]?.id;
 	return active === void 0 ? {
-		kind: "float",
-		id: float.id,
-		rect: float.rect,
-		pin: float.pin,
-		tabs
+		...float,
+		tabs,
+		activeTab: void 0
 	} : {
 		...float,
 		tabs,
@@ -947,6 +2484,37 @@ function applyOp(layout, op) {
 					pane: op.pane,
 					tabId: op.tab.id
 				}
+			};
+		}
+		case "insertRegionTab": {
+			const prepared = withRegionsFor(layout, [{
+				kind: "region",
+				id: op.pane ?? op.region
+			}]);
+			const region = assertRegion(prepared.layout, op.region);
+			if (op.pane !== void 0 && op.pane !== region.id) throw new OpError(`region pane mismatch: ${op.region}`);
+			const index = Math.max(0, Math.min(op.index ?? region.tabs.length, region.tabs.length));
+			const tabs = [...region.tabs];
+			tabs.splice(index, 0, op.tab);
+			const host = {
+				kind: "region",
+				id: region.id
+			};
+			const next = mapHost(prepared.layout, host, replaceHostTabs(region, tabs, op.tab.id));
+			const inverse = [
+				snapshotHost(prepared.layout, host),
+				...prepared.added ? [{ kind: "replaceRegions" }] : [],
+				{
+					kind: "focus",
+					id: prepared.layout.focused
+				}
+			];
+			return {
+				next: {
+					...next,
+					focused: region.id
+				},
+				inverse
 			};
 		}
 		case "removeTab": {
@@ -1022,6 +2590,118 @@ function applyOp(layout, op) {
 					tabId: op.tabId,
 					index: srcIndex
 				}
+			};
+		}
+		case "transferTab": {
+			const prepared = withRegionsFor(layout, [op.from, op.to]);
+			const from = assertHost(prepared.layout, op.from);
+			const to = assertHost(prepared.layout, op.to);
+			const srcIndex = from.tabs.findIndex((tab) => tab.id === op.tabId);
+			if (srcIndex < 0) throw new OpError(`tab not in source host: ${op.tabId}`);
+			const tab = from.tabs[srcIndex];
+			const fromSnapshot = snapshotHost(prepared.layout, op.from);
+			const toSnapshot = snapshotHost(prepared.layout, op.to);
+			const rest = from.tabs.filter((item) => item.id !== op.tabId);
+			const sourceActive = from.activeTab === op.tabId ? activeAfterRemoval(from.tabs, op.tabId) : from.activeTab;
+			const targetLength = sameHost(op.from, op.to) ? rest.length : to.tabs.length;
+			const requested = op.index ?? targetLength;
+			const adjusted = sameHost(op.from, op.to) && srcIndex < requested ? requested - 1 : requested;
+			const target = Math.max(0, Math.min(adjusted, targetLength));
+			const targetTabs = [...rest];
+			targetTabs.splice(target, 0, tab);
+			let next = sameHost(op.from, op.to) ? mapHost(prepared.layout, op.from, replaceHostTabs(from, targetTabs, op.tabId)) : mapHost(mapHost(prepared.layout, op.from, replaceHostTabs(from, rest, sourceActive)), op.to, replaceHostTabs(to, [
+				...to.tabs.slice(0, target),
+				tab,
+				...to.tabs.slice(target)
+			], op.tabId));
+			const closeSourceFloat = !sameHost(op.from, op.to) && op.from.kind === "float" && rest.length === 0;
+			const sourceFloatIndex = op.from.kind === "float" ? prepared.layout.floats.findIndex((float) => float.id === op.from.id) : -1;
+			if (closeSourceFloat) next = {
+				...next,
+				floats: next.floats.filter((float) => float.id !== op.from.id),
+				minimized: next.minimized.filter((item) => item.floatId !== op.from.id)
+			};
+			next = {
+				...next,
+				focused: op.to.id
+			};
+			const inverse = sameHost(op.from, op.to) ? [fromSnapshot] : [
+				toSnapshot,
+				...closeSourceFloat ? [{
+					kind: "addFloat",
+					float: from,
+					index: sourceFloatIndex
+				}] : [],
+				fromSnapshot
+			];
+			if (closeSourceFloat) inverse.push({
+				kind: "restoreMinimized",
+				minimized: prepared.layout.minimized
+			});
+			if (prepared.added) inverse.push({ kind: "replaceRegions" });
+			inverse.push({
+				kind: "focus",
+				id: prepared.layout.focused
+			});
+			return {
+				next,
+				inverse
+			};
+		}
+		case "floatTab": {
+			const prepared = withRegionsFor(layout, [op.from]);
+			const from = assertHost(prepared.layout, op.from);
+			const srcIndex = from.tabs.findIndex((tab) => tab.id === op.tabId);
+			if (srcIndex < 0) throw new OpError(`tab not in source host: ${op.tabId}`);
+			if (workbenchIds(prepared.layout).has(op.floatId)) throw new OpError(`float id already exists: ${op.floatId}`);
+			const tab = from.tabs[srcIndex];
+			const rest = from.tabs.filter((item) => item.id !== op.tabId);
+			const sourceActive = from.activeTab === op.tabId ? activeAfterRemoval(from.tabs, op.tabId) : from.activeTab;
+			const closeSourceFloat = op.from.kind === "float" && rest.length === 0;
+			const sourceFloatIndex = op.from.kind === "float" ? prepared.layout.floats.findIndex((float) => float.id === op.from.id) : -1;
+			let next = mapHost(prepared.layout, op.from, replaceHostTabs(from, rest, sourceActive));
+			if (closeSourceFloat) next = {
+				...next,
+				floats: next.floats.filter((float) => float.id !== op.from.id),
+				minimized: next.minimized.filter((item) => item.floatId !== op.from.id)
+			};
+			const float = {
+				kind: "float",
+				id: op.floatId,
+				rect: op.rect,
+				pin: op.pin ?? "none",
+				tabs: [tab],
+				activeTab: tab.id
+			};
+			next = {
+				...next,
+				floats: [...next.floats, float],
+				focused: op.floatId
+			};
+			const inverse = [
+				{
+					kind: "removeFloat",
+					floatId: op.floatId
+				},
+				...closeSourceFloat ? [{
+					kind: "addFloat",
+					float: from,
+					index: sourceFloatIndex
+				}] : [],
+				snapshotHost(prepared.layout, op.from)
+			];
+			if (closeSourceFloat) inverse.push({
+				kind: "restoreMinimized",
+				minimized: prepared.layout.minimized
+			});
+			if (prepared.added) inverse.push({ kind: "replaceRegions" });
+			inverse.push({
+				kind: "focus",
+				id: prepared.layout.focused
+			});
+			return {
+				next,
+				inverse
 			};
 		}
 		case "activateTab": {
@@ -1162,11 +2842,12 @@ function applyOp(layout, op) {
 			];
 			const mergedActive = from.tabs[0]?.id ?? into.activeTab;
 			const createdIndex = parent.children.findIndex((c) => c.id === op.from);
-			const filled = applyOp(applyOp(layout, {
+			const emptied = applyOp(layout, {
 				kind: "setPaneTabs",
 				pane: op.from,
 				tabs: []
-			}).next, {
+			}).next;
+			const filled = applyOp(emptied, {
 				kind: "setPaneTabs",
 				pane: op.into,
 				tabs: merged,
@@ -1255,7 +2936,20 @@ function applyOp(layout, op) {
 			const paneTabs = [...pane.tabs];
 			paneTabs.splice(index, 0, tab);
 			const root = mapPanes(layout.root, (p) => p.id === op.pane ? withTabs(p, paneTabs, tab.id) : p);
-			const floats = rest.length === 0 ? layout.floats.filter((f) => f.id !== float.id) : layout.floats.map((f) => f.id === float.id ? withFloatTabs(f, [...rest], f.activeTab === tabId ? rest[rest.length - 1]?.id : f.activeTab) : f);
+			const floats = rest.length === 0 ? layout.floats : layout.floats.map((f) => f.id === float.id ? withFloatTabs(f, [...rest], f.activeTab === tabId ? rest[rest.length - 1]?.id : f.activeTab) : f);
+			let next = {
+				...layout,
+				root,
+				floats: rest.length === 0 ? reduceFloatLifecycle(layout, {
+					kind: "close",
+					id: float.id
+				}).floats : floats,
+				focused: op.pane
+			};
+			if (rest.length === 0) next = {
+				...next,
+				minimized: next.minimized.filter((item) => item.floatId !== float.id)
+			};
 			const restoreFloat = rest.length === 0 ? {
 				kind: "addFloat",
 				float,
@@ -1267,12 +2961,7 @@ function applyOp(layout, op) {
 				...float.activeTab ? { activeTab: float.activeTab } : {}
 			};
 			return {
-				next: {
-					...layout,
-					root,
-					floats,
-					focused: op.pane
-				},
+				next,
 				inverse: [{
 					kind: "setPaneTabs",
 					pane: op.pane,
@@ -1287,10 +2976,10 @@ function applyOp(layout, op) {
 			const rest = float.tabs.filter((t) => t.id !== op.tabId);
 			const floatIndex = layout.floats.findIndex((f) => f.id === float.id);
 			if (rest.length === 0) return {
-				next: {
-					...layout,
-					floats: layout.floats.filter((f) => f.id !== float.id)
-				},
+				next: reduceFloatLifecycle(layout, {
+					kind: "close",
+					id: float.id
+				}),
 				inverse: {
 					kind: "addFloat",
 					float,
@@ -1333,6 +3022,7 @@ function applyOp(layout, op) {
 		}
 		case "moveFloat": {
 			const float = assertFloat(layout, op.floatId);
+			if (float.locked) throw new OpError(`locked float cannot move: ${op.floatId}`);
 			return {
 				next: {
 					...layout,
@@ -1345,6 +3035,85 @@ function applyOp(layout, op) {
 					kind: "moveFloat",
 					floatId: op.floatId,
 					rect: float.rect
+				}
+			};
+		}
+		case "moveFloatGroup": {
+			const members = layout.floats.filter((float) => float.groupId === op.groupId);
+			if (members.length < 2) throw new OpError(`float group not found: ${op.groupId}`);
+			if (op.moves.length !== members.length) throw new OpError("float group move length mismatch");
+			if (new Set(op.moves.map((move) => move.floatId)).size !== op.moves.length) throw new OpError("float group move contains duplicates");
+			const byId = new Map(members.map((float) => [float.id, float]));
+			for (const move of op.moves) {
+				const member = byId.get(move.floatId);
+				if (!member) throw new OpError(`float not in group: ${move.floatId}`);
+				if (member.locked) throw new OpError(`locked float cannot move: ${move.floatId}`);
+			}
+			const rects = new Map(op.moves.map((move) => [move.floatId, move.rect]));
+			return {
+				next: {
+					...layout,
+					floats: layout.floats.map((float) => float.groupId === op.groupId ? {
+						...float,
+						rect: rects.get(float.id) ?? float.rect
+					} : float)
+				},
+				inverse: {
+					kind: "moveFloatGroup",
+					groupId: op.groupId,
+					moves: members.map((float) => ({
+						floatId: float.id,
+						rect: float.rect
+					}))
+				}
+			};
+		}
+		case "raiseFloat": {
+			const float = assertFloat(layout, op.floatId);
+			const order = layout.floats.map((f) => f.id);
+			const index = order.indexOf(op.floatId);
+			if (index === order.length - 1) return {
+				next: layout.focused === op.floatId ? layout : {
+					...layout,
+					focused: op.floatId
+				},
+				inverse: {
+					kind: "reorderFloats",
+					order
+				}
+			};
+			const floats = [...layout.floats];
+			floats.splice(index, 1);
+			floats.push(float);
+			return {
+				next: {
+					...layout,
+					floats,
+					focused: op.floatId
+				},
+				inverse: {
+					kind: "reorderFloats",
+					order
+				}
+			};
+		}
+		case "reorderFloats": {
+			if (op.order.length !== layout.floats.length) throw new OpError("float order length mismatch");
+			const byId = new Map(layout.floats.map((float) => [float.id, float]));
+			if (new Set(op.order).size !== op.order.length) throw new OpError("float order contains duplicates");
+			const floats = op.order.map((id) => {
+				const float = byId.get(id);
+				if (!float) throw new OpError(`float not found: ${id}`);
+				return float;
+			});
+			return {
+				next: {
+					...layout,
+					floats
+				},
+				inverse: {
+					kind: "reorderFloats",
+					order: layout.floats.map((float) => float.id)
 				}
 			};
 		}
@@ -1365,43 +3134,167 @@ function applyOp(layout, op) {
 				}
 			};
 		}
+		case "setLocked": {
+			const float = assertFloat(layout, op.floatId);
+			const { locked: _locked, ...rest } = float;
+			const nextFloat = op.locked === void 0 ? rest : {
+				...rest,
+				locked: op.locked
+			};
+			return {
+				next: {
+					...layout,
+					floats: layout.floats.map((f) => f.id === op.floatId ? nextFloat : f)
+				},
+				inverse: {
+					kind: "setLocked",
+					floatId: op.floatId,
+					...float.locked === void 0 ? {} : { locked: float.locked }
+				}
+			};
+		}
+		case "setFloatGroup": {
+			const float = assertFloat(layout, op.floatId);
+			const { groupId: _previousGroup, ...rest } = float;
+			const nextFloat = op.groupId === void 0 ? rest : {
+				...rest,
+				groupId: op.groupId
+			};
+			return {
+				next: {
+					...layout,
+					floats: layout.floats.map((f) => f.id === op.floatId ? nextFloat : f)
+				},
+				inverse: {
+					kind: "setFloatGroup",
+					floatId: op.floatId,
+					...float.groupId === void 0 ? {} : { groupId: float.groupId }
+				}
+			};
+		}
+		case "groupFloats": {
+			if (op.floatIds.length < 2) throw new OpError("groupFloats needs at least two floats");
+			if (new Set(op.floatIds).size !== op.floatIds.length) throw new OpError("groupFloats contains duplicates");
+			const members = op.floatIds.map((id) => assertFloat(layout, id));
+			if (members.some((float) => float.groupId !== void 0)) throw new OpError("float is already grouped");
+			const previous = members.map((float) => ({
+				kind: "setFloatGroup",
+				floatId: float.id
+			}));
+			return {
+				next: {
+					...layout,
+					floats: layout.floats.map((float) => op.floatIds.includes(float.id) ? {
+						...float,
+						groupId: op.groupId
+					} : float)
+				},
+				inverse: previous
+			};
+		}
+		case "ungroupFloat":
+			assertFloat(layout, op.floatId);
+			return applyOp(layout, {
+				kind: "setFloatGroup",
+				floatId: op.floatId
+			});
 		case "minimize": {
 			const float = assertFloat(layout, op.floatId);
 			const prev = layout.minimized.find((m) => m.floatId === op.floatId);
-			const inverse = prev ? {
-				kind: "minimize",
-				floatId: op.floatId,
-				x: prev.x,
-				y: prev.y
-			} : {
-				kind: "unminimize",
-				floatId: op.floatId
-			};
 			return {
-				next: {
-					...layout,
-					minimized: [...layout.minimized.filter((m) => m.floatId !== op.floatId), {
-						floatId: float.id,
-						x: op.x,
-						y: op.y
-					}]
-				},
-				inverse
+				next: reduceFloatLifecycle(layout, {
+					kind: "minimize",
+					id: float.id,
+					x: op.x,
+					y: op.y
+				}),
+				inverse: prev ? {
+					kind: "minimize",
+					floatId: op.floatId,
+					x: prev.x,
+					y: prev.y
+				} : {
+					kind: "unminimize",
+					floatId: op.floatId
+				}
 			};
 		}
 		case "unminimize": {
+			const float = assertFloat(layout, op.floatId);
 			const prev = layout.minimized.find((m) => m.floatId === op.floatId);
 			if (!prev) throw new OpError(`not minimized: ${op.floatId}`);
 			return {
-				next: {
-					...layout,
-					minimized: layout.minimized.filter((m) => m.floatId !== op.floatId)
-				},
+				next: reduceFloatLifecycle(layout, {
+					kind: "restore",
+					id: float.id
+				}),
 				inverse: {
 					kind: "minimize",
 					floatId: op.floatId,
 					x: prev.x,
 					y: prev.y
+				}
+			};
+		}
+		case "setHostTabs": {
+			const host = assertHost(layout, op.host);
+			const inverse = snapshotHost(layout, op.host);
+			return {
+				next: mapHost(layout, op.host, replaceHostTabs(host, [...op.tabs], op.activeTab)),
+				inverse
+			};
+		}
+		case "replaceRegions": {
+			const { regions: _regions, ...rest } = layout;
+			return {
+				next: op.regions === void 0 ? rest : {
+					...rest,
+					regions: op.regions
+				},
+				inverse: {
+					kind: "replaceRegions",
+					...layout.regions === void 0 ? {} : { regions: layout.regions }
+				}
+			};
+		}
+		case "replaceRegionSizes": {
+			const { regionSizes: _sizes, ...rest } = layout;
+			return {
+				next: op.regionSizes === void 0 ? rest : {
+					...rest,
+					regionSizes: op.regionSizes
+				},
+				inverse: {
+					kind: "replaceRegionSizes",
+					...layout.regionSizes === void 0 ? {} : { regionSizes: layout.regionSizes }
+				}
+			};
+		}
+		case "restoreMinimized": return {
+			next: {
+				...layout,
+				minimized: op.minimized
+			},
+			inverse: {
+				kind: "restoreMinimized",
+				minimized: layout.minimized
+			}
+		};
+		case "resizeRegion": {
+			assertRegion(layout, op.region);
+			if (op.sizes !== void 0 && (!Number.isFinite(op.sizes) || op.sizes < 0)) throw new OpError("region size must be a finite non-negative number");
+			const sizes = { ...layout.regionSizes };
+			if (op.sizes === void 0) delete sizes[op.region];
+			else sizes[op.region] = op.sizes;
+			const { regionSizes: _previousSizes, ...rest } = layout;
+			return {
+				next: Object.keys(sizes).length === 0 ? rest : {
+					...rest,
+					regionSizes: sizes
+				},
+				inverse: {
+					kind: "replaceRegionSizes",
+					...layout.regionSizes === void 0 ? {} : { regionSizes: layout.regionSizes }
 				}
 			};
 		}
@@ -1457,11 +3350,10 @@ function applyOp(layout, op) {
 			const float = assertFloat(layout, op.floatId);
 			const index = layout.floats.findIndex((f) => f.id === op.floatId);
 			return {
-				next: {
-					...layout,
-					floats: layout.floats.filter((f) => f.id !== op.floatId),
-					minimized: layout.minimized.filter((m) => m.floatId !== op.floatId)
-				},
+				next: reduceFloatLifecycle(layout, {
+					kind: "close",
+					id: float.id
+				}),
 				inverse: {
 					kind: "addFloat",
 					float,
@@ -1484,16 +3376,19 @@ function applyOp(layout, op) {
 				}
 			};
 		}
-		case "focus": return {
-			next: {
-				...layout,
-				focused: op.id
-			},
-			inverse: {
-				kind: "focus",
-				id: layout.focused
-			}
-		};
+		case "focus": {
+			const { focused: _focused, ...rest } = layout;
+			return {
+				next: op.id === void 0 ? rest : {
+					...rest,
+					focused: op.id
+				},
+				inverse: {
+					kind: "focus",
+					id: layout.focused
+				}
+			};
+		}
 		case "replaceRoot": return {
 			next: {
 				...layout,
@@ -1535,6 +3430,13 @@ var WorkbenchHistory = class {
 		this.done.push(intent);
 		if (this.done.length > this.limit) this.done.shift();
 		this.undone.length = 0;
+	}
+	/** 预览栈顶但不改变历史；持久化失败时调用方仍可原样重试。 */
+	peekUndo() {
+		return this.done[this.done.length - 1];
+	}
+	peekRedo() {
+		return this.undone[this.undone.length - 1];
 	}
 	undo(current) {
 		const last = this.done.pop();
@@ -1641,7 +3543,7 @@ function quadrant(work, corner) {
 	}
 }
 /**
-* 生成落区，**顺序即优先级**：四角 → 左右边缘 → 顶部。
+* 生成落区，**顺序即优先级**：四角 → 左右边缘 → 顶部 → 底部。
 * 调用方用 `pickZone()` 取第一个命中的，就自动实现了"角落优先"。
 */
 function snapZones(work, opts = {}) {
@@ -1713,6 +3615,22 @@ function snapZones(work, opts = {}) {
 			region: "top"
 		}
 	});
+	const bottomRect = half(work, "bottom");
+	if (bottomRect.w >= minW && bottomRect.h >= minH) zones.push({
+		kind: "bottom",
+		region: "bottom",
+		hit: {
+			x: work.x,
+			y: work.y + work.h - b.top,
+			w: work.w,
+			h: b.top
+		},
+		rect: bottomRect,
+		dest: {
+			to: "edge",
+			region: "bottom"
+		}
+	});
 	return zones;
 }
 /** 命中检测：按落区顺序取第一个。 */
@@ -1753,17 +3671,54 @@ function clampRect(rect, viewport) {
 * 刻意不放进 `workbench` 包：那个包必须零 React、零订阅模型，
 * 才能在 Node 里回放。这里只是它的一层薄壳。
 */
-function createWorkbenchController(initial) {
-	const mint = createMint("wb");
+function createWorkbenchController(initial, options = {}) {
+	const baseMint = createMint("wb");
+	const normalizedInitial = ensureWorkbenchRegions(initial);
+	const usedIds = workbenchIds(normalizedInitial);
+	const unique = (next) => {
+		let id = next();
+		while (usedIds.has(id)) id = next();
+		usedIds.add(id);
+		return id;
+	};
+	const mint = {
+		pane: () => unique(baseMint.pane),
+		split: () => unique(baseMint.split),
+		tab: () => unique(baseMint.tab),
+		float: () => unique(baseMint.float)
+	};
 	const history = new WorkbenchHistory(20);
 	const listeners = /* @__PURE__ */ new Set();
-	let state = initial;
+	const limits = createWorkbenchLimits(options.limits);
+	let state = normalizedInitial;
+	let lastLimitError = null;
 	const notify = () => {
 		for (const listener of listeners) listener();
 	};
+	const persist = (next) => {
+		if (!options.persistence) return true;
+		try {
+			options.persistence.save(next);
+			options.onPersistenceSaved?.();
+			return true;
+		} catch (error) {
+			options.onPersistenceError?.(error);
+			return false;
+		}
+	};
 	const commit = (next, label, before) => {
 		if (next === state) return;
+		if (allTabs(next).length > allTabs(state).length) try {
+			assertTabCountCapacity(allTabs(state).length, limits);
+		} catch (error) {
+			lastLimitError = error;
+			notify();
+			return;
+		}
+		if (!persist(next)) return;
+		lastLimitError = null;
 		state = next;
+		workbenchIds(next).forEach((id) => usedIds.add(id));
 		history.push({
 			label,
 			before,
@@ -1773,7 +3728,14 @@ function createWorkbenchController(initial) {
 	};
 	const controller = {
 		mint,
+		limits,
 		getState: () => state,
+		limitError: () => lastLimitError,
+		clearLimitError() {
+			if (!lastLimitError) return;
+			lastLimitError = null;
+			notify();
+		},
 		subscribe(listener) {
 			listeners.add(listener);
 			return () => listeners.delete(listener);
@@ -1790,21 +3752,50 @@ function createWorkbenchController(initial) {
 			commit(next, label, before);
 		},
 		undo() {
+			const intent = history.peekUndo();
+			if (!intent || !persist(intent.before)) return false;
 			const next = history.undo(state);
 			if (!next) return false;
 			state = next;
+			lastLimitError = null;
 			notify();
 			return true;
 		},
 		redo() {
+			const intent = history.peekRedo();
+			if (!intent || !persist(intent.after)) return false;
 			const next = history.redo(state);
 			if (!next) return false;
 			state = next;
+			lastLimitError = null;
 			notify();
 			return true;
 		},
 		canUndo: () => history.canUndo,
 		canRedo: () => history.canRedo,
+		focusedHost() {
+			const focused = state.focused;
+			if (focused) {
+				if (findPane(state.root, focused)) return {
+					kind: "pane",
+					id: focused
+				};
+				if (regionEntries(state).some(([, pane]) => pane.id === focused)) return {
+					kind: "region",
+					id: focused
+				};
+				if (state.floats.some((float) => float.id === focused)) return {
+					kind: "float",
+					id: focused
+				};
+			}
+			const walk = (node) => node.kind === "pane" ? node.id : node.children.map(walk).find((id) => id !== void 0);
+			const pane = walk(state.root);
+			return pane === void 0 ? void 0 : {
+				kind: "pane",
+				id: pane
+			};
+		},
 		focusedPane() {
 			const focused = state.focused;
 			if (focused) {
@@ -1818,23 +3809,34 @@ function createWorkbenchController(initial) {
 			const target = pane ?? controller.focusedPane();
 			if (!target) throw new Error("workbench 没有可用的格");
 			const tab = makeTab(mint.tab(), ref);
+			const before = state;
+			lastLimitError = null;
 			controller.dispatch({
 				kind: "insertTab",
 				pane: target,
 				tab
 			}, "open");
+			if (state === before) {
+				if (lastLimitError) throw lastLimitError;
+				throw new Error("workbench layout 未保存，打开操作已取消");
+			}
 			return tab.id;
 		}
 	};
 	return controller;
 }
 /** 测试与演示用的空工作台。 */
-function createEmptyController() {
-	return createWorkbenchController(emptyLayout(createMint("seed").pane()));
+function createEmptyController(options = {}) {
+	return createWorkbenchController(emptyLayout(createMint("seed").pane()), options);
 }
 // src/ui-workbench/labels.ts
 const zh = {
 	workspace: "工作台",
+	regions: {
+		sidebar: "侧栏",
+		right: "右栏",
+		bottom: "底栏"
+	},
 	separator: "调整分栏比例",
 	tabs: {
 		list: "窗口标签",
@@ -1846,6 +3848,12 @@ const zh = {
 		closeWindow: "关闭窗口",
 		minimize: "最小化",
 		restore: "恢复窗口",
+		moveWindow: "移动窗口",
+		lock: "锁定窗口",
+		unlock: "解锁窗口",
+		group: "与相邻浮窗分组",
+		ungroup: "取消分组",
+		pinControl: "窗口固定级别",
 		pin: {
 			none: "浮窗",
 			workspace: "固定在工作区",
@@ -1864,6 +3872,11 @@ const zh = {
 };
 const en = {
 	workspace: "Workbench",
+	regions: {
+		sidebar: "Sidebar",
+		right: "Right",
+		bottom: "Bottom"
+	},
 	separator: "Resize split",
 	tabs: {
 		list: "Window tabs",
@@ -1875,6 +3888,12 @@ const en = {
 		closeWindow: "Close window",
 		minimize: "Minimize",
 		restore: "Restore window",
+		moveWindow: "Move window",
+		lock: "Lock window",
+		unlock: "Unlock window",
+		group: "Group with adjacent float",
+		ungroup: "Ungroup float",
+		pinControl: "Window pin level",
 		pin: {
 			none: "Float",
 			workspace: "Pinned to workspace",
@@ -1902,11 +3921,18 @@ function createWorkbenchLabels(locale = "zh") {
 * 生命周期走（`ctx.set('sessionLease', …)`），由插件层创建后注入。
 */
 const RegistryContext = (0, react.createContext)(null);
+const StoreContext = (0, react.createContext)(null);
 function SessionViewsProvider(props) {
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RegistryContext.Provider, {
 		value: props.registry,
-		children: props.children
+		children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StoreContext.Provider, {
+			value: props.store ?? null,
+			children: props.children
+		})
 	});
+}
+function useSessionViewStore() {
+	return (0, react.useContext)(StoreContext);
 }
 function useSessionLeaseRegistry() {
 	const registry = (0, react.useContext)(RegistryContext);
@@ -2455,20 +4481,19 @@ function toDerivedEntries(entries) {
 var SessionEventHub = class {
 	cache;
 	trace;
+	onEntries;
+	maxPendingEntries;
 	subs = /* @__PURE__ */ new Map();
-	/**
-	* 每个会话的折叠进度。**跨订阅存亡保留** —— 搬家时订阅会拆了再建，
-	* 进度不能跟着丢，否则重建那一刻会把整窗再折一遍。
-	*/
 	progress = /* @__PURE__ */ new Map();
+	states = /* @__PURE__ */ new Map();
+	windows = /* @__PURE__ */ new Map();
+	windowListeners = /* @__PURE__ */ new Set();
 	constructor(options) {
 		this.cache = options.cache;
 		this.trace = options.trace === true;
+		this.onEntries = options.onEntries;
+		this.maxPendingEntries = options.maxPendingEntries ?? 5e3;
 	}
-	/**
-	* 让这个视图加入某会话的事件订阅。
-	* @returns 幂等的 detach；最后一个视图离开时取消订阅。
-	*/
 	attach(sessionId, source) {
 		if (!source) return () => {};
 		const existing = this.subs.get(sessionId);
@@ -2480,32 +4505,55 @@ var SessionEventHub = class {
 			existing.off();
 			this.subs.delete(sessionId);
 			this.progress.delete(sessionId);
+			this.states.delete(sessionId);
 			this.cache.reset(sessionId);
 		}
-		this.flush(sessionId, source);
 		const sub = {
 			source,
-			off: source.subscribe(() => this.flush(sessionId, source)),
+			off: () => {},
 			count: 1
 		};
 		this.subs.set(sessionId, sub);
+		this.flush(sessionId, source);
+		try {
+			sub.off = source.subscribe(() => {
+				if (this.subs.get(sessionId) === sub) this.flush(sessionId, source);
+			});
+		} catch (error) {
+			if (this.subs.get(sessionId) === sub) this.subs.delete(sessionId);
+			throw error;
+		}
 		return this.makeDetach(sessionId, sub);
 	}
-	/** 当前正在订阅多少个会话（调试用）。 */
 	get size() {
 		return this.subs.size;
 	}
-	/** 某个会话被几个视图共用同一订阅。 */
 	countOf(sessionId) {
 		return this.subs.get(sessionId)?.count ?? 0;
 	}
-	/** 已折到哪个 seq（调试用；`undefined` 表示还没折过）。 */
 	progressOf(sessionId) {
 		return this.progress.get(sessionId);
 	}
+	continuityOf(sessionId) {
+		return this.states.get(sessionId)?.continuity ?? "unknown";
+	}
+	/** Shared render snapshot; ConversationBody must not subscribe to source directly. */
+	getWindowSnapshot(sessionId) {
+		return this.windows.get(sessionId);
+	}
+	subscribeWindow = (listener) => {
+		this.windowListeners.add(listener);
+		return () => {
+			this.windowListeners.delete(listener);
+		};
+	};
 	dispose() {
 		for (const sub of this.subs.values()) sub.off();
 		this.subs.clear();
+		this.progress.clear();
+		this.states.clear();
+		this.windows.clear();
+		this.windowListeners.clear();
 	}
 	makeDetach(sessionId, sub) {
 		let done = false;
@@ -2526,76 +4574,89 @@ var SessionEventHub = class {
 			console.warn("[studio] 读事件窗口失败", error);
 			return;
 		}
+		this.windows.set(sessionId, window);
+		for (const listener of [...this.windowListeners]) listener();
 		if (!window || window.entries.length === 0) return;
-		const prev = this.progress.get(sessionId);
-		const change = window.change;
-		if (change?.kind === "append" && prev) {
-			const fresh = toDerivedEntries(change.entries ?? []).filter((entry) => entry.seq > prev.max);
-			if (fresh.length === 0) return;
-			if (this.trace) console.log(`[hub] ${sessionId} append +${fresh.length}`);
-			this.cache.ingest(sessionId, fresh);
-			this.progress.set(sessionId, {
-				min: prev.min,
-				max: fresh[fresh.length - 1]?.seq ?? prev.max
-			});
-			return;
-		}
-		if (change?.kind === "settle-assistant" && prev) {
-			if (!change.entry) return;
-			const settled = toDerivedEntries([change.entry]).filter((entry) => entry.seq > prev.max);
-			if (settled.length === 0) return;
-			if (this.trace) console.log(`[hub] ${sessionId} settle +${settled.length}`);
-			this.cache.ingest(sessionId, settled);
-			this.progress.set(sessionId, {
-				min: prev.min,
-				max: settled[settled.length - 1]?.seq ?? prev.max
-			});
-			return;
-		}
-		const durable = toDerivedEntries(window.entries);
-		if (durable.length === 0) return;
-		const head = durable[0]?.seq ?? 0;
-		const tail = durable[durable.length - 1]?.seq ?? 0;
-		if (!prev || head < prev.min) {
-			if (!prev) {
-				if (this.trace) console.log(`[hub] ${sessionId} initial (${change?.kind ?? "none"}) → ${durable.length} 条`);
-				this.cache.reset(sessionId);
-				this.cache.ingest(sessionId, durable);
-				this.progress.set(sessionId, {
+		const all = toDerivedEntries(window.entries).sort((left, right) => left.seq - right.seq);
+		let state = this.states.get(sessionId);
+		if (!state) {
+			const head = all[0]?.seq ?? 0;
+			const tail = all.at(-1)?.seq ?? 0;
+			this.cache.reset(sessionId);
+			this.cache.ingest(sessionId, all);
+			state = {
+				progress: {
 					min: head,
 					max: tail
-				});
-				return;
-			}
-			const older = durable.filter((entry) => entry.seq < prev.min);
-			const prepended = this.cache.prepend(sessionId, older);
-			if (prepended.fallback) {
-				if (this.trace) console.log(`[hub] ${sessionId} rebuild (fallback) → ${durable.length} 条`);
-				this.cache.reset(sessionId);
-				this.cache.ingest(sessionId, durable);
-				this.progress.set(sessionId, {
-					min: head,
-					max: tail
-				});
-				return;
-			}
-			if (this.trace) console.log(`[hub] ${sessionId} prepend +${prepended.prepended} (窗口 ${head}…${tail})`);
-			const fresh = durable.filter((entry) => entry.seq > prev.max);
-			if (fresh.length > 0) this.cache.ingest(sessionId, fresh);
-			this.progress.set(sessionId, {
-				min: head,
-				max: Math.max(prev.max, tail)
-			});
+				},
+				signatures: new Map(all.map((entry) => [entry.seq, this.signature(entry)])),
+				pending: /* @__PURE__ */ new Map(),
+				continuity: "complete"
+			};
+			this.states.set(sessionId, state);
+			this.progress.set(sessionId, state.progress);
+			this.onEntries?.(sessionId, all);
+			if (this.trace) console.log(`[hub] ${sessionId} initial → ${all.length} 条`);
 			return;
 		}
-		const fresh = durable.filter((entry) => entry.seq > prev.max);
-		if (fresh.length === 0) return;
-		if (this.trace) console.log(`[hub] ${sessionId} catch-up +${fresh.length}`);
-		this.cache.ingest(sessionId, fresh);
-		this.progress.set(sessionId, {
-			min: prev.min,
-			max: tail
-		});
+		const prev = state.progress;
+		const head = all[0]?.seq ?? prev.min;
+		if (head < prev.min) {
+			const older = all.filter((entry) => entry.seq < prev.min);
+			for (const entry of older) if (!this.remember(state, entry)) return;
+			if (this.cache.prepend(sessionId, older).fallback) {
+				this.cache.reset(sessionId);
+				this.cache.ingest(sessionId, all);
+				state.progress.min = head;
+				state.progress.max = all.at(-1)?.seq ?? prev.max;
+				state.signatures = new Map(all.map((entry) => [entry.seq, this.signature(entry)]));
+				state.pending.clear();
+				state.continuity = "complete";
+				this.onEntries?.(sessionId, all);
+			} else {
+				state.progress.min = head;
+				this.onEntries?.(sessionId, older);
+			}
+		}
+		const delta = window.change?.kind === "append" ? toDerivedEntries(window.change.entries ?? []) : all;
+		for (const entry of delta) if (!this.remember(state, entry)) return;
+		this.drain(sessionId, state);
+	}
+	drain(sessionId, state) {
+		if (state.pending.size > this.maxPendingEntries) {
+			state.continuity = "buffer-overflow";
+			return;
+		}
+		const ready = [];
+		let next = state.progress.max + 1;
+		while (state.pending.has(next)) {
+			const entry = state.pending.get(next);
+			ready.push(entry);
+			state.pending.delete(next);
+			next += 1;
+		}
+		if (ready.length > 0) {
+			this.cache.ingest(sessionId, ready);
+			state.progress.max = ready.at(-1).seq;
+			state.continuity = "complete";
+			this.onEntries?.(sessionId, ready);
+			if (this.trace) console.log(`[hub] ${sessionId} ordered +${ready.length}`);
+		}
+		if (state.pending.size > 0) state.continuity = "gap";
+	}
+	remember(state, entry) {
+		const signature = this.signature(entry);
+		const known = state.signatures.get(entry.seq);
+		if (known !== void 0 && known !== signature) {
+			state.continuity = "conflict";
+			return false;
+		}
+		state.signatures.set(entry.seq, signature);
+		if (entry.seq > state.progress.max) state.pending.set(entry.seq, entry);
+		return true;
+	}
+	signature(entry) {
+		return JSON.stringify(entry);
 	}
 };
 // src/shell/service-slot.ts
@@ -2770,11 +4831,26 @@ function PanelHost({ contribution, instanceId, active, initialSize }) {
 		})
 	});
 }
+// src/ui-session-views/use-session-view.ts
+const subscribeNone = () => () => {};
+const getNull = () => null;
+const dispatchNone = (_command) => ({
+	changed: false,
+	revision: 0,
+	draft: null
+});
+/** Multiple views of one identity read the same cached projection and mutation path. */
+function useOwnerSessionView(owner) {
+	const store = useSessionViewStore();
+	const subscribe = (0, react.useCallback)((listener) => store ? store.subscribe(listener) : subscribeNone(), [store]);
+	const getSnapshot = (0, react.useCallback)(() => store ? store.getProjection(owner) : null, [owner, store]);
+	return {
+		store,
+		projection: (0, react.useSyncExternalStore)(subscribe, getSnapshot, getNull),
+		dispatchDraft: (0, react.useCallback)((command) => store ? store.dispatchDraft(command) : dispatchNone(command), [store])
+	};
+}
 // src/ui-workbench/placement.ts
-/** 默认切分比例：面板通常比正文窄，右栏给 0.35；底部条给 0.4 更够用。 */
-const RIGHT_RATIO = .35;
-const LEFT_RATIO = .35;
-const BOTTOM_RATIO = .4;
 /** 浮窗初始矩形：稍微偏离中心，避免正好盖住输入框。 */
 const DEFAULT_FLOAT_RECT = {
 	x: 140,
@@ -2796,43 +4872,27 @@ function placeOps(placement, ctx) {
 			pane,
 			tab
 		}];
-		case "right": return [{
-			kind: "split",
-			pane,
-			axis: "row",
-			at: "after",
-			newPane: ids.pane,
-			newSplit: ids.split,
-			seed: tab,
-			ratio: RIGHT_RATIO
-		}];
-		case "left": return [{
-			kind: "split",
-			pane,
-			axis: "row",
-			at: "before",
-			newPane: ids.pane,
-			newSplit: ids.split,
-			seed: tab,
-			ratio: LEFT_RATIO
-		}];
-		case "bottom": return [{
-			kind: "split",
-			pane,
-			axis: "column",
-			at: "after",
-			newPane: ids.pane,
-			newSplit: ids.split,
-			seed: tab,
-			ratio: BOTTOM_RATIO
-		}];
+		case "left":
+		case "right":
+		case "bottom": {
+			const region = placement === "left" ? "sidebar" : placement;
+			return [{
+				kind: "insertRegionTab",
+				region,
+				tab,
+				...ids.regions ? { pane: ids.regions[region].id } : {}
+			}];
+		}
 		case "float": return [{
 			kind: "insertTab",
 			pane,
 			tab
 		}, {
-			kind: "float",
-			pane,
+			kind: "floatTab",
+			from: {
+				kind: "pane",
+				id: pane
+			},
 			tabId: tab.id,
 			floatId: ids.floatId,
 			rect: ctx.rect ?? DEFAULT_FLOAT_RECT
@@ -3024,7 +5084,79 @@ const secondaryButton = {
 	...primaryButton,
 	color: "var(--color-text-secondary)"
 };
+// src/ui-workbench/content-layer.tsx
+const pendingFocus = /* @__PURE__ */ new WeakMap();
+function captureFocus(node) {
+	const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+	const selection = window.getSelection();
+	const ranges = [];
+	if (selection && selection.anchorNode && node.contains(selection.anchorNode)) for (let index = 0; index < selection.rangeCount; index += 1) ranges.push(selection.getRangeAt(index).cloneRange());
+	return {
+		active: active && node.contains(active) ? active : null,
+		ranges
+	};
+}
+function restoreFocus(node, snapshot) {
+	if (snapshot.active && node.contains(snapshot.active)) snapshot.active.focus({ preventScroll: true });
+	if (snapshot.ranges.length > 0) {
+		const selection = window.getSelection();
+		if (selection) {
+			selection.removeAllRanges();
+			for (const range of snapshot.ranges) selection.addRange(range);
+		}
+	}
+}
+function moveContentHost(target, node) {
+	const snapshot = pendingFocus.get(node) ?? captureFocus(node);
+	target.appendChild(node);
+	if (target.isConnected && !target.hidden) {
+		restoreFocus(node, snapshot);
+		pendingFocus.delete(node);
+	} else pendingFocus.set(node, snapshot);
+}
+function PreservedContent({ entry, renderContent, getTarget, parkingRef, revision }) {
+	const hostRef = (0, react.useRef)(null);
+	if (!hostRef.current) {
+		const host = document.createElement("div");
+		host.dataset.tabContentHost = entry.tab.id;
+		host.style.display = "flex";
+		host.style.flexDirection = "column";
+		host.style.width = "100%";
+		host.style.height = "100%";
+		host.style.minHeight = "0";
+		host.style.overflow = "hidden";
+		hostRef.current = host;
+	}
+	const host = hostRef.current;
+	(0, react.useLayoutEffect)(() => () => host.remove(), [host]);
+	(0, react.useLayoutEffect)(() => {
+		const target = getTarget(entry.tab.id) ?? parkingRef.current;
+		if (target && host.parentElement !== target) moveContentHost(target, host);
+	}, [
+		entry.tab.id,
+		getTarget,
+		host,
+		parkingRef,
+		revision
+	]);
+	return (0, react_dom.createPortal)(renderContent(entry.tab, entry.active), host);
+}
+/** 每个 tab 只挂载一次；布局变化只移动真实 DOM 宿主，不重建正文。 */
+function WorkbenchContentLayer(props) {
+	const { entries, renderContent, getTarget, parkingRef, revision } = props;
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(react_jsx_runtime.Fragment, { children: entries.map((entry) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)(PreservedContent, {
+		entry,
+		renderContent,
+		getTarget,
+		parkingRef,
+		revision
+	}, entry.tab.id)) });
+}
 function beginDrag(input) {
+	const from = typeof input.from === "string" ? {
+		kind: "pane",
+		id: input.from
+	} : input.from;
 	const grab = input.grab ?? {
 		x: 24,
 		y: 16
@@ -3037,7 +5169,7 @@ function beginDrag(input) {
 	};
 	return {
 		tabId: input.tabId,
-		from: input.from,
+		from,
 		start: input.start,
 		point: input.start,
 		active: false,
@@ -3047,13 +5179,41 @@ function beginDrag(input) {
 function moveDrag(session, point, work, opts = {}) {
 	const dx = point.x - session.start.x;
 	const dy = point.y - session.start.y;
-	const active = session.active || Math.hypot(dx, dy) >= 6;
+	const active = session.active || Math.hypot(dx, dy) > 6;
 	if (!active) return {
 		...session,
 		point
 	};
 	const zones = snapZones(work, opts);
-	const zone = sticky(session.zone, point, zones, 24);
+	const targetHost = opts.targetHost ?? (opts.targetPane ? {
+		kind: "pane",
+		id: opts.targetPane
+	} : void 0);
+	const targetPane = targetHost?.kind === "pane" ? targetHost.id : opts.targetPane;
+	const snapZone = sticky(session.zone?.kind === "pane" ? void 0 : session.zone, point, zones, 24);
+	let zone = (!opts.modifierPaused && (opts.targetIndex !== void 0 || !snapZone) && targetHost && opts.targetRect && contains(opts.targetRect, point) ? {
+		kind: "pane",
+		hit: opts.targetRect,
+		rect: opts.targetRect,
+		dest: opts.targetHost ? {
+			to: "host",
+			host: targetHost,
+			index: opts.targetIndex
+		} : {
+			to: "pane",
+			pane: opts.targetPane,
+			index: opts.targetIndex
+		}
+	} : void 0) ?? snapZone;
+	if (zone && zone.kind !== "pane") {
+		const edge = zone.region ?? (zone.corner === "tl" || zone.corner === "tr" ? "top" : zone.corner === "bl" || zone.corner === "br" ? "bottom" : void 0);
+		const fixed = edge === "left" || zone.corner === "tl" || zone.corner === "bl" ? "sidebar" : edge === "right" || zone.corner === "tr" || zone.corner === "br" ? "right" : edge === "bottom" ? "bottom" : void 0;
+		const regionRect = fixed ? opts.regionRects?.[fixed] : void 0;
+		if (regionRect) zone = {
+			...zone,
+			rect: regionRect
+		};
+	}
 	const grab = {
 		x: session.start.x - session.rect.x,
 		y: session.start.y - session.rect.y
@@ -3069,7 +5229,9 @@ function moveDrag(session, point, work, opts = {}) {
 		point,
 		active,
 		zone,
-		rect
+		rect,
+		targetHost,
+		targetPane
 	};
 }
 /** 松手：未越阈值返回 undefined（调用方按 click 处理）。 */
@@ -3088,6 +5250,366 @@ function dragPreview(session) {
 		rect: session.rect,
 		kind: "float"
 	};
+}
+// src/ui-workbench/drag-preview.tsx
+/** 真实正文克隆只用于展示；外层裁剪并缩放到当前落点。 */
+function DragPreview({ kind, rect, content, sourceSize }) {
+	const contentRef = (0, react.useRef)(null);
+	(0, react.useLayoutEffect)(() => {
+		const mount = contentRef.current;
+		if (!mount || !content) return;
+		if (content.parentElement !== mount) mount.appendChild(content);
+	}, [content]);
+	const scaleX = sourceSize.w > 0 ? rect.w / sourceSize.w : 1;
+	const scaleY = sourceSize.h > 0 ? rect.h / sourceSize.h : 1;
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+		"data-drag-preview": kind,
+		"data-drag-preview-live": content ? "true" : "false",
+		style: {
+			position: "absolute",
+			left: rect.x,
+			top: rect.y,
+			width: rect.w,
+			height: rect.h,
+			overflow: "hidden",
+			pointerEvents: "none",
+			border: content ? "1px solid var(--color-border-primary)" : "1px dashed var(--color-border-primary)",
+			borderRadius: 8,
+			background: content ? "var(--color-background-primary)" : "color-mix(in srgb, var(--color-background-info) 40%, transparent)",
+			boxShadow: content ? "0 12px 32px rgb(0 0 0 / 24%)" : void 0,
+			zIndex: 50
+		},
+		children: content ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+			ref: contentRef,
+			style: {
+				width: sourceSize.w,
+				height: sourceSize.h,
+				transform: `scale(${scaleX}, ${scaleY})`,
+				transformOrigin: "top left"
+			}
+		}) : null
+	});
+}
+// src/ui-workbench/exclusive-transfer-dialog.tsx
+/**
+* 独占工具跨会话移动的确认框（X4.4 / XC-17）。
+*
+* 只有两个业务选项，且都不带默认值：
+*   「移动并改归属」/「创建新实例」
+*
+* 另外给一个明确的取消入口（不复制）。Esc、点击遮罩都等于取消，
+* 绝不会替用户选 move/new；初始焦点也落在取消上。
+*/
+const defaultExclusiveTransferLabels = {
+	title: "移动独占工具",
+	body: (toolId, from, to) => `「${toolId}」正在会话 ${from} 中运行，不能直接共享给会话 ${to}。请选择移动归属，或在新会话创建独立实例。`,
+	move: "移动并改归属",
+	create: "创建新实例",
+	cancel: "取消（不复制）",
+	note: "默认不会复制 PTY、浏览器登录空间或任何运行中的连接。"
+};
+const overlay$1 = {
+	position: "absolute",
+	inset: 0,
+	zIndex: 40,
+	display: "grid",
+	placeItems: "center",
+	background: "rgba(0, 0, 0, .28)"
+};
+const panel = {
+	width: "min(440px, calc(100% - 32px))",
+	padding: "16px 18px",
+	borderRadius: 10,
+	border: "1px solid var(--color-border-secondary, rgba(0,0,0,.12))",
+	background: "var(--color-bg-elevated, #fff)",
+	boxShadow: "0 12px 40px rgba(0, 0, 0, .22)",
+	color: "var(--color-text-primary, #2c2c2a)",
+	fontSize: 12,
+	lineHeight: 1.65
+};
+const actions = {
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
+	justifyContent: "flex-end",
+	marginTop: 14
+};
+const button$1 = {
+	padding: "5px 12px",
+	borderRadius: 6,
+	border: "1px solid var(--color-border-secondary, rgba(0,0,0,.16))",
+	background: "transparent",
+	color: "inherit",
+	fontSize: 12,
+	cursor: "pointer"
+};
+function ExclusiveTransferDialog(props) {
+	const labels = props.labels ?? defaultExclusiveTransferLabels;
+	const titleId = (0, react.useId)();
+	const descriptionId = (0, react.useId)();
+	const cancelRef = (0, react.useRef)(null);
+	(0, react.useEffect)(() => {
+		cancelRef.current?.focus();
+	}, []);
+	(0, react.useEffect)(() => {
+		const onKeyDown = (event) => {
+			if (event.key === "Escape") {
+				event.preventDefault();
+				props.onCancel();
+			}
+		};
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [props]);
+	const { source, target } = props.prompt;
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+		style: overlay$1,
+		"data-testid": "exclusive-transfer-overlay",
+		onPointerDown: (event) => {
+			if (event.target === event.currentTarget) props.onCancel();
+		},
+		children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+			role: "dialog",
+			"aria-modal": "true",
+			"aria-labelledby": titleId,
+			"aria-describedby": descriptionId,
+			"data-testid": "exclusive-transfer",
+			"data-tool-id": source.toolId,
+			"data-from-session": source.sessionId,
+			"data-to-session": target.sessionId,
+			style: panel,
+			children: [
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					id: titleId,
+					style: {
+						fontSize: 14,
+						fontWeight: 600,
+						marginBottom: 8
+					},
+					children: labels.title
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					id: descriptionId,
+					children: labels.body(source.toolId, source.sessionId.slice(-8), target.sessionId.slice(-8))
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					style: {
+						marginTop: 8,
+						color: "var(--color-text-tertiary, #8a8a85)",
+						fontSize: 11
+					},
+					children: labels.note
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: actions,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							ref: cancelRef,
+							type: "button",
+							style: button$1,
+							onClick: () => props.onCancel(),
+							children: labels.cancel
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							style: button$1,
+							onClick: () => props.onDecision("new"),
+							children: labels.create
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							style: button$1,
+							onClick: () => props.onDecision("move"),
+							children: labels.move
+						})
+					]
+				})
+			]
+		})
+	});
+}
+// src/ui-workbench/float-snap.ts
+const DEFAULT_SNAP_THRESHOLD = 24;
+function halfRects(viewport) {
+	const halfW = viewport.w / 2;
+	const halfH = viewport.h / 2;
+	return {
+		left: {
+			x: viewport.x,
+			y: viewport.y,
+			w: halfW,
+			h: viewport.h
+		},
+		right: {
+			x: viewport.x + halfW,
+			y: viewport.y,
+			w: halfW,
+			h: viewport.h
+		},
+		top: {
+			x: viewport.x,
+			y: viewport.y,
+			w: viewport.w,
+			h: halfH
+		},
+		bottom: {
+			x: viewport.x,
+			y: viewport.y + halfH,
+			w: viewport.w,
+			h: halfH
+		}
+	};
+}
+function quarterRects(viewport) {
+	const halfW = viewport.w / 2;
+	const halfH = viewport.h / 2;
+	return {
+		topLeft: {
+			x: viewport.x,
+			y: viewport.y,
+			w: halfW,
+			h: halfH
+		},
+		topRight: {
+			x: viewport.x + halfW,
+			y: viewport.y,
+			w: halfW,
+			h: halfH
+		},
+		bottomLeft: {
+			x: viewport.x,
+			y: viewport.y + halfH,
+			w: halfW,
+			h: halfH
+		},
+		bottomRight: {
+			x: viewport.x + halfW,
+			y: viewport.y + halfH,
+			w: halfW,
+			h: halfH
+		}
+	};
+}
+/** 指针进入视口边缘阈值时返回半屏/四象限吸附区域；角落优先于边缘。 */
+function snapFloatAt(point, viewport, threshold = DEFAULT_SNAP_THRESHOLD) {
+	const edge = Math.max(0, Math.min(threshold, viewport.w / 2, viewport.h / 2));
+	const nearLeft = point.x <= viewport.x + edge;
+	const nearRight = point.x >= viewport.x + viewport.w - edge;
+	const nearTop = point.y <= viewport.y + edge;
+	const nearBottom = point.y >= viewport.y + viewport.h - edge;
+	if (nearLeft && nearTop) return {
+		region: "topLeft",
+		rect: quarterRects(viewport).topLeft
+	};
+	if (nearRight && nearTop) return {
+		region: "topRight",
+		rect: quarterRects(viewport).topRight
+	};
+	if (nearLeft && nearBottom) return {
+		region: "bottomLeft",
+		rect: quarterRects(viewport).bottomLeft
+	};
+	if (nearRight && nearBottom) return {
+		region: "bottomRight",
+		rect: quarterRects(viewport).bottomRight
+	};
+	const halves = halfRects(viewport);
+	if (nearLeft) return {
+		region: "left",
+		rect: halves.left
+	};
+	if (nearRight) return {
+		region: "right",
+		rect: halves.right
+	};
+	if (nearTop) return {
+		region: "top",
+		rect: halves.top
+	};
+	if (nearBottom) return {
+		region: "bottom",
+		rect: halves.bottom
+	};
+	return null;
+}
+/** 把浮窗限制在视口内；浮窗大于视口时优先保证尺寸非负且位置可达。 */
+function clampFloatRect(rect, viewport) {
+	const w = Math.max(0, Math.min(rect.w, viewport.w));
+	const h = Math.max(0, Math.min(rect.h, viewport.h));
+	const maxX = viewport.x + viewport.w - w;
+	const maxY = viewport.y + viewport.h - h;
+	return {
+		x: Math.min(Math.max(rect.x, viewport.x), maxX),
+		y: Math.min(Math.max(rect.y, viewport.y), maxY),
+		w,
+		h
+	};
+}
+/** 对一组浮窗应用同一位移，并让整组边界保持在视口内，避免破坏相对位置。 */
+function moveFloatRects(origins, delta, viewport) {
+	if (origins.length === 0) return {};
+	const minX = Math.min(...origins.map((item) => item.rect.x));
+	const minY = Math.min(...origins.map((item) => item.rect.y));
+	const maxX = Math.max(...origins.map((item) => item.rect.x + item.rect.w));
+	const maxY = Math.max(...origins.map((item) => item.rect.y + item.rect.h));
+	const width = maxX - minX;
+	const height = maxY - minY;
+	const maxDeltaX = viewport.x + viewport.w - width - minX;
+	const maxDeltaY = viewport.y + viewport.h - height - minY;
+	const dx = maxDeltaX < viewport.x - minX ? viewport.x - minX : Math.min(Math.max(delta.x, viewport.x - minX), maxDeltaX);
+	const dy = maxDeltaY < viewport.y - minY ? viewport.y - minY : Math.min(Math.max(delta.y, viewport.y - minY), maxDeltaY);
+	return Object.fromEntries(origins.map((item) => [item.id, {
+		...item.rect,
+		x: item.rect.x + dx,
+		y: item.rect.y + dy
+	}]));
+}
+function overlaps(a, b, size, gap) {
+	return !(a.x + size.w + gap <= b.x || b.x + size.w + gap <= a.x || a.y + size.h + gap <= b.y || b.y + size.h + gap <= a.y);
+}
+/** 从底部向左排布最小化胶囊，跳过已占用位置；空间不足时安全钳制。 */
+function nextMinimizedPosition(viewport, occupied, size = {
+	w: 140,
+	h: 32
+}, gap = 8, margin = 16) {
+	const usableW = Math.max(0, viewport.w - margin * 2);
+	const usableH = Math.max(0, viewport.h - margin * 2);
+	const columns = Math.max(1, Math.floor((usableW + gap) / (size.w + gap)));
+	const rows = Math.max(1, Math.floor((usableH + gap) / (size.h + gap)));
+	const startX = viewport.x + Math.min(margin, usableW / 2);
+	const startY = viewport.y + viewport.h - Math.min(margin, usableH / 2) - size.h;
+	for (let index = 0; index < columns * rows; index += 1) {
+		const row = Math.floor(index / columns);
+		const candidate = {
+			x: startX + index % columns * (size.w + gap),
+			y: startY - row * (size.h + gap)
+		};
+		if (!occupied.some((item) => overlaps(candidate, item, size, gap))) return candidate;
+	}
+	return {
+		x: startX,
+		y: Math.max(viewport.y, startY)
+	};
+}
+// src/ui-workbench/tab-panel.tsx
+/**
+* 正文挂载点。WorkbenchView 会把每个 tab 的稳定内容宿主移进这里；
+* 单独渲染 DockSurface 时仍可通过 children 使用旧的直接渲染方式。
+*/
+function TabPanel({ tabId, active, registerTarget, children }) {
+	const ref = (0, react.useCallback)((node) => registerTarget?.(tabId, node), [registerTarget, tabId]);
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+		ref,
+		role: "tabpanel",
+		"data-tab-panel": tabId,
+		hidden: !active,
+		style: {
+			height: "100%",
+			minHeight: 0,
+			overflow: "hidden"
+		},
+		children
+	});
 }
 // src/ui-workbench/tab-strip.tsx
 /**
@@ -3134,6 +5656,7 @@ function TabStrip(props) {
 		role: "tablist",
 		"aria-label": labels.list,
 		"data-testid": testId ?? "tab-strip",
+		"data-drop-region": "tab",
 		"data-dockkit-strip-scroll": "true",
 		style: {
 			display: "flex",
@@ -3220,43 +5743,71 @@ function TabStrip(props) {
 }
 // src/ui-workbench/float-layer.tsx
 /**
-* 浮窗层 —— 绝对定位、视口钳制、标题栏拖动只落一次 op。
-* 胶囊（最小化）单独一层，位置记在 `layout.minimized`。
+* 浮窗层 —— 绝对定位、视口钳制、z-order、边缘吸附与标题栏拖动。
+* 同组浮窗共享一次拖动预览与一次历史提交；锁定浮窗不参与移动。
 */
+const PIN_LEVELS = [
+	"none",
+	"workspace",
+	"app",
+	"window",
+	"windowTop"
+];
 function FloatLayer(props) {
-	const { controller, floats, minimized, viewport, resolveTitle, renderContent, labels } = props;
-	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(react_jsx_runtime.Fragment, { children: floats.map((float) => {
+	const { controller, floats, minimized, viewport, resolveTitle, renderContent, labels, onContentTarget, onTabDragStart } = props;
+	const [groupPreview, setGroupPreview] = (0, react.useState)(null);
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(react_jsx_runtime.Fragment, { children: floats.map((float, index) => {
 		const capsule = minimized.find((m) => m.floatId === float.id);
-		if (capsule) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-			type: "button",
-			"data-capsule-for": float.id,
-			"aria-label": labels.restore,
-			onClick: () => controller.dispatch({
-				kind: "unminimize",
-				floatId: float.id
-			}),
-			style: {
-				position: "absolute",
-				left: capsule.x,
-				top: capsule.y,
-				zIndex: 30,
-				border: "0.5px solid var(--color-border-secondary)",
-				background: "var(--color-background-primary)",
-				color: "var(--color-text-primary)",
-				borderRadius: 999,
-				padding: "4px 10px",
-				fontSize: 12,
-				cursor: "pointer"
-			},
-			children: floatTitle(float, resolveTitle)
-		}, `capsule-${float.id}`);
+		if (capsule) {
+			const rect = clampFloatRect({
+				x: capsule.x,
+				y: capsule.y,
+				w: 140,
+				h: 32
+			}, viewport);
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+				type: "button",
+				"data-capsule-for": float.id,
+				"aria-label": labels.restore,
+				onClick: () => controller.dispatchMany([{
+					kind: "unminimize",
+					floatId: float.id
+				}, {
+					kind: "raiseFloat",
+					floatId: float.id
+				}], "restore-float"),
+				style: {
+					position: "absolute",
+					left: rect.x,
+					top: rect.y,
+					width: rect.w,
+					height: rect.h,
+					zIndex: 900 + index,
+					border: "0.5px solid var(--color-border-secondary)",
+					background: "var(--color-background-primary)",
+					color: "var(--color-text-primary)",
+					borderRadius: 999,
+					padding: "4px 10px",
+					fontSize: 12,
+					cursor: "pointer"
+				},
+				children: floatTitle(float, resolveTitle)
+			}, `capsule-${float.id}`);
+		}
 		return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(FloatWindow, {
 			float,
+			floats,
 			viewport,
 			controller,
 			resolveTitle,
 			renderContent,
-			labels
+			labels,
+			onContentTarget,
+			onTabDragStart,
+			minimized,
+			zIndex: (float.pin === "windowTop" ? 1e3 : 20) + index,
+			previewOverride: groupPreview?.[float.id],
+			onGroupPreview: setGroupPreview
 		}, float.id);
 	}) });
 }
@@ -3264,47 +5815,174 @@ function floatTitle(float, resolveTitle) {
 	const active = float.tabs.find((t) => t.id === float.activeTab) ?? float.tabs[float.tabs.length - 1];
 	return active ? resolveTitle(active) : "—";
 }
-function FloatWindow({ float, viewport, controller, resolveTitle, renderContent, labels }) {
+function FloatWindow({ float, floats, viewport, controller, resolveTitle, renderContent, labels, onContentTarget, onTabDragStart, minimized, zIndex, previewOverride, onGroupPreview }) {
 	const [preview, setPreview] = (0, react.useState)(null);
+	const [snap, setSnap] = (0, react.useState)(null);
+	const [dragging, setDragging] = (0, react.useState)(false);
 	const drag = (0, react.useRef)(null);
-	const rect = preview ?? float.rect;
+	const rect = previewOverride ?? preview ?? float.rect;
 	const active = float.tabs.find((t) => t.id === float.activeTab) ?? float.tabs[float.tabs.length - 1];
+	const groupMembers = float.groupId ? floats.filter((item) => item.groupId === float.groupId) : [];
+	const grouped = groupMembers.length > 1;
+	const moveLocked = float.locked === true || groupMembers.some((item) => item.locked);
+	const raise = (0, react.useCallback)(() => {
+		const state = controller.getState();
+		const current = state.floats.find((item) => item.id === float.id);
+		if (!current) return;
+		const members = current.groupId ? state.floats.filter((item) => item.groupId === current.groupId) : [current];
+		const memberIds = new Set(members.map((item) => item.id));
+		const order = [...state.floats.filter((item) => !memberIds.has(item.id)).map((item) => item.id), ...state.floats.filter((item) => memberIds.has(item.id)).map((item) => item.id)];
+		if (order.every((id, index) => id === state.floats[index]?.id) && state.focused === float.id) return;
+		controller.dispatchMany([{
+			kind: "reorderFloats",
+			order
+		}, {
+			kind: "focus",
+			id: float.id
+		}], "raise-float");
+	}, [controller, float.id]);
+	const clearPreview = (0, react.useCallback)(() => {
+		setDragging(false);
+		setPreview(null);
+		setSnap(null);
+		onGroupPreview(null);
+	}, [onGroupPreview]);
+	const cancelDrag = (0, react.useCallback)(() => {
+		if (!drag.current) return;
+		drag.current = null;
+		clearPreview();
+	}, [clearPreview]);
+	(0, react.useEffect)(() => {
+		if (!dragging) return;
+		const onKeyDown = (event) => {
+			if (event.key === "Escape") cancelDrag();
+		};
+		window.addEventListener("keydown", onKeyDown);
+		window.addEventListener("blur", cancelDrag);
+		return () => {
+			window.removeEventListener("keydown", onKeyDown);
+			window.removeEventListener("blur", cancelDrag);
+		};
+	}, [cancelDrag, dragging]);
+	const begin = (point, pointerId) => {
+		if (moveLocked) return false;
+		const origins = (grouped ? groupMembers : [float]).map((item) => ({
+			id: item.id,
+			rect: item.rect
+		}));
+		drag.current = {
+			start: point,
+			origins,
+			pointerId,
+			grouped,
+			current: Object.fromEntries(origins.map((item) => [item.id, item.rect])),
+			snap: null
+		};
+		setDragging(true);
+		return true;
+	};
+	const applyDelta = (dx, dy, pointer) => {
+		const state = drag.current;
+		if (!state) return;
+		if (state.grouped) {
+			state.current = moveFloatRects(state.origins, {
+				x: dx,
+				y: dy
+			}, viewport);
+			state.snap = null;
+			setSnap(null);
+			onGroupPreview(state.current);
+			return;
+		}
+		const origin = state.origins[0];
+		if (!origin) return;
+		const zone = pointer ? snapFloatAt(pointer, viewport) : null;
+		state.snap = zone;
+		state.current = { [origin.id]: zone?.rect ?? clampFloatRect({
+			...origin.rect,
+			x: origin.rect.x + dx,
+			y: origin.rect.y + dy
+		}, viewport) };
+		setSnap(zone);
+		setPreview(state.current[origin.id] ?? null);
+	};
 	const onPointerDown = (event) => {
 		if (event.button !== 0) return;
+		if ((event.target instanceof HTMLElement ? event.target : null)?.closest("button, select, [role=\"tab\"]")) return;
+		if (!begin({
+			x: event.clientX,
+			y: event.clientY
+		}, event.pointerId)) return;
 		event.currentTarget.setPointerCapture(event.pointerId);
-		drag.current = {
-			start: {
-				x: event.clientX,
-				y: event.clientY
-			},
-			origin: float.rect
-		};
 	};
 	const onPointerMove = (event) => {
 		const state = drag.current;
-		if (!state) return;
-		const next = {
-			x: Math.min(Math.max(state.origin.x + event.clientX - state.start.x, viewport.x), viewport.x + viewport.w - float.rect.w),
-			y: Math.min(Math.max(state.origin.y + event.clientY - state.start.y, viewport.y), viewport.y + viewport.h - float.rect.h),
-			w: float.rect.w,
-			h: float.rect.h
-		};
-		setPreview(next);
+		if (!state || state.pointerId !== event.pointerId) return;
+		applyDelta(event.clientX - state.start.x, event.clientY - state.start.y, {
+			x: event.clientX,
+			y: event.clientY
+		});
 	};
-	const finish = () => {
+	const commitDrag = () => {
 		const state = drag.current;
 		drag.current = null;
-		if (!state || !preview) {
-			setPreview(null);
+		clearPreview();
+		if (!state) return;
+		if (state.grouped && float.groupId) {
+			const moves = state.origins.map((origin) => ({
+				floatId: origin.id,
+				rect: state.current[origin.id] ?? origin.rect
+			}));
+			if (moves.some((move) => {
+				const before = state.origins.find((origin) => origin.id === move.floatId)?.rect;
+				return before && (before.x !== move.rect.x || before.y !== move.rect.y || before.w !== move.rect.w || before.h !== move.rect.h);
+			})) controller.dispatch({
+				kind: "moveFloatGroup",
+				groupId: float.groupId,
+				moves
+			}, "move-float-group");
 			return;
 		}
-		const moved = preview.x !== float.rect.x || preview.y !== float.rect.y;
-		setPreview(null);
-		if (moved) controller.dispatch({
+		const origin = state.origins[0];
+		const finalRect = origin ? state.current[origin.id] : void 0;
+		if (!origin || !finalRect) return;
+		if (finalRect.x !== origin.rect.x || finalRect.y !== origin.rect.y || finalRect.w !== origin.rect.w || finalRect.h !== origin.rect.h) controller.dispatch({
 			kind: "moveFloat",
 			floatId: float.id,
-			rect: preview
-		});
+			rect: finalRect
+		}, "move-float");
+	};
+	const onTitleKeyDown = (event) => {
+		if (event.target !== event.currentTarget) return;
+		if (event.key === "Escape") {
+			event.preventDefault();
+			cancelDrag();
+			return;
+		}
+		if (event.key === "Enter" || event.key === " ") {
+			event.preventDefault();
+			if (drag.current) commitDrag();
+			else if (begin({
+				x: rect.x + rect.w / 2,
+				y: rect.y + rect.h / 2
+			}, -1)) applyDelta(0, 0);
+			return;
+		}
+		if (![
+			"ArrowLeft",
+			"ArrowRight",
+			"ArrowUp",
+			"ArrowDown"
+		].includes(event.key)) return;
+		event.preventDefault();
+		if (!drag.current && !begin({
+			x: rect.x + rect.w / 2,
+			y: rect.y + rect.h / 2
+		}, -1)) return;
+		const step = event.shiftKey ? 50 : 20;
+		const dx = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
+		const dy = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
+		applyDelta(dx, dy);
 	};
 	const closeTab = (tabId) => {
 		controller.dispatch({
@@ -3313,36 +5991,83 @@ function FloatWindow({ float, viewport, controller, resolveTitle, renderContent,
 			tabId
 		});
 	};
-	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+	const minimize = () => {
+		const position = nextMinimizedPosition(viewport, minimized);
+		controller.dispatch({
+			kind: "minimize",
+			floatId: float.id,
+			...position
+		}, "minimize-float");
+	};
+	const toggleGroup = () => {
+		if (float.groupId) {
+			controller.dispatch({
+				kind: "ungroupFloat",
+				floatId: float.id
+			}, "ungroup-float");
+			return;
+		}
+		const index = floats.findIndex((item) => item.id === float.id);
+		const other = floats[index + 1] ?? floats[index - 1];
+		if (!other || other.id === float.id || other.groupId) return;
+		controller.dispatch({
+			kind: "groupFloats",
+			groupId: controller.mint.float(),
+			floatIds: [float.id, other.id]
+		}, "group-floats");
+	};
+	const groupControl = float.groupId ? {
+		label: labels.ungroup,
+		disabled: false
+	} : {
+		label: labels.group,
+		disabled: floats.filter((item) => !item.groupId).length < 2
+	};
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 		"data-float-id": float.id,
+		"data-float-z": zIndex,
+		"data-dock-host": float.id,
+		"data-host-kind": "float",
+		"data-float-dragging": dragging ? "true" : "false",
+		"data-float-group": float.groupId,
+		"data-float-locked": float.locked ? "true" : "false",
+		"data-drop-region": "float",
 		"data-pin": float.pin,
+		onPointerDownCapture: (event) => {
+			if (!(event.target instanceof HTMLElement ? event.target : null)?.closest("[role=\"tab\"]")) raise();
+		},
 		style: {
 			position: "absolute",
 			left: rect.x,
 			top: rect.y,
 			width: rect.w,
 			height: rect.h,
-			zIndex: float.pin === "windowTop" ? 40 : 20,
+			zIndex,
 			display: "flex",
 			flexDirection: "column",
 			background: "var(--color-background-primary)",
-			border: "0.5px solid var(--color-border-secondary)",
+			border: `0.5px solid ${moveLocked ? "var(--color-border-warning, #b7791f)" : "var(--color-border-secondary)"}`,
 			borderRadius: 12,
 			boxShadow: "0 8px 28px rgba(0,0,0,0.12)",
 			overflow: "hidden"
 		},
 		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 			"data-float-titlebar": "true",
+			role: "group",
+			tabIndex: 0,
+			"aria-label": labels.moveWindow,
 			onPointerDown,
 			onPointerMove,
-			onPointerUp: finish,
-			onPointerCancel: finish,
+			onPointerUp: commitDrag,
+			onPointerCancel: cancelDrag,
+			onLostPointerCapture: cancelDrag,
+			onKeyDown: onTitleKeyDown,
 			style: {
 				display: "flex",
 				alignItems: "center",
 				gap: 6,
 				padding: "5px 8px",
-				cursor: "move",
+				cursor: moveLocked ? "not-allowed" : "move",
 				flex: "0 0 auto"
 			},
 			children: [
@@ -3353,7 +6078,7 @@ function FloatWindow({ float, viewport, controller, resolveTitle, renderContent,
 					},
 					children: labels.pin[float.pin]
 				}),
-				float.tabs.length > 1 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(TabStrip, {
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)(TabStrip, {
 					tabs: float.tabs,
 					activeTab: active?.id,
 					resolveTitle,
@@ -3364,27 +6089,54 @@ function FloatWindow({ float, viewport, controller, resolveTitle, renderContent,
 						floatId: float.id,
 						tabId: id
 					}),
-					onClose: closeTab
-				}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-					style: {
-						flex: "1 1 auto",
-						fontSize: 12,
-						overflow: "hidden",
-						textOverflow: "ellipsis",
-						whiteSpace: "nowrap"
-					},
-					children: active ? resolveTitle(active) : "—"
+					onClose: closeTab,
+					onDragStart: (id, event) => onTabDragStart?.({
+						kind: "float",
+						id: float.id
+					}, id, event)
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("select", {
+					"aria-label": labels.pinControl,
+					value: float.pin,
+					onPointerDown: (event) => event.stopPropagation(),
+					onChange: (event) => controller.dispatch({
+						kind: "setPin",
+						floatId: float.id,
+						pin: event.target.value
+					}, "set-pin"),
+					style: controlStyle,
+					children: PIN_LEVELS.map((level) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+						value: level,
+						children: labels.pin[level]
+					}, level))
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+					type: "button",
+					"aria-label": groupControl.label,
+					disabled: groupControl.disabled,
+					onPointerDown: (event) => event.stopPropagation(),
+					onClick: toggleGroup,
+					style: iconButton,
+					children: float.groupId ? "U" : "G"
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+					type: "button",
+					"aria-label": float.locked ? labels.unlock : labels.lock,
+					"aria-pressed": float.locked === true,
+					onPointerDown: (event) => event.stopPropagation(),
+					onClick: () => controller.dispatch({
+						kind: "setLocked",
+						floatId: float.id,
+						locked: !float.locked
+					}, "toggle-lock"),
+					style: iconButton,
+					children: float.locked ? "L" : "l"
 				}),
 				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 					type: "button",
 					"aria-label": labels.minimize,
 					onPointerDown: (event) => event.stopPropagation(),
-					onClick: () => controller.dispatch({
-						kind: "minimize",
-						floatId: float.id,
-						x: viewport.x + 16,
-						y: viewport.y + viewport.h - 40
-					}),
+					onClick: minimize,
 					style: iconButton,
 					children: "–"
 				}),
@@ -3406,19 +6158,28 @@ function FloatWindow({ float, viewport, controller, resolveTitle, renderContent,
 				minHeight: 0,
 				position: "relative"
 			},
-			children: float.tabs.map((tab) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				role: "tabpanel",
-				"data-tab-panel": tab.id,
-				hidden: tab.id !== active?.id,
-				style: {
-					height: "100%",
-					minHeight: 0,
-					overflow: "hidden"
-				},
-				children: renderContent(tab, tab.id === active?.id)
+			children: float.tabs.map((tab) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)(TabPanel, {
+				tabId: tab.id,
+				active: tab.id === active?.id,
+				registerTarget: onContentTarget,
+				children: onContentTarget ? null : renderContent(tab, tab.id === active?.id)
 			}, tab.id))
 		})]
-	});
+	}), snap ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+		"data-float-snap-preview": snap.region,
+		style: {
+			position: "absolute",
+			left: snap.rect.x,
+			top: snap.rect.y,
+			width: snap.rect.w,
+			height: snap.rect.h,
+			pointerEvents: "none",
+			border: "2px solid var(--color-border-info, #4a7dff)",
+			background: "color-mix(in srgb, var(--color-background-info, #2c2c2a) 20%, transparent)",
+			borderRadius: 12,
+			zIndex: zIndex + 500
+		}
+	}) : null] });
 }
 const iconButton = {
 	flex: "0 0 auto",
@@ -3430,6 +6191,96 @@ const iconButton = {
 	lineHeight: 1,
 	padding: 2
 };
+const controlStyle = {
+	flex: "0 0 auto",
+	maxWidth: 130,
+	border: "none",
+	background: "transparent",
+	color: "var(--color-text-secondary)",
+	fontSize: 11
+};
+// src/ui-workbench/preview.ts
+const BLOCKED_PREVIEW_SELECTOR = [
+	"script",
+	"iframe",
+	"webview",
+	"object",
+	"embed",
+	"link",
+	"meta",
+	"base",
+	"style",
+	"audio",
+	"video",
+	"source"
+].join(", ");
+const WORKBENCH_METADATA = [
+	"data-tab-content-host",
+	"data-tab-panel",
+	"data-tab-id",
+	"data-pane-id",
+	"data-drop-host",
+	"data-drop-region",
+	"data-testid"
+];
+function copyCanvas(source, target) {
+	if (source.width === 0 || source.height === 0) return;
+	target.width = source.width;
+	target.height = source.height;
+	const context = target.getContext("2d");
+	if (!context) return;
+	try {
+		context.drawImage(source, 0, 0);
+	} catch {}
+}
+function copyFormState(source, target) {
+	if (source instanceof HTMLInputElement && target instanceof HTMLInputElement) {
+		if (source.type !== "file") target.value = source.value;
+		target.checked = source.checked;
+		target.indeterminate = source.indeterminate;
+		return;
+	}
+	if (source instanceof HTMLTextAreaElement && target instanceof HTMLTextAreaElement) {
+		target.value = source.value;
+		return;
+	}
+	if (source instanceof HTMLSelectElement && target instanceof HTMLSelectElement) {
+		target.selectedIndex = source.selectedIndex;
+		const sourceOptions = Array.from(source.options);
+		const targetOptions = Array.from(target.options);
+		for (let index = 0; index < targetOptions.length; index += 1) targetOptions[index].selected = sourceOptions[index]?.selected ?? false;
+	}
+}
+/** 克隆当前正文作为惰性预览；不复制事件、脚本或会重新加载的嵌入内容。 */
+function cloneContentPreview(source) {
+	const clone = source.cloneNode(true);
+	const sources = [source, ...Array.from(source.querySelectorAll("*"))];
+	const targets = [clone, ...Array.from(clone.querySelectorAll("*"))];
+	for (let index = 0; index < sources.length; index += 1) {
+		const original = sources[index];
+		const copied = targets[index];
+		if (!(original instanceof HTMLElement) || !(copied instanceof HTMLElement)) continue;
+		copyFormState(original, copied);
+		copied.scrollTop = original.scrollTop;
+		copied.scrollLeft = original.scrollLeft;
+		if (original instanceof HTMLCanvasElement && copied instanceof HTMLCanvasElement) copyCanvas(original, copied);
+		copied.removeAttribute("id");
+		copied.removeAttribute("for");
+		copied.removeAttribute("aria-labelledby");
+		copied.removeAttribute("aria-describedby");
+		copied.removeAttribute("aria-controls");
+		copied.removeAttribute("headers");
+		copied.removeAttribute("autofocus");
+		for (const attribute of WORKBENCH_METADATA) copied.removeAttribute(attribute);
+	}
+	clone.querySelectorAll(BLOCKED_PREVIEW_SELECTOR).forEach((node) => node.remove());
+	clone.setAttribute("data-drag-preview-content", "true");
+	clone.setAttribute("aria-hidden", "true");
+	clone.setAttribute("inert", "");
+	clone.style.pointerEvents = "none";
+	clone.style.userSelect = "none";
+	return clone;
+}
 // src/ui-workbench/surface.tsx
 /**
 * 停靠面 —— 递归渲染分裂树。
@@ -3449,11 +6300,56 @@ function DockSurface({ node, ctx }) {
 		ctx
 	});
 }
-function PaneView({ pane, ctx }) {
-	const { controller, resolveTitle, renderContent, labels, onTabDragStart } = ctx;
+function PaneView({ pane, ctx, hostKind = "pane" }) {
+	const { controller, resolveTitle, renderContent, labels, onTabDragStart, onContentTarget } = ctx;
 	const active = pane.tabs.find((t) => t.id === pane.activeTab) ?? pane.tabs[pane.tabs.length - 1];
+	const host = {
+		kind: hostKind,
+		id: pane.id
+	};
+	const selectTab = (tabId) => {
+		if (hostKind === "region") {
+			controller.dispatchMany([{
+				kind: "setHostTabs",
+				host,
+				tabs: pane.tabs,
+				activeTab: tabId
+			}, {
+				kind: "focus",
+				id: pane.id
+			}], "activate-tab");
+			return;
+		}
+		controller.dispatch({
+			kind: "activateTab",
+			pane: pane.id,
+			tabId
+		}, "activate-tab");
+	};
+	const closeTab = (tabId) => {
+		if (hostKind === "pane") {
+			controller.dispatch({
+				kind: "removeTab",
+				pane: pane.id,
+				tabId
+			}, "close-tab");
+			return;
+		}
+		const index = pane.tabs.findIndex((tab) => tab.id === tabId);
+		const tabs = pane.tabs.filter((tab) => tab.id !== tabId);
+		const activeTab = pane.activeTab === tabId ? tabs[Math.min(Math.max(index, 0), Math.max(0, tabs.length - 1))]?.id : pane.activeTab;
+		controller.dispatch({
+			kind: "setHostTabs",
+			host,
+			tabs,
+			activeTab
+		}, "close-tab");
+	};
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
 		"data-pane-id": pane.id,
+		"data-dock-host": pane.id,
+		"data-host-kind": hostKind,
+		"data-drop-region": "pane",
 		"data-empty": pane.tabs.length === 0 ? "true" : "false",
 		style: {
 			display: "flex",
@@ -3474,17 +6370,9 @@ function PaneView({ pane, ctx }) {
 				resolveTitle,
 				labels,
 				testId: `tab-strip-${pane.id}`,
-				onSelect: (id) => controller.dispatch({
-					kind: "activateTab",
-					pane: pane.id,
-					tabId: id
-				}),
-				onClose: (id) => controller.dispatch({
-					kind: "removeTab",
-					pane: pane.id,
-					tabId: id
-				}),
-				onDragStart: (id, event) => onTabDragStart?.(pane.id, id, event)
+				onSelect: selectTab,
+				onClose: closeTab,
+				onDragStart: (id, event) => onTabDragStart?.(host, id, event)
 			})
 		}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 			style: {
@@ -3492,16 +6380,11 @@ function PaneView({ pane, ctx }) {
 				minHeight: 0,
 				position: "relative"
 			},
-			children: pane.tabs.map((tab) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				role: "tabpanel",
-				"data-tab-panel": tab.id,
-				hidden: tab.id !== active?.id,
-				style: {
-					height: "100%",
-					minHeight: 0,
-					overflow: "hidden"
-				},
-				children: renderContent(tab, tab.id === active?.id)
+			children: pane.tabs.map((tab) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)(TabPanel, {
+				tabId: tab.id,
+				active: tab.id === active?.id,
+				registerTarget: onContentTarget,
+				children: onContentTarget ? null : renderContent(tab, tab.id === active?.id)
 			}, tab.id))
 		})]
 	});
@@ -3536,6 +6419,10 @@ function SplitView({ split, ctx }) {
 		next[state.index] = a + moved;
 		next[state.index + 1] = b - moved;
 		setPreview(next);
+	};
+	const cancel = () => {
+		drag.current = null;
+		setPreview(null);
 	};
 	const finish = () => {
 		const state = drag.current;
@@ -3606,7 +6493,8 @@ function SplitView({ split, ctx }) {
 			onPointerDown: onPointerDown(index),
 			onPointerMove,
 			onPointerUp: finish,
-			onPointerCancel: finish,
+			onPointerCancel: cancel,
+			onLostPointerCapture: cancel,
 			onDoubleClick: () => {
 				const even = split.children.map(() => 1 / split.children.length);
 				ctx.controller.dispatch({
@@ -3625,6 +6513,137 @@ function SplitView({ split, ctx }) {
 		})] }, child.id))
 	});
 }
+// src/ui-workbench/region-bar.tsx
+const DEFAULT_SIZE = {
+	sidebar: 220,
+	right: 260,
+	bottom: 180
+};
+const MIN_SIZE = {
+	sidebar: 140,
+	right: 160,
+	bottom: 120
+};
+/** Persistent sidebar/right/bottom hosts; unlike splits these never compact. */
+function RegionBar({ region, pane, ctx, label, separatorLabel, size, onResize }) {
+	const vertical = region === "sidebar" || region === "right";
+	const [preview, setPreview] = (0, react.useState)(null);
+	const drag = (0, react.useRef)(null);
+	const currentSize = preview ?? size ?? DEFAULT_SIZE[region];
+	const axisPoint = (event) => vertical ? event.clientX : event.clientY;
+	const sizeLimit = (target) => {
+		const parent = target.parentElement?.getBoundingClientRect();
+		return Math.max(MIN_SIZE[region], (vertical ? parent?.width ?? 1200 : parent?.height ?? 800) * .6);
+	};
+	const begin = (event) => {
+		if (event.button !== 0) return;
+		drag.current = {
+			start: axisPoint(event),
+			size: currentSize,
+			limit: sizeLimit(event.currentTarget)
+		};
+		event.currentTarget.setPointerCapture(event.pointerId);
+	};
+	const move = (event) => {
+		const state = drag.current;
+		if (!state) return;
+		const direction = region === "right" || region === "bottom" ? -1 : 1;
+		const next = state.size + (axisPoint(event) - state.start) * direction;
+		setPreview(Math.round(Math.min(state.limit, Math.max(MIN_SIZE[region], next))));
+	};
+	const finish = () => {
+		const state = drag.current;
+		drag.current = null;
+		setPreview(null);
+		if (state && preview !== null && preview !== state.size) onResize?.(preview);
+	};
+	const cancel = () => {
+		drag.current = null;
+		setPreview(null);
+	};
+	const nudge = (event) => {
+		if (![
+			"ArrowLeft",
+			"ArrowRight",
+			"ArrowUp",
+			"ArrowDown"
+		].includes(event.key)) return;
+		event.preventDefault();
+		const step = (event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1) * (region === "right" || region === "bottom" ? -1 : 1) * (event.shiftKey ? 40 : 10);
+		onResize?.(Math.min(sizeLimit(event.currentTarget), Math.max(MIN_SIZE[region], currentSize + step)));
+	};
+	const bar = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("aside", {
+		"data-dock-host": pane.id,
+		"data-host-kind": "region",
+		"data-region": region,
+		"aria-label": label,
+		style: {
+			display: "flex",
+			flexDirection: "column",
+			flex: vertical ? "0 0 auto" : "0 0 auto",
+			flexBasis: currentSize,
+			width: vertical ? currentSize : "100%",
+			minWidth: 0,
+			minHeight: 0,
+			borderTop: region === "bottom" ? "1px solid var(--color-border-tertiary)" : void 0,
+			borderRight: region === "sidebar" ? "1px solid var(--color-border-tertiary)" : void 0,
+			borderLeft: region === "right" ? "1px solid var(--color-border-tertiary)" : void 0,
+			background: "var(--color-background-secondary, #17191f)",
+			overflow: "hidden"
+		},
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+			style: {
+				flex: "0 0 auto",
+				padding: "5px 8px",
+				fontSize: 11,
+				color: "var(--color-text-tertiary)"
+			},
+			children: label
+		}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+			style: {
+				flex: "1 1 auto",
+				minHeight: 0
+			},
+			children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(PaneView, {
+				pane,
+				hostKind: "region",
+				ctx: {
+					...ctx,
+					onTabDragStart: (_host, tabId, event) => ctx.onTabDragStart?.({
+						kind: "region",
+						id: pane.id
+					}, tabId, event)
+				}
+			})
+		})]
+	});
+	const separator = /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+		role: "separator",
+		tabIndex: 0,
+		"aria-label": separatorLabel,
+		"aria-orientation": vertical ? "vertical" : "horizontal",
+		"aria-valuenow": currentSize,
+		onPointerDown: begin,
+		onPointerMove: move,
+		onPointerUp: finish,
+		onPointerCancel: cancel,
+		onLostPointerCapture: cancel,
+		onKeyDown: nudge,
+		onDoubleClick: () => onResize?.(),
+		style: {
+			flex: "0 0 5px",
+			alignSelf: "stretch",
+			cursor: vertical ? "col-resize" : "row-resize",
+			background: "var(--color-border-tertiary)",
+			touchAction: "none"
+		}
+	});
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+		region === "right" ? separator : null,
+		bar,
+		region === "right" ? null : separator
+	] });
+}
 // src/ui-workbench/workbench-view.tsx
 /**
 * WorkbenchView —— 工作台合成层。
@@ -3639,11 +6658,96 @@ const DEFAULT_FLOAT_SIZE = {
 	w: 560,
 	h: 420
 };
+function topDropTarget(controller, session) {
+	if (session.targetHost?.kind === "pane") return session.targetHost.id;
+	return session.targetPane ?? controller.focusedPane();
+}
+/** 按渲染树的真实比例求一个 pane 的几何，供“操作后的投影预览”复用。 */
+function paneGeometry(node, paneId, rect) {
+	if (node.kind === "pane") return node.id === paneId ? rect : void 0;
+	const vertical = node.axis === "column";
+	const available = vertical ? rect.h : rect.w;
+	let offset = 0;
+	for (const [index, child] of node.children.entries()) {
+		const length = available * (node.sizes[index] ?? 1 / node.children.length);
+		const found = paneGeometry(child, paneId, vertical ? {
+			...rect,
+			y: rect.y + offset,
+			h: length
+		} : {
+			...rect,
+			x: rect.x + offset,
+			w: length
+		});
+		if (found) return found;
+		offset += length;
+	}
+}
+/**
+* 顶部落点会分裂指针下的真实 pane，而不是焦点 pane。
+* 先对同一次原子操作做纯投影，再按 compact 后的树计算预览，
+* 避免源格清空后比例变化导致“预览半屏、落定全屏”。
+*/
+function projectedTopDropRect(layout, seed, session, target, mainRect) {
+	if (session.zone?.kind !== "top" || !findPane(layout.root, target)) return void 0;
+	const used = workbenchIds(layout);
+	let suffix = 0;
+	let newPane = `drop-preview-pane-${suffix}`;
+	let newSplit = `drop-preview-split-${suffix}`;
+	while (used.has(newPane) || used.has(newSplit)) {
+		suffix += 1;
+		newPane = `drop-preview-pane-${suffix}`;
+		newSplit = `drop-preview-split-${suffix}`;
+	}
+	const projected = applyOps(layout, [{
+		kind: "split",
+		pane: target,
+		axis: "column",
+		at: "before",
+		newPane,
+		newSplit
+	}, {
+		kind: "transferTab",
+		from: session.from,
+		to: {
+			kind: "pane",
+			id: newPane
+		},
+		tabId: session.tabId
+	}]).next;
+	return paneGeometry(view(projected, seed).root, newPane, mainRect);
+}
 function WorkbenchView(props) {
 	const { controller, labels, resolveTitle, renderContent, topbar } = props;
 	const state = (0, react.useSyncExternalStore)((0, react.useCallback)((listener) => controller.subscribe(listener), [controller]), (0, react.useCallback)(() => controller.getState(), [controller]));
+	const limitError = (0, react.useSyncExternalStore)((0, react.useCallback)((listener) => controller.subscribe(listener), [controller]), (0, react.useCallback)(() => controller.limitError(), [controller]), (0, react.useCallback)(() => controller.limitError(), [controller]));
 	const hostRef = (0, react.useRef)(null);
+	const mainHostRef = (0, react.useRef)(null);
+	const parkingRef = (0, react.useRef)(null);
+	const contentTargets = (0, react.useRef)(/* @__PURE__ */ new Map());
+	const [contentRevision, setContentRevision] = (0, react.useState)(0);
+	const dragRef = (0, react.useRef)(null);
+	const dragSourceRef = (0, react.useRef)(null);
 	const [drag, setDrag] = (0, react.useState)(null);
+	const [previewContent, setPreviewContent] = (0, react.useState)(null);
+	const [previewSourceSize, setPreviewSourceSize] = (0, react.useState)({
+		w: 640,
+		h: 480
+	});
+	const registerContentTarget = (0, react.useCallback)((tabId, node) => {
+		const previous = contentTargets.current.get(tabId);
+		if (previous === node) return;
+		if (node) contentTargets.current.set(tabId, node);
+		else {
+			const host = previous?.querySelector("[data-tab-content-host]");
+			if (previous && host && parkingRef.current) moveContentHost(parkingRef.current, host);
+			contentTargets.current.delete(tabId);
+		}
+		setContentRevision((revision) => revision + 1);
+	}, []);
+	const getContentTarget = (0, react.useCallback)((tabId) => {
+		return contentTargets.current.get(tabId) ?? null;
+	}, []);
 	const workRect = () => {
 		if (props.viewport) return props.viewport;
 		const box = hostRef.current?.getBoundingClientRect();
@@ -3654,75 +6758,203 @@ function WorkbenchView(props) {
 			h: box?.height ?? 800
 		};
 	};
-	const startDrag = (pane, tabId, event) => {
-		setDrag(beginDrag({
+	const startDrag = (host, tabId, event) => {
+		const session = beginDrag({
 			tabId,
-			from: pane,
+			from: host,
 			start: {
 				x: event.clientX,
 				y: event.clientY
 			},
 			size: DEFAULT_FLOAT_SIZE
-		}));
+		});
+		dragSourceRef.current = Array.from(hostRef.current?.querySelectorAll("[data-tab-content-host]") ?? []).find((node) => node.dataset.tabContentHost === tabId) ?? null;
+		setPreviewContent(null);
+		dragRef.current = session;
+		setDrag(session);
 	};
-	/** 吸附落定 = 分裂 + 把标签移进新格，一次手势合成一条历史。 */
+	const hostAtPoint = (point) => {
+		if (typeof document.elementFromPoint !== "function") return void 0;
+		const element = document.elementFromPoint(point.x, point.y);
+		const hostElement = element?.closest("[data-dock-host]");
+		const kind = hostElement?.dataset.hostKind;
+		const id = hostElement?.dataset.dockHost;
+		if (!hostElement || !id || kind !== "pane" && kind !== "region" && kind !== "float") return void 0;
+		const box = hostElement.getBoundingClientRect();
+		const tabElement = element?.closest("[data-tab-id]");
+		const tabs = hostElement.querySelectorAll("[data-tab-id]");
+		const index = tabElement ? Array.from(tabs).indexOf(tabElement) : -1;
+		return {
+			host: {
+				kind,
+				id
+			},
+			rect: {
+				x: box.left,
+				y: box.top,
+				w: box.width,
+				h: box.height
+			},
+			...index >= 0 ? { index } : {}
+		};
+	};
+	const sameHost = (a, b) => a.kind === b.kind && a.id === b.id;
+	/** 一次 drop 只提交一个原子操作，因此只产生一条历史和一次保存。 */
 	const absorb = (session, dest) => {
-		if (!dest || dest.to === "pane" || dest.to === "float" || dest.to === "window") return;
-		const target = controller.focusedPane();
+		if (!dest || dest.to === "float" || dest.to === "window") return;
+		if (dest.to === "host" || dest.to === "pane") {
+			const host = dest.to === "host" ? dest.host : {
+				kind: "pane",
+				id: dest.pane
+			};
+			const index = dest.index;
+			if (sameHost(host, session.from) && index === void 0) return;
+			controller.dispatch({
+				kind: "transferTab",
+				from: session.from,
+				to: host,
+				tabId: session.tabId,
+				index
+			}, "transfer-tab");
+			return;
+		}
+		const regionName = dest.to === "edge" ? dest.region : dest.corner;
+		const fixedRegion = regionName === "left" || regionName === "tl" || regionName === "bl" ? "sidebar" : regionName === "right" || regionName === "tr" || regionName === "br" ? "right" : regionName === "bottom" ? "bottom" : void 0;
+		if (fixedRegion) {
+			const pane = ensureWorkbenchRegions(controller.getState()).regions?.[fixedRegion];
+			if (pane) controller.dispatch({
+				kind: "transferTab",
+				from: session.from,
+				to: {
+					kind: "region",
+					id: pane.id
+				},
+				tabId: session.tabId
+			}, "transfer-tab");
+			return;
+		}
+		const target = topDropTarget(controller, session);
 		if (!target) return;
-		const region = dest.to === "edge" ? dest.region : dest.corner;
-		const axis = region === "left" || region === "right" ? "row" : "column";
-		const at = region === "left" || region === "tl" || region === "top" ? "before" : "after";
 		const newPane = controller.mint.pane();
 		const newSplit = controller.mint.split();
 		controller.dispatchMany([{
 			kind: "split",
 			pane: target,
-			axis,
-			at,
+			axis: "column",
+			at: "before",
 			newPane,
 			newSplit
 		}, {
-			kind: "moveTab",
+			kind: "transferTab",
 			from: session.from,
-			to: newPane,
+			to: {
+				kind: "pane",
+				id: newPane
+			},
 			tabId: session.tabId
 		}], "absorb");
 	};
 	(0, react.useEffect)(() => {
 		if (!drag) return;
 		const onMove = (event) => {
-			setDrag((current) => current ? moveDrag(current, {
+			const current = dragRef.current;
+			if (!current) return;
+			const point = {
 				x: event.clientX,
 				y: event.clientY
-			}, workRect()) : current);
+			};
+			const target = hostAtPoint(point);
+			const regionRects = {};
+			for (const region of [
+				"sidebar",
+				"right",
+				"bottom"
+			]) {
+				const element = hostRef.current?.querySelector(`[data-region="${region}"]`);
+				if (!element) continue;
+				const box = element.getBoundingClientRect();
+				if (box.width <= 0 || box.height <= 0) continue;
+				regionRects[region] = {
+					x: box.left,
+					y: box.top,
+					w: box.width,
+					h: box.height
+				};
+			}
+			const next = moveDrag(current, point, workRect(), {
+				targetHost: target?.host,
+				targetRect: target?.rect,
+				targetIndex: target?.index,
+				regionRects,
+				modifierPaused: event.ctrlKey || event.metaKey
+			});
+			if (!current.active && next.active && dragSourceRef.current) {
+				const source = dragSourceRef.current;
+				const box = source.getBoundingClientRect();
+				setPreviewSourceSize({
+					w: box.width || source.offsetWidth || 640,
+					h: box.height || source.offsetHeight || 480
+				});
+				setPreviewContent(cloneContentPreview(source));
+			}
+			dragRef.current = next;
+			setDrag(next);
 		};
 		const onUp = () => {
-			setDrag((current) => {
-				if (!current) return null;
-				const result = dropDrag(current);
-				if (result?.dest) absorb(current, result.dest);
-				else if (result?.rect) controller.dispatch({
-					kind: "floatTabs",
-					pane: current.from,
-					tabIds: [current.tabId],
-					floatId: controller.mint.float(),
-					rect: result.rect
-				}, "float");
-				return null;
-			});
+			const current = dragRef.current;
+			dragRef.current = null;
+			dragSourceRef.current = null;
+			setPreviewContent(null);
+			setDrag(null);
+			if (!current) return;
+			const result = dropDrag(current);
+			if (result?.dest) absorb(current, result.dest);
+			else if (result?.rect) controller.dispatch({
+				kind: "floatTab",
+				from: current.from,
+				tabId: current.tabId,
+				floatId: controller.mint.float(),
+				rect: result.rect
+			}, "float");
+		};
+		const cancel = () => {
+			dragRef.current = null;
+			dragSourceRef.current = null;
+			setPreviewContent(null);
+			setDrag(null);
+		};
+		const onKeyDown = (event) => {
+			if (event.key === "Escape") cancel();
 		};
 		window.addEventListener("pointermove", onMove);
 		window.addEventListener("pointerup", onUp);
-		window.addEventListener("pointercancel", onUp);
+		window.addEventListener("pointercancel", cancel);
+		window.addEventListener("blur", cancel);
+		window.addEventListener("keydown", onKeyDown);
 		return () => {
 			window.removeEventListener("pointermove", onMove);
 			window.removeEventListener("pointerup", onUp);
-			window.removeEventListener("pointercancel", onUp);
+			window.removeEventListener("pointercancel", cancel);
+			window.removeEventListener("blur", cancel);
+			window.removeEventListener("keydown", onKeyDown);
 		};
 	}, [drag !== null, controller]);
-	const shown = view(state, panes(state.root)[0]?.id ?? state.root.id);
-	const empty = panes(shown.root).every((p) => p.tabs.length === 0) && state.floats.length === 0;
+	const normalized = ensureWorkbenchRegions(state);
+	const seed = panes(normalized.root)[0]?.id ?? normalized.root.id;
+	const shown = view(normalized, seed);
+	const empty = panes(shown.root).every((p) => p.tabs.length === 0) && normalized.floats.length === 0;
+	const entriesFor = (host) => {
+		const active = host.tabs.find((tab) => tab.id === host.activeTab) ?? host.tabs[host.tabs.length - 1];
+		return host.tabs.map((tab) => ({
+			tab,
+			active: tab.id === active?.id
+		}));
+	};
+	const contentEntries = [
+		...panes(normalized.root).flatMap(entriesFor),
+		...Object.values(normalized.regions ?? {}).flatMap(entriesFor),
+		...normalized.floats.flatMap(entriesFor)
+	];
 	const ctx = {
 		controller,
 		resolveTitle,
@@ -3731,11 +6963,28 @@ function WorkbenchView(props) {
 			...labels.tabs,
 			separator: labels.separator
 		},
-		onTabDragStart: startDrag
+		onTabDragStart: startDrag,
+		onContentTarget: registerContentTarget
 	};
-	const preview = drag ? dragPreview(drag) : void 0;
+	const dropPreview = drag ? dragPreview(drag) : void 0;
+	const hostBox = hostRef.current?.getBoundingClientRect();
+	const mainBox = mainHostRef.current?.getBoundingClientRect();
+	const mainRect = mainBox && mainBox.width > 0 && mainBox.height > 0 ? {
+		x: mainBox.left,
+		y: mainBox.top,
+		w: mainBox.width,
+		h: mainBox.height
+	} : workRect();
+	const topTarget = drag?.zone?.kind === "top" ? topDropTarget(controller, drag) : void 0;
+	const projectedTop = drag && topTarget ? projectedTopDropRect(normalized, seed, drag, topTarget, mainRect) : void 0;
+	const previewRect = dropPreview ? {
+		...projectedTop ?? dropPreview.rect,
+		x: (projectedTop ?? dropPreview.rect).x - (props.viewport?.x ?? hostBox?.left ?? 0),
+		y: (projectedTop ?? dropPreview.rect).y - (props.viewport?.y ?? hostBox?.top ?? 0)
+	} : void 0;
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 		"data-testid": "workbench",
+		"data-drop-host": "workbench",
 		"data-empty": empty ? "true" : "false",
 		style: {
 			display: "flex",
@@ -3744,65 +6993,184 @@ function WorkbenchView(props) {
 			minHeight: 0,
 			position: "relative"
 		},
-		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-			style: {
-				flex: "0 0 auto",
-				minHeight: 28
-			},
-			"data-testid": "workbench-topbar",
-			children: topbar ?? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				style: {
-					fontSize: 12,
-					padding: "6px 10px",
-					color: "var(--color-text-tertiary)"
+					flex: "0 0 auto",
+					minHeight: 28
 				},
-				children: labels.workspace
-			})
-		}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-			ref: hostRef,
-			style: {
-				flex: "1 1 auto",
-				minHeight: 0,
-				position: "relative",
-				overflow: "hidden"
-			},
-			children: [
-				empty ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(WorkspaceBackdrop, {
-					labels: labels.backdrop,
-					recent: props.recent,
-					onNewConversation: () => props.onNewConversation?.(),
-					onOpenPanel: () => props.onOpenPanel?.(),
-					onOpenRecent: props.onOpenRecent
-				}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(DockSurface, {
-					node: shown.root,
-					ctx
-				}),
-				/* @__PURE__ */ (0, react_jsx_runtime.jsx)(FloatLayer, {
-					controller,
-					floats: state.floats,
-					minimized: state.minimized,
-					viewport: workRect(),
-					resolveTitle,
-					renderContent,
-					labels: labels.float
-				}),
-				preview && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-					"data-drag-preview": preview.kind,
+				"data-testid": "workbench-topbar",
+				children: topbar ?? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					style: {
-						position: "absolute",
-						left: preview.rect.x - (props.viewport?.x ?? hostRef.current?.getBoundingClientRect().left ?? 0),
-						top: preview.rect.y - (props.viewport?.y ?? hostRef.current?.getBoundingClientRect().top ?? 0),
-						width: preview.rect.w,
-						height: preview.rect.h,
-						pointerEvents: "none",
-						border: "1px dashed var(--color-border-primary)",
-						borderRadius: 8,
-						background: "color-mix(in srgb, var(--color-background-info) 40%, transparent)",
-						zIndex: 50
-					}
+						fontSize: 12,
+						padding: "6px 10px",
+						color: "var(--color-text-tertiary)"
+					},
+					children: labels.workspace
 				})
-			]
-		})]
+			}),
+			limitError ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				role: "alert",
+				"data-testid": "workbench-limit",
+				"data-code": limitError.code,
+				style: {
+					position: "absolute",
+					top: 8,
+					left: "50%",
+					transform: "translateX(-50%)",
+					zIndex: 40,
+					display: "flex",
+					alignItems: "center",
+					gap: 8,
+					maxWidth: "min(560px, calc(100% - 24px))",
+					padding: "8px 12px",
+					borderRadius: 8,
+					background: "var(--color-bg-elevated, #1f1f1f)",
+					border: "1px solid var(--color-border-danger, #b3261e)",
+					color: "var(--color-text-primary, #f3f3f3)",
+					boxShadow: "0 6px 20px rgba(0, 0, 0, 0.35)",
+					fontSize: 12
+				},
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: {
+						flex: "1 1 auto",
+						minWidth: 0
+					},
+					children: limitError.message
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+					type: "button",
+					onClick: () => controller.clearLimitError(),
+					style: {
+						flex: "0 0 auto",
+						fontSize: 12,
+						cursor: "pointer"
+					},
+					children: "知道了"
+				})]
+			}) : null,
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: hostRef,
+				style: {
+					display: "flex",
+					flex: "1 1 auto",
+					minHeight: 0,
+					position: "relative",
+					overflow: "hidden"
+				},
+				children: [
+					normalized.regions?.sidebar ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RegionBar, {
+						region: "sidebar",
+						pane: normalized.regions.sidebar,
+						ctx,
+						label: labels.regions.sidebar,
+						separatorLabel: labels.separator,
+						size: normalized.regionSizes?.sidebar,
+						onResize: (size) => controller.dispatch({
+							kind: "resizeRegion",
+							region: "sidebar",
+							...size === void 0 ? {} : { sizes: size }
+						}, "resize-region")
+					}) : null,
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: {
+							display: "flex",
+							flexDirection: "column",
+							flex: "1 1 auto",
+							minWidth: 0,
+							minHeight: 0,
+							position: "relative"
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							ref: mainHostRef,
+							"data-empty-main-host": empty ? "true" : void 0,
+							"data-dock-host": seed,
+							"data-host-kind": "pane",
+							style: {
+								flex: "1 1 auto",
+								minHeight: 0,
+								position: "relative"
+							},
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(DockSurface, {
+								node: shown.root,
+								ctx
+							}), empty ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								style: {
+									position: "absolute",
+									inset: 0
+								},
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(WorkspaceBackdrop, {
+									labels: labels.backdrop,
+									recent: props.recent,
+									onNewConversation: () => props.onNewConversation?.(),
+									onOpenPanel: () => props.onOpenPanel?.(),
+									onOpenRecent: props.onOpenRecent
+								})
+							}) : null]
+						}), normalized.regions?.bottom ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RegionBar, {
+							region: "bottom",
+							pane: normalized.regions.bottom,
+							ctx,
+							label: labels.regions.bottom,
+							separatorLabel: labels.separator,
+							size: normalized.regionSizes?.bottom,
+							onResize: (size) => controller.dispatch({
+								kind: "resizeRegion",
+								region: "bottom",
+								...size === void 0 ? {} : { sizes: size }
+							}, "resize-region")
+						}) : null]
+					}),
+					normalized.regions?.right ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RegionBar, {
+						region: "right",
+						pane: normalized.regions.right,
+						ctx,
+						label: labels.regions.right,
+						separatorLabel: labels.separator,
+						size: normalized.regionSizes?.right,
+						onResize: (size) => controller.dispatch({
+							kind: "resizeRegion",
+							region: "right",
+							...size === void 0 ? {} : { sizes: size }
+						}, "resize-region")
+					}) : null,
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(FloatLayer, {
+						controller,
+						floats: state.floats,
+						minimized: state.minimized,
+						viewport: workRect(),
+						resolveTitle,
+						renderContent,
+						labels: labels.float,
+						onContentTarget: registerContentTarget,
+						onTabDragStart: startDrag
+					}),
+					dropPreview && previewRect && /* @__PURE__ */ (0, react_jsx_runtime.jsx)(DragPreview, {
+						kind: dropPreview.kind,
+						rect: previewRect,
+						content: previewContent,
+						sourceSize: previewSourceSize
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				ref: parkingRef,
+				hidden: true,
+				"data-content-parking": "true"
+			}),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)(WorkbenchContentLayer, {
+				entries: contentEntries,
+				renderContent,
+				getTarget: getContentTarget,
+				parkingRef,
+				revision: contentRevision
+			}),
+			props.exclusiveTransfer ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ExclusiveTransferDialog, {
+				prompt: props.exclusiveTransfer.prompt,
+				onDecision: props.exclusiveTransfer.onDecision,
+				onCancel: props.exclusiveTransfer.onCancel,
+				labels: props.exclusiveTransfer.labels
+			}) : null
+		]
 	});
 }
 // src/shell/error-boundary.tsx
@@ -4341,6 +7709,285 @@ function createConversationModel() {
 		}
 	};
 }
+// src/shell/approval-bar.tsx
+/**
+* 会话级审批卡片（X4.5）。
+*
+* Host 是审批的唯一真相：这里只做三件事 —— 订阅本会话的
+* `interaction.required/resolved`、打开时用 `interaction.list` 补回已经挂起的
+* 审批、以及把用户的明确决定发成 `interaction.respond`。
+*
+* **绝不替用户默认允许**：没有点击就不发命令；`decision` 与 `value` 都由按钮
+* 显式给出。桥接层仍会校验上下文归属与 `leaseGeneration`。
+*/
+function bridgeOf$1() {
+	const candidate = globalThis.dshStudio;
+	if (!candidate || typeof candidate.openContext !== "function" || typeof candidate.close !== "function" || typeof candidate.query !== "function" || typeof candidate.command !== "function" || typeof candidate.subscribe !== "function") return;
+	return candidate;
+}
+const bar$2 = {
+	display: "flex",
+	flexDirection: "column",
+	gap: 4,
+	padding: "6px 10px",
+	borderBottom: "1px solid var(--color-border-tertiary, rgba(0,0,0,.06))",
+	background: "var(--color-background-secondary, #fff)",
+	fontSize: 11
+};
+const card = {
+	display: "flex",
+	alignItems: "center",
+	flexWrap: "wrap",
+	gap: 8,
+	padding: "4px 8px",
+	borderRadius: 6,
+	border: "1px solid var(--color-border-secondary, rgba(0,0,0,.12))",
+	background: "var(--color-background-primary, #faf9f5)"
+};
+const button = {
+	padding: "1px 8px",
+	borderRadius: 4,
+	border: "1px solid var(--color-border-secondary, rgba(0,0,0,.12))",
+	background: "var(--color-background-secondary, #fff)",
+	cursor: "pointer",
+	fontSize: 11,
+	fontFamily: "inherit"
+};
+const detailStyle = {
+	color: "var(--color-text-tertiary, #8a8a85)",
+	fontSize: 10
+};
+function detailText(detail) {
+	const rows = [];
+	for (const key of [
+		"command",
+		"path",
+		"reason"
+	]) {
+		const value = detail[key];
+		if (typeof value === "string" && value.length > 0) rows.push(value);
+	}
+	return rows.join(" · ");
+}
+function SessionApprovalBar(props) {
+	const { sessionId, store, approvals, active } = props;
+	const [error, setError] = (0, react.useState)(null);
+	const [busy, setBusy] = (0, react.useState)(null);
+	const pending = (0, react.useRef)(/* @__PURE__ */ new Map());
+	const sequence = (0, react.useRef)(0);
+	const inFlight = (0, react.useRef)(false);
+	const mounted = (0, react.useRef)(true);
+	const apiRef = (0, react.useRef)(void 0);
+	const contextRef = (0, react.useRef)(null);
+	const storeRef = (0, react.useRef)(store);
+	storeRef.current = store;
+	(0, react.useEffect)(() => {
+		mounted.current = true;
+		return () => {
+			mounted.current = false;
+		};
+	}, []);
+	(0, react.useEffect)(() => {
+		const api = bridgeOf$1();
+		apiRef.current = api;
+		if (!api || !store) return void 0;
+		let cancelled = false;
+		let contextId = null;
+		let unsubscribe;
+		setError(null);
+		const pendingHere = pending.current;
+		api.openContext({ sessionId }).then(async (opened) => {
+			if (cancelled) {
+				api.close(opened);
+				return;
+			}
+			contextId = opened;
+			contextRef.current = opened;
+			unsubscribe = api.subscribe({}, (event) => {
+				if (cancelled) return;
+				const current = storeRef.current;
+				if (event.kind === "command.receipt" && event.receipt) {
+					const settle = pendingHere.get(event.receipt.requestId);
+					if (settle) {
+						pendingHere.delete(event.receipt.requestId);
+						settle(event.receipt);
+					}
+					return;
+				}
+				if (!current) return;
+				if (event.kind === "interaction.required" && event.interaction && event.interaction.sessionId === sessionId) {
+					current.applyInteraction({
+						kind: "interaction.required",
+						interaction: event.interaction
+					});
+					return;
+				}
+				if (event.kind === "interaction.resolved" && typeof event.interactionId === "string" && typeof event.leaseGeneration === "number") current.applyInteraction({
+					kind: "interaction.resolved",
+					interactionId: event.interactionId,
+					leaseGeneration: event.leaseGeneration,
+					outcome: event.outcome === "cancelled" ? "cancelled" : "submitted"
+				});
+			}, opened);
+			try {
+				const response = await api.query({
+					queryName: "interaction.list",
+					input: {}
+				}, opened);
+				if (cancelled) return;
+				if (response?.ok !== true) throw new Error(response?.error?.message ?? "读取待审批失败");
+				const rows = response.result?.approvals;
+				const list = Array.isArray(rows) ? rows : [];
+				storeRef.current?.replaceSessionApprovals(sessionId, list);
+			} catch (failure) {
+				if (cancelled) return;
+				setError(failure instanceof Error ? failure.message : String(failure));
+			}
+		}).catch((failure) => {
+			if (cancelled) return;
+			setError(failure instanceof Error ? failure.message : String(failure));
+		});
+		return () => {
+			cancelled = true;
+			unsubscribe?.();
+			settleAll(pendingHere);
+			contextRef.current = null;
+			if (contextId) api.close(contextId);
+		};
+	}, [sessionId, store]);
+	const respond = (0, react.useCallback)(async (interaction, decision, value) => {
+		const api = apiRef.current;
+		const contextId = contextRef.current;
+		if (!api || !contextId) {
+			setError("Host 上下文尚未就绪");
+			return;
+		}
+		const current = storeRef.current;
+		const key = `${interaction.interactionId}:${decision}:${value ?? ""}`;
+		if (inFlight.current) return;
+		inFlight.current = true;
+		setBusy(key);
+		setError(null);
+		sequence.current += 1;
+		const requestId = `studio-approval-${sequence.current}`;
+		try {
+			const receipt = await new Promise((resolve, reject) => {
+				pending.current.set(requestId, resolve);
+				api.command({
+					requestId,
+					commandName: "interaction.respond",
+					input: {
+						interactionId: interaction.interactionId,
+						leaseGeneration: interaction.leaseGeneration,
+						decision,
+						...decision === "submit" ? { value: value !== false } : {}
+					}
+				}, contextId).catch((failure) => {
+					pending.current.delete(requestId);
+					reject(failure);
+				});
+			});
+			if (!mounted.current) return;
+			if (receipt.status !== "completed") throw new Error(receipt.error?.message ?? "审批提交失败");
+			current?.applyInteraction({
+				kind: "interaction.resolved",
+				interactionId: interaction.interactionId,
+				leaseGeneration: interaction.leaseGeneration,
+				outcome: decision === "cancel" ? "cancelled" : "submitted"
+			});
+		} catch (failure) {
+			if (!mounted.current) return;
+			setError(failure instanceof Error ? failure.message : String(failure));
+		} finally {
+			inFlight.current = false;
+			if (mounted.current) setBusy(null);
+		}
+	}, []);
+	const rows = approvals.filter((item) => item.status === "pending");
+	if (rows.length === 0 && !error) return null;
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		style: bar$2,
+		"data-testid": "session-approvals",
+		"data-active": active ? "true" : "false",
+		children: [
+			rows.map((item) => {
+				const detail = detailText(item.detail);
+				const disabled = !active || busy !== null;
+				return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: card,
+					"data-interaction-id": item.interactionId,
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: item.title ?? "需要审批" }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							style: detailStyle,
+							children: item.approvalType
+						}),
+						detail ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("code", {
+							style: detailStyle,
+							children: detail
+						}) : null,
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							style: {
+								...button,
+								opacity: disabled ? .5 : 1
+							},
+							disabled,
+							onClick: () => {
+								respond(item, "submit", true);
+							},
+							children: "允许一次"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							style: {
+								...button,
+								opacity: disabled ? .5 : 1
+							},
+							disabled,
+							onClick: () => {
+								respond(item, "submit", false);
+							},
+							children: "拒绝"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							style: {
+								...button,
+								opacity: disabled ? .5 : 1
+							},
+							disabled,
+							onClick: () => {
+								respond(item, "cancel");
+							},
+							children: "取消"
+						})
+					]
+				}, item.interactionId);
+			}),
+			!active && rows.length > 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				style: detailStyle,
+				children: "切到该标签后可操作"
+			}) : null,
+			error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				role: "alert",
+				style: { color: "var(--color-text-danger, #c0392b)" },
+				children: error
+			}) : null
+		]
+	});
+}
+function settleAll(entries) {
+	for (const settle of entries.values()) settle({
+		requestId: "",
+		status: "failed",
+		error: {
+			code: "CANCELLED",
+			message: "审批视图已卸载"
+		}
+	});
+	entries.clear();
+}
 // src/shell/attachment-images.ts
 /**
 * 图片附件的字节读取与缓存。
@@ -4434,7 +8081,7 @@ var AttachmentImageCache = class {
 				} catch (error) {
 					this.set(id, {
 						status: "failed",
-						error: messageOf(error)
+						error: messageOf$1(error)
 					});
 				}
 			} else this.set(id, {
@@ -4444,7 +8091,7 @@ var AttachmentImageCache = class {
 		}).catch((error) => {
 			this.set(id, {
 				status: "failed",
-				error: messageOf(error)
+				error: messageOf$1(error)
 			});
 		}).finally(() => {
 			this.inflight.delete(id);
@@ -4471,7 +8118,7 @@ var AttachmentImageCache = class {
 		for (const listener of [...this.listeners]) listener();
 	}
 };
-function messageOf(error) {
+function messageOf$1(error) {
 	if (error instanceof Error) return error.message;
 	if (typeof error === "string") return error;
 	return "图片读取失败";
@@ -5098,7 +8745,7 @@ function prettyArguments(raw) {
 		return raw;
 	}
 }
-const row = {
+const row$1 = {
 	display: "flex",
 	alignItems: "flex-start",
 	gap: 6,
@@ -5153,7 +8800,7 @@ function ToolCallView(props) {
 			"aria-expanded": expanded,
 			"aria-label": expanded ? labels.collapse : labels.expand,
 			style: {
-				...row,
+				...row$1,
 				textAlign: "left",
 				fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
 				cursor: "pointer",
@@ -5413,8 +9060,8 @@ function ConversationBody(props) {
 	* 同一个视觉位置：`新 scrollTop = 新高度 - 旧高度 + 旧 scrollTop`。
 	*/
 	const anchorRef = (0, react.useRef)(null);
-	const subscribeWindow = (0, react.useCallback)((listener) => source ? source.subscribe(listener) : () => {}, [source]);
-	const getWindow = (0, react.useCallback)(() => source ? source.getSnapshot() : void 0, [source]);
+	const subscribeWindow = (0, react.useCallback)((listener) => hub.subscribeWindow(listener), [hub]);
+	const getWindow = (0, react.useCallback)(() => hub.getWindowSnapshot(sessionId), [hub, sessionId]);
 	const liveWindow = (0, react.useSyncExternalStore)(subscribeWindow, getWindow, getWindow);
 	const live = readLiveStream(liveWindow);
 	const messages = state?.value.messages;
@@ -5863,6 +9510,15 @@ function errorText(error) {
 	if (typeof error.code === "string" && error.code.length > 0) return error.code;
 	return "发送失败";
 }
+function draftErrorText(error) {
+	if (!error) return void 0;
+	if (typeof error === "string") return error;
+	if (typeof error === "object") {
+		const value = error;
+		if (typeof value.message === "string" && value.message) return value.message;
+		if (typeof value.code === "string" && value.code) return value.code;
+	}
+}
 function humanSize(bytes) {
 	if (bytes < 1024) return `${bytes} B`;
 	if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -5875,12 +9531,36 @@ function Composer(props) {
 	const face = asSessionFace(props.session);
 	const uploader = asFileUploadService(props.uploader);
 	const canAttach = uploader !== void 0 && typeof props.sessionId === "string" && !props.disabled;
-	const [text, setText] = (0, react.useState)("");
-	const [attachments, setAttachments] = (0, react.useState)([]);
-	const [sending, setSending] = (0, react.useState)(false);
+	const [localText, setLocalText] = (0, react.useState)("");
+	const [localAttachments, setLocalAttachments] = (0, react.useState)([]);
+	const [localSending, setLocalSending] = (0, react.useState)(false);
+	const [transientAttachments, setTransientAttachments] = (0, react.useState)([]);
 	const [stopping, setStopping] = (0, react.useState)(false);
 	const [error, setError] = (0, react.useState)(void 0);
 	const [dragging, setDragging] = (0, react.useState)(false);
+	const controlled = props.draft !== void 0;
+	const owner = props.draftOwner ?? {
+		kind: "session",
+		id: props.sessionId ?? "composer"
+	};
+	const ownerKey = `${owner.kind}:${owner.id}`;
+	const ownerKeyRef = (0, react.useRef)(ownerKey);
+	ownerKeyRef.current = ownerKey;
+	const draftRef = (0, react.useRef)(props.draft);
+	draftRef.current = props.draft;
+	const attachmentsRef = (0, react.useRef)([]);
+	const text = controlled ? props.draft?.body ?? "" : localText;
+	const attachments = controlled ? [...(props.draft?.attachments ?? []).map((item) => ({
+		id: item.id,
+		name: item.name ?? "附件",
+		size: item.size ?? 0,
+		mediaType: item.mediaType ?? "application/octet-stream",
+		isImage: item.mediaType?.startsWith("image/") === true,
+		status: item.receiptId ? "ready" : "failed",
+		...item.receiptId ? { receiptId: item.receiptId } : {}
+	})), ...transientAttachments] : localAttachments;
+	attachmentsRef.current = attachments;
+	const sending = controlled ? props.draft?.submission?.state === "sending" || props.draft?.submission?.state === "local-queued" : localSending;
 	const running = useSessionRunning(face);
 	const busy = props.streaming === true || running;
 	const canStop = busy && face?.cancel !== void 0 && !props.disabled;
@@ -5888,7 +9568,8 @@ function Composer(props) {
 	const fileInputRef = (0, react.useRef)(null);
 	const uploading = attachments.some((item) => item.status === "uploading");
 	const ready = attachments.filter((item) => item.status === "ready" && item.receiptId !== void 0);
-	const canSend = face !== void 0 && !props.disabled && !sending && !uploading && (text.trim().length > 0 || ready.length > 0);
+	const canSend = face !== void 0 && (!controlled || props.dispatchDraft !== void 0) && !props.disabled && !sending && !uploading && (text.trim().length > 0 || ready.length > 0);
+	const visibleError = error ?? (controlled && props.draft?.submission?.state === "failed" ? draftErrorText(props.draft.submission.error) : void 0);
 	const previewsRef = (0, react.useRef)(/* @__PURE__ */ new Set());
 	(0, react.useEffect)(() => {
 		const previews = previewsRef.current;
@@ -5897,14 +9578,61 @@ function Composer(props) {
 			previews.clear();
 		};
 	}, []);
-	const patch = (0, react.useCallback)((id, changes) => {
-		setAttachments((prev) => prev.map((item) => item.id === id ? {
+	(0, react.useEffect)(() => {
+		ownerKeyRef.current = ownerKey;
+		setTransientAttachments([]);
+		setError(void 0);
+	}, [ownerKey]);
+	const commitDraft = (0, react.useCallback)((patch) => {
+		if (!controlled || !props.dispatchDraft) return void 0;
+		const current = draftRef.current;
+		const result = props.dispatchDraft({
+			type: "update",
+			owner,
+			expectedRevision: current?.revision ?? 0,
+			patch: {
+				...patch.body === void 0 ? {} : { body: patch.body },
+				...patch.attachments === void 0 ? {} : { attachments: patch.attachments.filter((item) => item.status === "ready" && item.receiptId !== void 0).map((item) => ({
+					id: item.id,
+					name: item.name,
+					size: item.size,
+					mediaType: item.mediaType,
+					receiptId: item.receiptId
+				})) }
+			}
+		});
+		draftRef.current = result.draft;
+		return result;
+	}, [
+		controlled,
+		owner,
+		props.dispatchDraft
+	]);
+	const setText = (0, react.useCallback)((value) => {
+		if (controlled) commitDraft({ body: value });
+		else setLocalText(value);
+	}, [commitDraft, controlled]);
+	const patch = (0, react.useCallback)((id, changes, expectedOwner = ownerKey) => {
+		if (controlled) {
+			if (ownerKeyRef.current !== expectedOwner) return;
+			setTransientAttachments((prev) => prev.map((item) => item.id === id ? {
+				...item,
+				...changes
+			} : item));
+			return;
+		}
+		setLocalAttachments((prev) => prev.map((item) => item.id === id ? {
 			...item,
 			...changes
 		} : item));
-	}, []);
+	}, [controlled, ownerKey]);
 	const removeAttachment = (0, react.useCallback)((id) => {
-		setAttachments((prev) => {
+		if (controlled) {
+			setTransientAttachments((prev) => prev.filter((item) => item.id !== id));
+			commitDraft({ attachments: attachments.filter((item) => item.id !== id) });
+			return;
+		}
+		setLocalAttachments((prev) => {
 			const hit = prev.find((item) => item.id === id);
 			if (hit?.previewUrl) {
 				URL.revokeObjectURL(hit.previewUrl);
@@ -5912,16 +9640,32 @@ function Composer(props) {
 			}
 			return prev.filter((item) => item.id !== id);
 		});
-	}, []);
+	}, [
+		attachments,
+		commitDraft,
+		controlled
+	]);
 	const addFiles = (0, react.useCallback)(async (files) => {
 		const sessionId = props.sessionId;
 		if (!uploader || !sessionId || files.length === 0) return;
+		const expectedOwner = ownerKey;
 		for (const file of files) {
 			const id = nextAttachmentId();
 			const isImage = file.type.startsWith("image/");
 			const previewUrl = isImage ? URL.createObjectURL(file) : void 0;
 			if (previewUrl) previewsRef.current.add(previewUrl);
-			setAttachments((prev) => [...prev, {
+			if (controlled) {
+				if (ownerKeyRef.current !== expectedOwner) return;
+				setTransientAttachments((prev) => [...prev, {
+					id,
+					name: file.name || (isImage ? "图片" : "文件"),
+					size: file.size,
+					mediaType: file.type,
+					isImage,
+					status: "uploading",
+					...previewUrl === void 0 ? {} : { previewUrl }
+				}]);
+			} else setLocalAttachments((prev) => [...prev, {
 				id,
 				name: file.name || (isImage ? "图片" : "文件"),
 				size: file.size,
@@ -5936,23 +9680,41 @@ function Composer(props) {
 			};
 			try {
 				const result = isImage && uploader.uploadImage ? await uploader.uploadImage(sessionId, file, file.type, file.name, void 0, onProgress) : await uploader.upload(sessionId, file, file.name, void 0, onProgress);
-				if (result.ok) patch(id, {
-					status: "ready",
-					receiptId: result.value.receiptId,
-					progress: 1
-				});
-				else patch(id, {
+				if (result.ok) {
+					if (controlled) {
+						if (ownerKeyRef.current !== expectedOwner) return;
+						const readyItem = {
+							id,
+							name: file.name || (isImage ? "图片" : "文件"),
+							size: file.size,
+							mediaType: file.type,
+							isImage,
+							status: "ready",
+							receiptId: result.value.receiptId,
+							progress: 1
+						};
+						setTransientAttachments((prev) => prev.filter((item) => item.id !== id));
+						commitDraft({ attachments: [...attachmentsRef.current.filter((item) => item.id !== id), readyItem] });
+					} else patch(id, {
+						status: "ready",
+						receiptId: result.value.receiptId,
+						progress: 1
+					});
+				} else patch(id, {
 					status: "failed",
 					error: errorText(result.error)
-				});
+				}, expectedOwner);
 			} catch (thrown) {
 				patch(id, {
 					status: "failed",
 					error: thrown instanceof Error ? thrown.message : String(thrown)
-				});
+				}, expectedOwner);
 			}
 		}
 	}, [
+		commitDraft,
+		controlled,
+		ownerKey,
 		patch,
 		props.sessionId,
 		uploader
@@ -5979,23 +9741,71 @@ function Composer(props) {
 		}))];
 		if (content.length === 0) return;
 		const effective = mode === "steer" && busy ? "steer" : "queue";
-		setSending(true);
+		const expectedOwner = ownerKey;
+		let submissionId;
+		let expectedRevision;
+		if (controlled) {
+			if (!props.dispatchDraft || draftRef.current?.submission?.state === "sending" || draftRef.current?.submission?.state === "local-queued") return;
+			submissionId = nextOwnerSubmissionId();
+			const begun = props.dispatchDraft({
+				type: "begin",
+				owner,
+				expectedRevision: draftRef.current?.revision ?? 0,
+				submissionId
+			});
+			draftRef.current = begun.draft;
+			expectedRevision = begun.revision;
+			if (!begun.changed) return;
+		} else setLocalSending(true);
 		setError(void 0);
 		try {
-			const result = await face.prompt(content, effective);
+			const result = submissionId ? await face.prompt(content, effective, void 0, submissionId) : await face.prompt(content, effective);
+			if (ownerKeyRef.current !== expectedOwner) return;
 			if (result.ok) {
-				setText("");
-				setAttachments([]);
-			} else setError(errorText(result.error));
+				if (submissionId && expectedRevision !== void 0) props.dispatchDraft?.({
+					type: "settle",
+					owner,
+					submissionId,
+					expectedRevision,
+					outcome: "accepted"
+				});
+				else {
+					setLocalText("");
+					setLocalAttachments([]);
+				}
+			} else {
+				setError(errorText(result.error));
+				if (submissionId && expectedRevision !== void 0) props.dispatchDraft?.({
+					type: "settle",
+					owner,
+					submissionId,
+					expectedRevision,
+					outcome: "failed",
+					error: result.error
+				});
+			}
 		} catch (thrown) {
+			if (ownerKeyRef.current !== expectedOwner) return;
 			setError(thrown instanceof Error ? thrown.message : String(thrown));
+			if (submissionId && expectedRevision !== void 0) props.dispatchDraft?.({
+				type: "settle",
+				owner,
+				submissionId,
+				expectedRevision,
+				outcome: "failed",
+				error: thrown
+			});
 		} finally {
-			setSending(false);
-			areaRef.current?.focus();
+			if (!controlled) setLocalSending(false);
+			if (ownerKeyRef.current === expectedOwner) areaRef.current?.focus();
 		}
 	}, [
 		busy,
+		controlled,
 		face,
+		owner,
+		ownerKey,
+		props.dispatchDraft,
 		ready,
 		sending,
 		text,
@@ -6243,15 +10053,356 @@ function Composer(props) {
 					fontSize: 10,
 					color: "var(--color-text-tertiary, #8a8a85)"
 				},
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: labels.hint }), error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: labels.hint }), visibleError && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 					"data-testid": "studio-composer-error",
 					role: "alert",
 					style: { color: "var(--color-text-danger, #c0392b)" },
-					children: error
+					children: visibleError
 				})]
 			})
 		]
 	});
+}
+// src/shell/toolset-bar.tsx
+/**
+* 会话级工具集（X4.3）。
+*
+* 这里只做两件事：把 Host 给出的真实 capability 快照投影成可选列表，以及把
+* 用户勾选发成 `workbench.toolset.set`。**绝不把 capability 一起发给 Main**：
+* UI 没有资格声明某个工具可用；伪造的 grade 必须由 Main 用 Host 快照重新校验。
+*
+* 未接入 `window.dshStudio` 时整块控件不渲染，旧入口和浏览器半都不受影响。
+*/
+function bridgeOf() {
+	const candidate = globalThis.dshStudio;
+	if (!candidate || typeof candidate.openContext !== "function" || typeof candidate.close !== "function" || typeof candidate.query !== "function" || typeof candidate.command !== "function" || typeof candidate.subscribe !== "function") return;
+	return candidate;
+}
+function messageOf(error) {
+	return error instanceof Error ? error.message : String(error);
+}
+const TOOL_LABELS = {
+	files: "文件",
+	changes: "变更",
+	git: "Git",
+	terminal: "终端",
+	browser: "浏览器",
+	computer: "电脑",
+	ssh: "SSH",
+	wsl: "WSL",
+	mcp: "MCP",
+	skills: "技能",
+	agents: "子代理",
+	btw: "BTW",
+	voice: "语音",
+	evaluation: "评测",
+	"time-travel": "时间旅行"
+};
+const GRADE_LABELS = {
+	available: "可用",
+	limited: "受限",
+	configured: "已配置",
+	unavailable: "不可用",
+	unsupported: "不支持",
+	unknown: "未知"
+};
+const bar$1 = {
+	display: "flex",
+	alignItems: "center",
+	flexWrap: "wrap",
+	gap: 8,
+	padding: "4px 10px",
+	borderBottom: "1px solid var(--color-border-tertiary, rgba(0,0,0,.06))",
+	fontSize: 10,
+	color: "var(--color-text-tertiary, #8a8a85)"
+};
+const pill = {
+	padding: "1px 6px",
+	borderRadius: 999,
+	border: "1px solid var(--color-border-secondary, rgba(0,0,0,.12))",
+	background: "var(--color-background-secondary, #fff)",
+	fontSize: 10
+};
+const menu = {
+	flexBasis: "100%",
+	maxHeight: 240,
+	overflowY: "auto",
+	padding: "6px 0 2px",
+	borderTop: "1px dashed var(--color-border-tertiary, rgba(0,0,0,.08))"
+};
+const row = {
+	display: "flex",
+	alignItems: "baseline",
+	gap: 8,
+	padding: "2px 0",
+	color: "var(--color-text-secondary, #5f5e5a)"
+};
+const reasonStyle = {
+	color: "var(--color-text-tertiary, #8a8a85)",
+	fontSize: 10
+};
+function errorMessageOf(receipt) {
+	return receipt.error?.message ?? "工具集更新失败";
+}
+function SessionToolsetBar(props) {
+	const { sessionId } = props;
+	const [status, setStatus] = (0, react.useState)("loading");
+	const [model, setModel] = (0, react.useState)(null);
+	const [error, setError] = (0, react.useState)(null);
+	const [busy, setBusy] = (0, react.useState)(false);
+	const [open, setOpen] = (0, react.useState)(false);
+	const apiRef = (0, react.useRef)(void 0);
+	const contextRef = (0, react.useRef)(null);
+	const pending = (0, react.useRef)(/* @__PURE__ */ new Map());
+	const sequence = (0, react.useRef)(0);
+	const refreshRef = (0, react.useRef)(async () => {});
+	(0, react.useEffect)(() => {
+		const api = bridgeOf();
+		apiRef.current = api;
+		if (!api) {
+			setStatus("absent");
+			return;
+		}
+		let cancelled = false;
+		let contextId = null;
+		let unsubscribe;
+		setModel(null);
+		setOpen(false);
+		setStatus("loading");
+		setError(null);
+		const refresh = async (clearError = true) => {
+			if (!contextId || cancelled) return;
+			try {
+				const response = await api.query({
+					queryName: "workbench.toolset.get",
+					input: {}
+				}, contextId);
+				if (cancelled) return;
+				if (response?.ok !== true || !response.result) throw new Error(response?.error?.message ?? "读取工具集失败");
+				setModel(response.result);
+				if (clearError) setError(null);
+				setStatus("ready");
+			} catch (failure) {
+				if (cancelled) return;
+				setError(messageOf(failure));
+				setStatus("error");
+			}
+		};
+		refreshRef.current = refresh;
+		api.openContext({ sessionId }).then((opened) => {
+			if (cancelled) {
+				api.close(opened);
+				return;
+			}
+			contextId = opened;
+			contextRef.current = opened;
+			unsubscribe = api.subscribe({}, (event) => {
+				if (cancelled) return;
+				if (event.kind === "command.receipt" && event.receipt) {
+					const settle = pending.current.get(event.receipt.requestId);
+					if (settle) {
+						pending.current.delete(event.receipt.requestId);
+						settle(event.receipt);
+					}
+					return;
+				}
+				if (event.kind === "workbench.toolset.changed" && (event.sessionId === void 0 || event.sessionId === sessionId)) refresh();
+			}, opened);
+			return refresh();
+		}).catch((failure) => {
+			if (cancelled) return;
+			setError(messageOf(failure));
+			setStatus("error");
+		});
+		return () => {
+			cancelled = true;
+			unsubscribe?.();
+			cancelPending(pending.current);
+			contextRef.current = null;
+			if (contextId) api.close(contextId);
+		};
+	}, [sessionId]);
+	const send = (0, react.useCallback)(async (commandName, input) => {
+		const api = apiRef.current;
+		const contextId = contextRef.current;
+		if (!api || !contextId) throw new Error("Host 上下文尚未就绪");
+		sequence.current += 1;
+		const requestId = `studio-toolset-${sequence.current}`;
+		const receipt = await new Promise((resolve, reject) => {
+			pending.current.set(requestId, resolve);
+			api.command({
+				requestId,
+				commandName,
+				input
+			}, contextId).catch((failure) => {
+				pending.current.delete(requestId);
+				reject(failure);
+			});
+		});
+		if (receipt.status !== "completed") throw new Error(errorMessageOf(receipt));
+		return receipt;
+	}, []);
+	const toggle = (0, react.useCallback)(async (toolId) => {
+		if (!model || busy) return;
+		const selected = model.toolset.includes(toolId);
+		if (!selected && model.capabilities.tools[toolId]?.grade !== "available") return;
+		const next = selected ? model.toolset.filter((id) => id !== toolId) : [...model.toolset, toolId];
+		setBusy(true);
+		setError(null);
+		try {
+			const receipt = await send("workbench.toolset.set", {
+				expectedRevision: model.revision,
+				capabilityRevision: model.capabilityRevision,
+				toolset: next
+			});
+			if (receipt.result) setModel(receipt.result);
+		} catch (failure) {
+			setError(messageOf(failure));
+			await refreshRef.current(false);
+		} finally {
+			setBusy(false);
+		}
+	}, [
+		busy,
+		model,
+		send
+	]);
+	if (status === "absent" || !model && status === "loading") return null;
+	if (!model) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+		style: bar$1,
+		"data-testid": "session-toolset",
+		"data-status": status,
+		children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+			role: "alert",
+			style: { color: "var(--color-text-danger, #c0392b)" },
+			children: error ?? "工具集不可用"
+		})
+	});
+	const openInstances = /* @__PURE__ */ new Map();
+	for (const instance of model.instances) {
+		if (instance.state === "closed") continue;
+		openInstances.set(instance.toolId, (openInstances.get(instance.toolId) ?? 0) + 1);
+	}
+	const rows = Object.entries(model.capabilities.tools);
+	const stale = new Map(model.staleToolset.map((item) => [item.toolId, item.reason]));
+	const capacity = model.capacity;
+	const capacityAtLimit = capacity ? capacity.overloaded || capacity.toolInstances.used >= capacity.toolInstances.limit || capacity.eventQueue.used >= capacity.eventQueue.limit : false;
+	const capacityDetail = capacity ? [
+		`实例 ${capacity.toolInstances.used}/${capacity.toolInstances.limit}`,
+		...capacity.terminalInstances.used > 0 ? [`终端 ${capacity.terminalInstances.used}/${capacity.terminalInstances.limit}`] : [],
+		...capacity.browserTabs.used > 0 ? [`浏览器 ${capacity.browserTabs.used}/${capacity.browserTabs.limit}`] : [],
+		`队列 ${capacity.eventQueue.used}/${capacity.eventQueue.limit}`
+	].join(" · ") : null;
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		style: bar$1,
+		"data-testid": "session-toolset",
+		"data-status": status,
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "工具" }),
+			model.toolset.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "未选择" }) : model.toolset.map((toolId) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				style: {
+					...pill,
+					...model.effectiveToolset.includes(toolId) ? {} : {
+						borderColor: "var(--color-text-danger, #c0392b)",
+						color: "var(--color-text-danger, #c0392b)"
+					}
+				},
+				title: stale.get(toolId) ?? void 0,
+				children: TOOL_LABELS[toolId] ?? toolId
+			}, toolId)),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+				type: "button",
+				"aria-expanded": open,
+				onClick: () => setOpen(!open),
+				style: {
+					...pill,
+					cursor: "pointer",
+					fontFamily: "inherit"
+				},
+				children: open ? "收起" : "选择"
+			}),
+			busy ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				role: "status",
+				children: "更新中…"
+			}) : null,
+			error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				role: "alert",
+				style: { color: "var(--color-text-danger, #c0392b)" },
+				children: error
+			}) : null,
+			capacityDetail ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				"data-testid": "session-capacity",
+				"data-overloaded": capacityAtLimit ? "true" : "false",
+				title: `单工具实例上限 ${capacity?.toolInstances.perToolLimit ?? "?"}`,
+				style: capacityAtLimit ? { color: "var(--color-text-danger, #c0392b)" } : void 0,
+				children: capacityDetail
+			}) : null,
+			open ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				style: menu,
+				role: "group",
+				"aria-label": "工具能力",
+				children: [rows.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					style: reasonStyle,
+					children: "Host 没有返回任何工具能力"
+				}) : null, rows.map(([toolId, capability]) => {
+					const selected = model.toolset.includes(toolId);
+					const available = capability.grade === "available";
+					const instanceCount = openInstances.get(toolId) ?? 0;
+					const locked = selected && instanceCount > 0;
+					return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+						style: {
+							...row,
+							opacity: available ? 1 : .65
+						},
+						"data-tool-id": toolId,
+						"data-grade": capability.grade,
+						title: locked ? "该工具仍有未关闭的实例，先关闭实例再移除" : void 0,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								type: "checkbox",
+								checked: selected,
+								disabled: busy || locked || !available && !selected,
+								onChange: () => {
+									toggle(toolId);
+								}
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								style: { minWidth: 64 },
+								children: TOOL_LABELS[toolId] ?? toolId
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								style: {
+									...reasonStyle,
+									minWidth: 44
+								},
+								children: GRADE_LABELS[capability.grade] ?? capability.grade
+							}),
+							capability.reason ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								style: reasonStyle,
+								children: capability.reason
+							}) : null,
+							instanceCount > 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+								style: reasonStyle,
+								children: [instanceCount, " 个未关闭实例"]
+							}) : null
+						]
+					}, toolId);
+				})]
+			}) : null
+		]
+	});
+}
+/** 卸载时让等待回执的 Promise 落地，避免调用方永久挂起。 */
+function cancelPending(entries) {
+	for (const settle of entries.values()) settle({
+		requestId: "",
+		status: "failed",
+		error: {
+			code: "CANCELLED",
+			message: "会话工具集已卸载"
+		}
+	});
+	entries.clear();
 }
 // src/shell/session-pane.tsx
 /**
@@ -6292,27 +10443,91 @@ function useStreaming(cache, sessionId) {
 	const getSnapshot = (0, react.useCallback)(() => handle?.state().value.streaming === true, [handle]);
 	return (0, react.useSyncExternalStore)(subscribe, getSnapshot, getSnapshot);
 }
+const CONTINUITY_LABELS = {
+	unknown: "连接：未知",
+	complete: "连接：完整",
+	gap: "连接：事件缺口",
+	conflict: "连接：事件冲突",
+	"buffer-overflow": "连接：缓冲溢出"
+};
+/** 断线重连可见性：直接读 hub 的连续性判定，不在视图里猜。 */
+function useContinuity(hub, sessionId) {
+	const subscribe = (0, react.useCallback)((listener) => hub.subscribeWindow(listener), [hub]);
+	const getSnapshot = (0, react.useCallback)(() => hub.continuityOf(sessionId), [hub, sessionId]);
+	return (0, react.useSyncExternalStore)(subscribe, getSnapshot, getSnapshot);
+}
 function SessionPane(props) {
 	const streaming = useStreaming(props.cache, props.sessionId);
+	const continuity = useContinuity(props.hub, props.sessionId);
+	const owner = (0, react.useMemo)(() => ({
+		kind: "session",
+		id: props.sessionId
+	}), [props.sessionId]);
+	const { store, projection, dispatchDraft } = useOwnerSessionView(owner);
+	const pendingApprovals = projection?.approvals.filter((item) => item.status === "pending").length ?? 0;
+	const outputTokens = projection?.usage?.totals.outputTokens;
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 		style: column,
 		"data-testid": "session-pane",
 		"data-session-id": props.sessionId,
-		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ConversationBody, {
-			sessionId: props.sessionId,
-			active: props.active,
-			cache: props.cache,
-			hub: props.hub,
-			eventSource: props.eventSource,
-			session: props.session,
-			labels: props.conversationLabels ?? defaultConversationLabels
-		}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Composer, {
-			session: props.session,
-			sessionId: props.sessionId,
-			uploader: props.uploader,
-			streaming,
-			labels: props.composerLabels ?? defaultComposerLabels
-		})]
+		children: [
+			store && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				"data-testid": "session-owner-status",
+				style: {
+					display: "flex",
+					gap: 12,
+					padding: "4px 10px",
+					fontSize: 10,
+					color: "var(--color-text-tertiary, #8a8a85)"
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+						"data-testid": "session-owner-approvals",
+						children: ["待审批 ", pendingApprovals]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+						"data-testid": "session-owner-usage",
+						children: ["输出 token ", outputTokens ?? "—"]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+						"data-testid": "session-owner-tools",
+						children: ["工具 ", projection?.tools.instances.length ?? 0]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						"data-testid": "session-continuity",
+						"data-state": continuity,
+						style: continuity === "complete" || continuity === "unknown" ? void 0 : { color: "var(--color-text-danger, #c0392b)" },
+						children: CONTINUITY_LABELS[continuity]
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)(SessionApprovalBar, {
+				sessionId: props.sessionId,
+				store,
+				approvals: projection?.approvals ?? [],
+				active: props.active
+			}),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)(SessionToolsetBar, { sessionId: props.sessionId }),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ConversationBody, {
+				sessionId: props.sessionId,
+				active: props.active,
+				cache: props.cache,
+				hub: props.hub,
+				eventSource: props.eventSource,
+				session: props.session,
+				labels: props.conversationLabels ?? defaultConversationLabels
+			}),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Composer, {
+				session: props.session,
+				sessionId: props.sessionId,
+				draft: store ? projection?.draft ?? null : void 0,
+				draftOwner: owner,
+				dispatchDraft: store ? dispatchDraft : void 0,
+				uploader: props.uploader,
+				streaming,
+				labels: props.composerLabels ?? defaultComposerLabels
+			})
+		]
 	});
 }
 // src/shell/open-session.ts
@@ -6339,7 +10554,11 @@ function openSessionInWorkbench(controller, sessionId) {
 			return;
 		}
 	}
-	controller.open(conversationRef(sessionId));
+	try {
+		controller.open(conversationRef(sessionId));
+	} catch (error) {
+		if (error?.code !== "LIMIT_EXCEEDED") throw error;
+	}
 }
 /** 工作台里已经有标签了吗（用于"首次挂载才自动铺开"的守卫）。 */
 function workbenchHasTabs(controller) {
@@ -6696,7 +10915,8 @@ function StudioMainPanel(props) {
 			ids: {
 				pane: controller.mint.pane(),
 				split: controller.mint.split(),
-				floatId: controller.mint.float()
+				floatId: controller.mint.float(),
+				regions: controller.getState().regions
 			}
 		}), `open-panel:${region}`);
 	}, [controller, panels]);
@@ -6774,6 +10994,7 @@ function StudioMainPanel(props) {
 	]);
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SessionViewsProvider, {
 		registry: leases,
+		store: props.store,
 		children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(WorkbenchView, {
 			controller,
 			labels,
@@ -7055,7 +11276,22 @@ function applyInner(ctx) {
 		}
 	});
 	const derived = new DerivedCache({ capacity: 8 });
-	const hub = new SessionEventHub({ cache: derived });
+	const ownerStore = new SessionViewStore();
+	const hub = new SessionEventHub({
+		cache: derived,
+		onEntries: (sessionId, entries) => {
+			const rawEntries = hub.getWindowSnapshot(sessionId)?.entries ?? [];
+			for (const entry of entries) {
+				const raw = rawEntries.find((item) => item.event.seq === entry.seq);
+				if (!raw) continue;
+				const record = adaptUsageFromEvent({
+					...raw.event,
+					sessionId
+				});
+				if (record) ownerStore.addUsageRecord(record);
+			}
+		}
+	});
 	const controller = createEmptyController();
 	const labels = createWorkbenchLabels("zh");
 	const sessionLabels = createSessionTabViewLabels("zh");
@@ -7079,6 +11315,7 @@ function applyInner(ctx) {
 			leases,
 			derived,
 			hub,
+			store: ownerStore,
 			panels,
 			labels,
 			sessionLabels,
@@ -7111,25 +11348,35 @@ function applyInner(ctx) {
 	} catch (error) {
 		console.warn("[studio] 内建面板注册失败", error);
 	}
+	let debug;
 	try {
+		debug = {
+			controller,
+			leases,
+			derived,
+			hub,
+			ownerStore,
+			get fileUpload() {
+				return fileUploadSlot.get();
+			},
+			/** 当前所有会话的引用计数快照（谁在保活、几份）。 */
+			inspect: () => leases.snapshot(),
+			stats: () => derived.stats()
+		};
 		Object.defineProperty(globalThis, "__STUDIO_DEBUG__", {
 			configurable: true,
-			value: {
-				controller,
-				leases,
-				derived,
-				hub,
-				get fileUpload() {
-					return fileUploadSlot.get();
-				},
-				/** 当前所有会话的引用计数快照（谁在保活、几份）。 */
-				inspect: () => leases.snapshot(),
-				stats: () => derived.stats()
-			}
+			writable: true,
+			value: debug
 		});
 	} catch (error) {
 		console.warn("[studio] 调试钩子挂载失败", error);
 	}
+	ctx.effect?.(() => () => {
+		hub.dispose();
+		ownerStore.dispose();
+		leases.dispose();
+		if (debug && globalThis.__STUDIO_DEBUG__ === debug) delete globalThis.__STUDIO_DEBUG__;
+	});
 	console.log("[studio] 已接管 sidebar + main.conversation（%d 个内建面板，附件服务 %s）", panels.size, fileUploadSlot.get() === void 0 ? "尚未就绪" : "已就绪");
 }
 exports.apply = apply;

@@ -88,12 +88,13 @@ function applyCorrection(state, correction) {
     })
     return true
   }
+  const correctionFingerprint = fingerprint(correction)
   target.active = false
   target.supersededBy = correction.usageId
   correction.active = true
   correction.supersedes = target.usageId
   correction.supersededBy = null
-  state.records[correction.usageId] = { ...cloneJson(correction), ledgerFingerprint: fingerprint(correction) }
+  state.records[correction.usageId] = { ...cloneJson(correction), ledgerFingerprint: correctionFingerprint }
   state.revision += 1
   for (const pending of Object.values(state.pendingCorrections)) {
     if (pending.correctionOf === correction.usageId) {

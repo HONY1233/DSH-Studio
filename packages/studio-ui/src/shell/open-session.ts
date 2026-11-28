@@ -19,7 +19,12 @@ export function openSessionInWorkbench(controller: WorkbenchController, sessionI
       return
     }
   }
-  controller.open(conversationRef(sessionId))
+  try {
+    controller.open(conversationRef(sessionId))
+  } catch (error) {
+    // 达到 view 上限时控制器已经记录了可展示的 limitError；不要吞掉其它错误。
+    if ((error as { code?: string } | null)?.code !== 'LIMIT_EXCEEDED') throw error
+  }
 }
 
 /** 工作台里已经有标签了吗（用于"首次挂载才自动铺开"的守卫）。 */

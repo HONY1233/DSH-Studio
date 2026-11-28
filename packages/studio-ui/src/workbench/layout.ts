@@ -12,6 +12,7 @@
 export type PaneId = string & { readonly __pane: unique symbol }
 export type SplitId = string & { readonly __split: unique symbol }
 export type TabId = string & { readonly __tab: unique symbol }
+export type RegionId = 'sidebar' | 'right' | 'bottom'
 
 export interface Rect {
   readonly x: number
@@ -54,6 +55,23 @@ export interface PaneNode {
   readonly activeTab?: TabId
 }
 
+export interface WorkbenchRegions {
+  readonly sidebar: PaneNode
+  readonly right: PaneNode
+  readonly bottom: PaneNode
+}
+
+/** sidebar/right 保存宽度，bottom 保存高度；缺省值由渲染层决定。 */
+export type RegionSizes = Readonly<Partial<Record<RegionId, number>>>
+
+/** 所有可放 tab 的宿主。region 的 id 是对应 PaneNode.id，不是 sidebar/right/bottom 键。 */
+export interface TabHostRef {
+  readonly kind: 'pane' | 'region' | 'float'
+  readonly id: string
+}
+
+export type TabHost = PaneNode | FloatNode
+
 export interface SplitNode {
   readonly kind: 'split'
   readonly id: SplitId
@@ -73,6 +91,10 @@ export interface FloatNode {
   readonly id: string
   readonly rect: Rect
   readonly pin: PinLevel
+  /** 同组浮窗作为一个整体拖动；组 id 持久化在布局里。 */
+  readonly groupId?: string
+  /** 锁定只禁止移动/拖动，不妨碍关闭、最小化或改 Pin。 */
+  readonly locked?: boolean
   readonly tabs: readonly Tab[]
   readonly activeTab?: TabId
 }
@@ -87,11 +109,22 @@ export interface MinimizedRecord {
 export interface WorkbenchLayout {
   readonly version: 2
   readonly root: LayoutNode
+  /** X4.2 固定区域。旧 v2 可缺省；恢复/保存时由 ensureWorkbenchRegions 补齐。 */
+  readonly regions?: WorkbenchRegions
+  /** 固定区域的用户尺寸；不参与主区 split 的 compact。 */
+  readonly regionSizes?: RegionSizes
   /** 自底向上。 */
   readonly floats: readonly FloatNode[]
-  /** 焦点可以是 pane / split / float 的 id。 */
+  /** 焦点可以是 pane / region pane / split / float 的 id。 */
   readonly focused?: string
   readonly minimized: readonly MinimizedRecord[]
+}
+
+export const REGION_IDS = ['sidebar', 'right', 'bottom'] as const
+export const DEFAULT_REGION_IDS: Readonly<Record<RegionId, PaneId>> = {
+  sidebar: 'region-sidebar' as PaneId,
+  right: 'region-right' as PaneId,
+  bottom: 'region-bottom' as PaneId,
 }
 
 /** 最小分栏比例，防止某一格被拖成 0 像素。 */
@@ -123,6 +156,31 @@ export function emptyPane(id: PaneId): PaneNode {
 
 export function emptyLayout(paneId: PaneId): WorkbenchLayout {
   return { version: 2, root: emptyPane(paneId), floats: [], minimized: [] }
+}
+
+/**
+ * 在内存中补上 X4.2 固定区域，不修改传入对象。默认 id 已被旧数据占用时顺延，
+ * 避免迁移制造重复 node/tab id。已经有 regions 的布局原样返回。
+ */
+export function ensureWorkbenchRegions(layout: WorkbenchLayout): WorkbenchLayout {
+  if (layout.regions) return layout
+  const used = workbenchIds(layout)
+  const paneFor = (region: RegionId): PaneNode => {
+    const base = DEFAULT_REGION_IDS[region]
+    let id = base
+    let suffix = 2
+    while (used.has(id)) id = `${base}-${suffix++}` as PaneId
+    used.add(id)
+    return emptyPane(id)
+  }
+  return {
+    ...layout,
+    regions: {
+      sidebar: paneFor('sidebar' as RegionId),
+      right: paneFor('right' as RegionId),
+      bottom: paneFor('bottom' as RegionId),
+    },
+  }
 }
 
 export function makeTab(id: TabId, ref: TabRef, title?: string): Tab {
@@ -160,10 +218,43 @@ export function panes(root: LayoutNode): PaneNode[] {
   return root.children.flatMap(panes)
 }
 
-/** 遍历所有 tab，含浮窗。 */
+/** 固定区域条目；空区域也保留，且不经过 compact。 */
+export function regionEntries(layout: WorkbenchLayout): readonly (readonly [RegionId, PaneNode])[] {
+  if (!layout.regions) return []
+  return REGION_IDS.map((id) => [id, layout.regions![id]] as const)
+}
+
+export function findTabHost(layout: WorkbenchLayout, ref: TabHostRef): TabHost | undefined {
+  if (ref.kind === 'pane') return findPane(layout.root, ref.id as PaneId)
+  if (ref.kind === 'float') return layout.floats.find((float) => float.id === ref.id)
+  return regionEntries(layout).find(([, pane]) => pane.id === ref.id)?.[1]
+}
+
+/** 所有 id（node/region pane/float/tab）的集合，用于迁移与 mint 防冲突。 */
+export function workbenchIds(layout: WorkbenchLayout): Set<string> {
+  const ids = new Set<string>()
+  const visit = (node: LayoutNode): void => {
+    ids.add(node.id)
+    if (isPane(node)) node.tabs.forEach((tab) => ids.add(tab.id))
+    else node.children.forEach(visit)
+  }
+  visit(layout.root)
+  regionEntries(layout).forEach(([, pane]) => {
+    ids.add(pane.id)
+    pane.tabs.forEach((tab) => ids.add(tab.id))
+  })
+  layout.floats.forEach((float) => {
+    ids.add(float.id)
+    float.tabs.forEach((tab) => ids.add(tab.id))
+  })
+  return ids
+}
+
+/** 遍历所有 tab，含固定区域和浮窗。 */
 export function allTabs(layout: WorkbenchLayout): Tab[] {
   const inTree = panes(layout.root).flatMap((p) => p.tabs)
-  return [...inTree, ...layout.floats.flatMap((f) => f.tabs)]
+  const inRegions = regionEntries(layout).flatMap(([, pane]) => pane.tabs)
+  return [...inTree, ...inRegions, ...layout.floats.flatMap((f) => f.tabs)]
 }
 
 // ---------------------------------------------------------------- 不可变改写
@@ -242,7 +333,7 @@ export function sameLayout(a: WorkbenchLayout, b: WorkbenchLayout): boolean {
   const seed = (isPane(a.root) ? a.root.id : (panes(a.root)[0]?.id ?? a.root.id)) as PaneId
   const shape = (layout: WorkbenchLayout) => {
     const v = view(layout, seed)
-    return { root: v.root, floats: v.floats, minimized: v.minimized }
+    return { root: v.root, regions: v.regions, regionSizes: v.regionSizes, floats: v.floats, minimized: v.minimized }
   }
   return JSON.stringify(shape(a)) === JSON.stringify(shape(b))
 }

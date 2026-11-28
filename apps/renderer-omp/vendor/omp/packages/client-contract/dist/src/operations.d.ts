@@ -132,6 +132,7 @@ export interface QueryInputMap extends RuntimeViewQueryMap, ContextViewQueryMap,
     "conversation.open": {
         readonly target: ConversationTarget;
         readonly limit?: number;
+        readonly afterStreamSeq?: number;
     };
     "session.transcript.read": {
         readonly cursor?: OpaqueCursor;

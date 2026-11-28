@@ -329,6 +329,10 @@ export function GitStatusPanel({ client, workspaceId, focusPath, focusTarget, fo
 
   const staged = useMemo(() => repository?.changes.filter((change) => change.index !== "unmodified") ?? [], [repository]);
   const working = useMemo(() => repository?.changes.filter((change) => change.worktree !== "unmodified") ?? [], [repository]);
+  // Conflicted paths have no valid index entry to move; the Host rejects them so
+  // that "stage all" cannot fail the whole batch because of one conflict.
+  const stageable = useMemo(() => working.filter((change) => !change.conflicted), [working]);
+  const unstageable = useMemo(() => staged.filter((change) => !change.conflicted), [staged]);
 
   useEffect(() => {
     if (focusPath === undefined || repository === undefined) return;
@@ -391,14 +395,14 @@ export function GitStatusPanel({ client, workspaceId, focusPath, focusTarget, fo
         <span className="ch-count">{changes.length}</span>
         <span className="spacer" />
         {target === "working" ? (
-          <GitTip text={working.length === 0 ? t("git.noChanges") : t("git.stageAll")}>
-            <button type="button" className="icon-btn small" aria-label={t("git.stageAll")} disabled={busy || working.length === 0} onClick={() => void execute({ kind: "stage", paths: working.map((change) => change.path) })}>
+          <GitTip text={stageable.length === 0 ? t("git.noChanges") : t("git.stageAll")}>
+            <button type="button" className="icon-btn small" aria-label={t("git.stageAll")} disabled={busy || stageable.length === 0} onClick={() => void execute({ kind: "stage", paths: stageable.map((change) => change.path) })}>
               <Icon name="plus" extra="sm" />
             </button>
           </GitTip>
         ) : (
-          <GitTip text={staged.length === 0 ? t("git.noChanges") : t("git.unstageAll")}>
-            <button type="button" className="icon-btn small" aria-label={t("git.unstageAll")} disabled={busy || staged.length === 0} onClick={() => void execute({ kind: "unstage", paths: staged.map((change) => change.path) })}>
+          <GitTip text={unstageable.length === 0 ? t("git.noChanges") : t("git.unstageAll")}>
+            <button type="button" className="icon-btn small" aria-label={t("git.unstageAll")} disabled={busy || unstageable.length === 0} onClick={() => void execute({ kind: "unstage", paths: unstageable.map((change) => change.path) })}>
               <Icon name="minimize" extra="sm" />
             </button>
           </GitTip>
@@ -407,6 +411,7 @@ export function GitStatusPanel({ client, workspaceId, focusPath, focusTarget, fo
       {changes.map((change) => {
         const name = splitDisplayPath(change.path).name;
         const ftype = fileTypeOf(name);
+        const renamed = change.originalPath !== undefined && change.originalPath !== change.path;
         return (
         <div
           className={`git-change-line${selected?.path === change.path && selected.target === target ? " selected" : ""}`}
@@ -416,14 +421,14 @@ export function GitStatusPanel({ client, workspaceId, focusPath, focusTarget, fo
         >
           <button className="ch-row" aria-label={zh ? `查看 ${change.path} 的 ${target === "staged" ? "暂存" : "工作区"} Diff` : `View ${target === "staged" ? "staged" : "working tree"} diff for ${change.path}`} onClick={() => setSelected({ path: change.path, target })}>
             <span className="ch-row-icon" aria-hidden="true"><Icon name={iconNameFor(ftype, name)} extra="sm" /></span>
-            <span className="ch-file ellipsis">{change.path}</span><span className="ch-note">{statusLabel(change.index, change.worktree, t)}</span>
+            <span className="ch-file ellipsis">{renamed ? `${change.originalPath} → ${change.path}` : change.path}</span><span className="ch-note">{statusLabel(change.index, change.worktree, t)}</span>
           </button>
           <GitTip text={target === "staged" ? t("git.unstage") : t("git.stage")}>
-            <button type="button" className="icon-btn small" aria-label={target === "staged" ? t("git.unstage") : t("git.stage")} disabled={busy} onClick={() => void execute({ kind: target === "staged" ? "unstage" : "stage", paths: [change.path] })}><Icon name={target === "staged" ? "minimize" : "plus"} extra="sm" /></button>
+            <button type="button" className="icon-btn small" aria-label={target === "staged" ? t("git.unstage") : t("git.stage")} disabled={busy || change.conflicted} onClick={() => void execute({ kind: target === "staged" ? "unstage" : "stage", paths: [change.path] })}><Icon name={target === "staged" ? "minimize" : "plus"} extra="sm" /></button>
           </GitTip>
           {target === "working" ? (
             <GitTip text={t("git.discard")}>
-              <button type="button" className="icon-btn small danger" aria-label={t("git.discardChanges")} disabled={busy || !repository.revision} onClick={() => { if (repository.revision && window.confirm(t("git.confirmDiscard", { path: change.path }))) void execute({ kind: "discard", paths: [change.path], expectedRevision: repository.revision }); }}><Icon name="trash" extra="sm" /></button>
+              <button type="button" className="icon-btn small danger" aria-label={t("git.discardChanges")} disabled={busy || change.conflicted || !repository.revision} onClick={() => { if (repository.revision && window.confirm(t("git.confirmDiscard", { path: change.path }))) void execute({ kind: "discard", paths: [change.path], expectedRevision: repository.revision }); }}><Icon name="trash" extra="sm" /></button>
             </GitTip>
           ) : null}
         </div>

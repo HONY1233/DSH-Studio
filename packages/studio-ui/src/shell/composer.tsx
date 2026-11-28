@@ -42,6 +42,14 @@ import {
   type ReactNode,
 } from 'react'
 
+import {
+  nextOwnerSubmissionId,
+  type ConversationIdentity,
+  type OwnerDraftCommand,
+  type OwnerDraftMutation,
+  type OwnerDraftSnapshot,
+} from '../ui-session-views/session-view-store.js'
+
 /** `PromptContentPart` 的文本分支。 */
 export interface TextPart {
   readonly type: 'text'
@@ -252,6 +260,10 @@ export interface ComposerProps {
    */
   readonly streaming?: boolean
   readonly disabled?: boolean
+  /** Owner-scoped mode. `null` is a controlled empty draft; omit for legacy local mode. */
+  readonly draft?: OwnerDraftSnapshot | null
+  readonly draftOwner?: ConversationIdentity
+  readonly dispatchDraft?: (command: OwnerDraftCommand) => OwnerDraftMutation
   readonly labels?: ComposerLabels
 }
 
@@ -281,6 +293,17 @@ function errorText(error: RemoteFailureLike | undefined): string {
   return '发送失败'
 }
 
+function draftErrorText(error: unknown): string | undefined {
+  if (!error) return undefined
+  if (typeof error === 'string') return error
+  if (typeof error === 'object') {
+    const value = error as { message?: unknown; code?: unknown }
+    if (typeof value.message === 'string' && value.message) return value.message
+    if (typeof value.code === 'string' && value.code) return value.code
+  }
+  return undefined
+}
+
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
@@ -296,12 +319,40 @@ export function Composer(props: ComposerProps): ReactNode {
   const uploader = asFileUploadService(props.uploader)
   const canAttach = uploader !== undefined && typeof props.sessionId === 'string' && !props.disabled
 
-  const [text, setText] = useState('')
-  const [attachments, setAttachments] = useState<readonly AttachmentItem[]>([])
-  const [sending, setSending] = useState(false)
+  const [localText, setLocalText] = useState('')
+  const [localAttachments, setLocalAttachments] = useState<readonly AttachmentItem[]>([])
+  const [localSending, setLocalSending] = useState(false)
+  const [transientAttachments, setTransientAttachments] = useState<readonly AttachmentItem[]>([])
   const [stopping, setStopping] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
   const [dragging, setDragging] = useState(false)
+  const controlled = props.draft !== undefined
+  const owner: ConversationIdentity = props.draftOwner ?? { kind: 'session', id: props.sessionId ?? 'composer' }
+  const ownerKey = `${owner.kind}:${owner.id}`
+  const ownerKeyRef = useRef(ownerKey)
+  ownerKeyRef.current = ownerKey
+  const draftRef = useRef(props.draft)
+  draftRef.current = props.draft
+  const attachmentsRef = useRef<readonly AttachmentItem[]>([])
+  const text = controlled ? props.draft?.body ?? '' : localText
+  const attachments = controlled
+    ? [
+        ...(props.draft?.attachments ?? []).map((item): AttachmentItem => ({
+          id: item.id,
+          name: item.name ?? '附件',
+          size: item.size ?? 0,
+          mediaType: item.mediaType ?? 'application/octet-stream',
+          isImage: item.mediaType?.startsWith('image/') === true,
+          status: item.receiptId ? 'ready' : 'failed',
+          ...(item.receiptId ? { receiptId: item.receiptId } : {}),
+        })),
+        ...transientAttachments,
+      ]
+    : localAttachments
+  attachmentsRef.current = attachments
+  const sending = controlled
+    ? props.draft?.submission?.state === 'sending' || props.draft?.submission?.state === 'local-queued'
+    : localSending
   const running = useSessionRunning(face)
   // `streaming` 是主信号（事件驱动、可靠），`running` 只是补充：
   // 有些路径只更新 Host 投影而不发事件（例如排队中），两者或起来不漏。
@@ -314,7 +365,12 @@ export function Composer(props: ComposerProps): ReactNode {
   const uploading = attachments.some((item) => item.status === 'uploading')
   const ready = attachments.filter((item) => item.status === 'ready' && item.receiptId !== undefined)
   const canSend =
-    face !== undefined && !props.disabled && !sending && !uploading && (text.trim().length > 0 || ready.length > 0)
+    face !== undefined && (!controlled || props.dispatchDraft !== undefined)
+    && !props.disabled && !sending && !uploading && (text.trim().length > 0 || ready.length > 0)
+
+  const visibleError = error ?? (controlled && props.draft?.submission?.state === 'failed'
+    ? draftErrorText(props.draft.submission.error)
+    : undefined)
 
   // 图片缩略图的 object URL 必须回收，否则每加一张泄漏一个 blob
   const previewsRef = useRef(new Set<string>())
@@ -326,12 +382,59 @@ export function Composer(props: ComposerProps): ReactNode {
     }
   }, [])
 
-  const patch = useCallback((id: string, changes: Partial<AttachmentItem>): void => {
-    setAttachments((prev) => prev.map((item) => (item.id === id ? { ...item, ...changes } : item)))
-  }, [])
+  useEffect(() => {
+    ownerKeyRef.current = ownerKey
+    setTransientAttachments([])
+    setError(undefined)
+  }, [ownerKey])
+
+  const commitDraft = useCallback((patch: { body?: string; attachments?: readonly AttachmentItem[] }): OwnerDraftMutation | undefined => {
+    if (!controlled || !props.dispatchDraft) return undefined
+    const current = draftRef.current
+    const result = props.dispatchDraft({
+      type: 'update',
+      owner,
+      expectedRevision: current?.revision ?? 0,
+      patch: {
+        ...(patch.body === undefined ? {} : { body: patch.body }),
+        ...(patch.attachments === undefined ? {} : {
+          attachments: patch.attachments
+            .filter((item) => item.status === 'ready' && item.receiptId !== undefined)
+            .map((item) => ({
+              id: item.id,
+              name: item.name,
+              size: item.size,
+              mediaType: item.mediaType,
+              receiptId: item.receiptId as string,
+            })),
+        }),
+      },
+    })
+    draftRef.current = result.draft
+    return result
+  }, [controlled, owner, props.dispatchDraft])
+
+  const setText = useCallback((value: string): void => {
+    if (controlled) commitDraft({ body: value })
+    else setLocalText(value)
+  }, [commitDraft, controlled])
+
+  const patch = useCallback((id: string, changes: Partial<AttachmentItem>, expectedOwner = ownerKey): void => {
+    if (controlled) {
+      if (ownerKeyRef.current !== expectedOwner) return
+      setTransientAttachments((prev) => prev.map((item) => (item.id === id ? { ...item, ...changes } : item)))
+      return
+    }
+    setLocalAttachments((prev) => prev.map((item) => (item.id === id ? { ...item, ...changes } : item)))
+  }, [controlled, ownerKey])
 
   const removeAttachment = useCallback((id: string): void => {
-    setAttachments((prev) => {
+    if (controlled) {
+      setTransientAttachments((prev) => prev.filter((item) => item.id !== id))
+      commitDraft({ attachments: attachments.filter((item) => item.id !== id) })
+      return
+    }
+    setLocalAttachments((prev) => {
       const hit = prev.find((item) => item.id === id)
       if (hit?.previewUrl) {
         URL.revokeObjectURL(hit.previewUrl)
@@ -339,12 +442,13 @@ export function Composer(props: ComposerProps): ReactNode {
       }
       return prev.filter((item) => item.id !== id)
     })
-  }, [])
+  }, [attachments, commitDraft, controlled])
 
   const addFiles = useCallback(
     async (files: readonly File[]): Promise<void> => {
       const sessionId = props.sessionId
       if (!uploader || !sessionId || files.length === 0) return
+      const expectedOwner = ownerKey
 
       for (const file of files) {
         const id = nextAttachmentId()
@@ -352,18 +456,34 @@ export function Composer(props: ComposerProps): ReactNode {
         const previewUrl = isImage ? URL.createObjectURL(file) : undefined
         if (previewUrl) previewsRef.current.add(previewUrl)
 
-        setAttachments((prev) => [
-          ...prev,
-          {
-            id,
-            name: file.name || (isImage ? '图片' : '文件'),
-            size: file.size,
-            mediaType: file.type,
-            isImage,
-            status: 'uploading',
-            ...(previewUrl === undefined ? {} : { previewUrl }),
-          },
-        ])
+        if (controlled) {
+          if (ownerKeyRef.current !== expectedOwner) return
+          setTransientAttachments((prev) => [
+            ...prev,
+            {
+              id,
+              name: file.name || (isImage ? '图片' : '文件'),
+              size: file.size,
+              mediaType: file.type,
+              isImage,
+              status: 'uploading',
+              ...(previewUrl === undefined ? {} : { previewUrl }),
+            },
+          ])
+        } else {
+          setLocalAttachments((prev) => [
+            ...prev,
+            {
+              id,
+              name: file.name || (isImage ? '图片' : '文件'),
+              size: file.size,
+              mediaType: file.type,
+              isImage,
+              status: 'uploading',
+              ...(previewUrl === undefined ? {} : { previewUrl }),
+            },
+          ])
+        }
 
         const onProgress = (progress: UploadProgressLike): void => {
           const ratio =
@@ -380,16 +500,32 @@ export function Composer(props: ComposerProps): ReactNode {
               : await uploader.upload(sessionId, file, file.name, undefined, onProgress)
 
           if (result.ok) {
-            patch(id, { status: 'ready', receiptId: result.value.receiptId, progress: 1 })
+            if (controlled) {
+              if (ownerKeyRef.current !== expectedOwner) return
+              const readyItem: AttachmentItem = {
+                id,
+                name: file.name || (isImage ? '图片' : '文件'),
+                size: file.size,
+                mediaType: file.type,
+                isImage,
+                status: 'ready',
+                receiptId: result.value.receiptId,
+                progress: 1,
+              }
+              setTransientAttachments((prev) => prev.filter((item) => item.id !== id))
+              commitDraft({ attachments: [...attachmentsRef.current.filter((item) => item.id !== id), readyItem] })
+            } else {
+              patch(id, { status: 'ready', receiptId: result.value.receiptId, progress: 1 })
+            }
           } else {
-            patch(id, { status: 'failed', error: errorText(result.error) })
+            patch(id, { status: 'failed', error: errorText(result.error) }, expectedOwner)
           }
         } catch (thrown) {
-          patch(id, { status: 'failed', error: thrown instanceof Error ? thrown.message : String(thrown) })
+          patch(id, { status: 'failed', error: thrown instanceof Error ? thrown.message : String(thrown) }, expectedOwner)
         }
       }
     },
-    [patch, props.sessionId, uploader],
+    [commitDraft, controlled, ownerKey, patch, props.sessionId, uploader],
   )
 
   /**
@@ -414,25 +550,60 @@ export function Composer(props: ComposerProps): ReactNode {
 
       // 没在跑的时候 steer 没有可打断的对象，降级成 queue（不报错、不空转）。
       const effective: 'queue' | 'steer' = mode === 'steer' && busy ? 'steer' : 'queue'
-
-      setSending(true)
+      const expectedOwner = ownerKey
+      let submissionId: string | undefined
+      let expectedRevision: number | undefined
+      if (controlled) {
+        if (!props.dispatchDraft || draftRef.current?.submission?.state === 'sending'
+          || draftRef.current?.submission?.state === 'local-queued') return
+        submissionId = nextOwnerSubmissionId()
+        const begun = props.dispatchDraft({
+          type: 'begin',
+          owner,
+          expectedRevision: draftRef.current?.revision ?? 0,
+          submissionId,
+        })
+        draftRef.current = begun.draft
+        expectedRevision = begun.revision
+        if (!begun.changed) return
+      } else {
+        setLocalSending(true)
+      }
       setError(undefined)
       try {
-        const result = await face.prompt(content, effective)
+        const result = submissionId
+          ? await face.prompt(content, effective, undefined, submissionId)
+          : await face.prompt(content, effective)
+        if (ownerKeyRef.current !== expectedOwner) return
         if (result.ok) {
-          setText('')
-          setAttachments([])
+          if (submissionId && expectedRevision !== undefined) {
+            props.dispatchDraft?.({ type: 'settle', owner, submissionId, expectedRevision, outcome: 'accepted' })
+          } else {
+            setLocalText('')
+            setLocalAttachments([])
+          }
         } else {
           setError(errorText(result.error))
+          if (submissionId && expectedRevision !== undefined) {
+            props.dispatchDraft?.({
+              type: 'settle', owner, submissionId, expectedRevision, outcome: 'failed', error: result.error,
+            })
+          }
         }
       } catch (thrown) {
+        if (ownerKeyRef.current !== expectedOwner) return
         setError(thrown instanceof Error ? thrown.message : String(thrown))
+        if (submissionId && expectedRevision !== undefined) {
+          props.dispatchDraft?.({
+            type: 'settle', owner, submissionId, expectedRevision, outcome: 'failed', error: thrown,
+          })
+        }
       } finally {
-        setSending(false)
-        areaRef.current?.focus()
+        if (!controlled) setLocalSending(false)
+        if (ownerKeyRef.current === expectedOwner) areaRef.current?.focus()
       }
     },
-    [busy, face, ready, sending, text, uploading],
+    [busy, controlled, face, owner, ownerKey, props.dispatchDraft, ready, sending, text, uploading],
   )
 
   /**
@@ -696,9 +867,9 @@ export function Composer(props: ComposerProps): ReactNode {
         }}
       >
         <span>{labels.hint}</span>
-        {error && (
+        {visibleError && (
           <span data-testid="studio-composer-error" role="alert" style={{ color: 'var(--color-text-danger, #c0392b)' }}>
-            {error}
+            {visibleError}
           </span>
         )}
       </div>

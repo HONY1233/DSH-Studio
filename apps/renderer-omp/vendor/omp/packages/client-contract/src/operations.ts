@@ -158,7 +158,7 @@ export interface QueryInputMap extends RuntimeViewQueryMap, ContextViewQueryMap,
   /** Native dashboard endpoint the statistics page embeds; starts it if needed. */
   "stats.dashboard": EmptyInput;
   /** Latest page plus bounded live recovery state for a main or child conversation. */
-  "conversation.open": { readonly target: ConversationTarget; readonly limit?: number };
+  "conversation.open": { readonly target: ConversationTarget; readonly limit?: number; readonly afterStreamSeq?: number };
   "session.transcript.read": { readonly cursor?: OpaqueCursor; readonly limit?: number };
   "agent.transcript.read": { readonly agentId: AgentId; readonly cursor?: OpaqueCursor; readonly limit?: number };
   "agent.conversation.read": { readonly agentId: AgentId; readonly cursor?: OpaqueCursor; readonly limit?: number };

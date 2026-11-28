@@ -3,7 +3,7 @@ import { CONVERSATION_LIMITS, utf8ByteLength } from "@omp-studio/client-contract
 import type { AgentId, ConversationTarget } from "@omp-studio/studio-protocol";
 import { previewSubagentConversationItems, previewSubagentConversationStream } from "../preview/subagentConversation";
 import { asClientError, identityKey, isStaleCursorError } from "./conversationHost";
-import { createConversationSource } from "./conversationSource";
+import { createConversationSource, hasContiguousReplay } from "./conversationSource";
 import { ConversationStore } from "./conversationStore";
 import type { ConversationState, TimelineRow } from "./conversationViewModel";
 import type { SubagentHubTarget } from "./toolMeta";
@@ -65,7 +65,9 @@ export function createSubagentConversationEngine(input: SubagentConversationEngi
   }
   async function hydrate(resyncing = false): Promise<void> {
     if (disposed || !active) return;
-    const current = ++token; loadingOlder = false; buffered = []; bufferedBytes = 0; bufferOverflowed = false; conversationSessionId = undefined; watermark = 0;
+    const current = ++token; loadingOlder = false; buffered = []; bufferedBytes = 0; bufferOverflowed = false; conversationSessionId = undefined;
+    const afterStreamSeq = resyncing && watermark > 0 ? watermark : undefined
+    watermark = 0;
     if (input.target === null) { store.setUnavailable(isZh() ? "没有可读取的子 Agent 对话。" : "No subagent conversation available."); return; }
     store.setLoading(resyncing);
     if (input.preview) {
@@ -85,14 +87,15 @@ export function createSubagentConversationEngine(input: SubagentConversationEngi
     try {
       if (connected && input.liveSessionId === parentSessionId) {
         liveTarget = target;
-        const opened = await source.open(target, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT);
+        const opened = await source.open(target, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT, afterStreamSeq);
         if (disposed || current !== token) return; const resolvedSessionId = opened.target.conversationSessionId; conversationSessionId = resolvedSessionId; store.resolveTarget(resolvedSessionId, opened.page.runtimeEpoch);
         watermark = opened.live.watermark;
         if (opened.live.status === "resyncRequired") {
           store.hydrate(opened.page, [], watermark);
           store.requireResync(opened.live.reason);
         } else {
-          store.hydrate(opened.page, opened.live.events.map((event) => ({ streamSeq: event.streamSeq, update: event.update })), watermark);
+          const replay = hasContiguousReplay(afterStreamSeq, opened.live.events, watermark) ? opened.live.events : []
+          store.hydrate(opened.page, replay.map((event) => ({ streamSeq: event.streamSeq, update: event.update })), watermark);
         }
         const queued = buffered; const overflowed = bufferOverflowed; buffered = []; bufferedBytes = 0; bufferOverflowed = false;
         if (overflowed) { store.requireResync(isZh() ? "打开子 Agent 对话期间的事件缓冲已满，正在重新同步。" : "Event buffer filled while opening subagent conversation; resyncing."); void hydrate(true); return; }

@@ -10,13 +10,16 @@
  * 布尔值在 turn 开始 50ms 后就不再更新，而 turn 还在继续输出（详见 README）。
  */
 
-import { useCallback, useLayoutEffect, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
 
 import type { DerivedCache, DerivedHandle } from '../session-derived/cache.js'
 import { CONVERSATION_MODEL, type ConversationState } from '../session-derived/conversation.js'
+import { SessionApprovalBar } from './approval-bar.js'
 import { ConversationBody, defaultConversationLabels, type ConversationBodyLabels } from './conversation-body.js'
 import { Composer, defaultComposerLabels, type ComposerLabels } from './composer.js'
-import type { SessionEventHub } from './event-hub.js'
+import type { EventContinuity, SessionEventHub } from './event-hub.js'
+import { useOwnerSessionView } from '../ui-session-views/use-session-view.js'
+import { SessionToolsetBar } from './toolset-bar.js'
 
 const column: CSSProperties = {
   display: 'flex',
@@ -63,10 +66,53 @@ export interface SessionPaneProps {
   readonly composerLabels?: ComposerLabels
 }
 
+const CONTINUITY_LABELS: Readonly<Record<EventContinuity, string>> = {
+  unknown: '连接：未知',
+  complete: '连接：完整',
+  gap: '连接：事件缺口',
+  conflict: '连接：事件冲突',
+  'buffer-overflow': '连接：缓冲溢出',
+}
+
+/** 断线重连可见性：直接读 hub 的连续性判定，不在视图里猜。 */
+function useContinuity(hub: SessionEventHub, sessionId: string): EventContinuity {
+  const subscribe = useCallback((listener: () => void) => hub.subscribeWindow(listener), [hub])
+  const getSnapshot = useCallback(() => hub.continuityOf(sessionId), [hub, sessionId])
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+}
+
 export function SessionPane(props: SessionPaneProps): ReactNode {
   const streaming = useStreaming(props.cache, props.sessionId)
+  const continuity = useContinuity(props.hub, props.sessionId)
+  const owner = useMemo(() => ({ kind: 'session' as const, id: props.sessionId }), [props.sessionId])
+  const { store, projection, dispatchDraft } = useOwnerSessionView(owner)
+  const pendingApprovals = projection?.approvals.filter((item) => item.status === 'pending').length ?? 0
+  const outputTokens = projection?.usage?.totals.outputTokens
   return (
     <div style={column} data-testid="session-pane" data-session-id={props.sessionId}>
+      {store && (
+        <div data-testid="session-owner-status" style={{ display: 'flex', gap: 12, padding: '4px 10px', fontSize: 10, color: 'var(--color-text-tertiary, #8a8a85)' }}>
+          <span data-testid="session-owner-approvals">待审批 {pendingApprovals}</span>
+          <span data-testid="session-owner-usage">输出 token {outputTokens ?? '—'}</span>
+          <span data-testid="session-owner-tools">工具 {projection?.tools.instances.length ?? 0}</span>
+          <span
+            data-testid="session-continuity"
+            data-state={continuity}
+            style={continuity === 'complete' || continuity === 'unknown'
+              ? undefined
+              : { color: 'var(--color-text-danger, #c0392b)' }}
+          >
+            {CONTINUITY_LABELS[continuity]}
+          </span>
+        </div>
+      )}
+      <SessionApprovalBar
+        sessionId={props.sessionId}
+        store={store}
+        approvals={projection?.approvals ?? []}
+        active={props.active}
+      />
+      <SessionToolsetBar sessionId={props.sessionId} />
       <ConversationBody
         sessionId={props.sessionId}
         active={props.active}
@@ -79,6 +125,9 @@ export function SessionPane(props: SessionPaneProps): ReactNode {
       <Composer
         session={props.session}
         sessionId={props.sessionId}
+        draft={store ? projection?.draft ?? null : undefined}
+        draftOwner={owner}
+        dispatchDraft={store ? dispatchDraft : undefined}
         uploader={props.uploader}
         streaming={streaming}
         labels={props.composerLabels ?? defaultComposerLabels}

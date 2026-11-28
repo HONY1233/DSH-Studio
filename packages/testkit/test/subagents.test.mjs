@@ -182,3 +182,63 @@ test('ownerless approvals fail closed and closing the last owner cancels the req
   bridge.closeContext(owner)
   assert.deepEqual(responses, [{ outcome: 'cancelled' }, { outcome: 'cancelled' }])
 })
+
+test('interaction.list recovers pending approvals for a same-session context and stays scoped', async () => {
+  const { bridge, events } = bridgeWithStub()
+  const first = bridge.openContext({ sessionId: 'root-1' })
+  const foreign = bridge.openContext({ sessionId: 'root-2' })
+  const responses = []
+  bridge.onApprovalRequest({
+    requestId: 'server-recover',
+    params: { sessionId: 'root-1', command: 'rm -rf build', reason: 'outside workspace' },
+    respond: (result) => responses.push(result),
+  })
+  const required = events.find((event) => event.kind === 'interaction.required')
+  assert.equal(required.contextId, first)
+
+  // A late view for the same session sees the card and gains the right to answer.
+  const late = bridge.openContext({ sessionId: 'root-1' })
+  const listed = await bridge.query('interaction.list', {}, late)
+  assert.equal(listed.approvals.length, 1)
+  assert.equal(listed.approvals[0].interactionId, required.interaction.interactionId)
+  assert.equal(listed.approvals[0].status, 'pending')
+  assert.deepEqual(listed.approvals[0].detail, { command: 'rm -rf build', reason: 'outside workspace' })
+  assert.equal('respond' in listed.approvals[0], false)
+
+  // Another session never sees or answers it.
+  const foreignList = await bridge.query('interaction.list', {}, foreign)
+  assert.deepEqual(foreignList.approvals, [])
+  bridge.command({
+    requestId: 'late-foreign', commandName: 'interaction.respond',
+    input: { interactionId: required.interaction.interactionId, leaseGeneration: 1, decision: 'submit', value: true },
+  }, foreign)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(responses, [])
+
+  bridge.command({
+    requestId: 'late-stale', commandName: 'interaction.respond',
+    input: { interactionId: required.interaction.interactionId, leaseGeneration: 2, decision: 'submit', value: true },
+  }, late)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(responses, [])
+  assert.ok(events.some((event) => event.receipt?.error?.code === 'FAILED_PRECONDITION'))
+
+  bridge.command({
+    requestId: 'late-owner', commandName: 'interaction.respond',
+    input: { interactionId: required.interaction.interactionId, leaseGeneration: 1, decision: 'submit', value: true },
+  }, late)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(responses, [{ outcome: 'allowed-once' }])
+
+  // A duplicate response is rejected and never reaches Runtime a second time.
+  bridge.command({
+    requestId: 'late-duplicate', commandName: 'interaction.respond',
+    input: { interactionId: required.interaction.interactionId, leaseGeneration: 1, decision: 'submit', value: true },
+  }, late)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(responses, [{ outcome: 'allowed-once' }])
+  assert.ok(events.some((event) => event.receipt?.error?.code === 'INVALID_ARGUMENT'))
+
+  const settled = await bridge.query('interaction.list', {}, first)
+  assert.deepEqual(settled.approvals, [])
+})

@@ -9,20 +9,21 @@
  * - 按住 Ctrl / Cmd 暂停吸附（返回空数组，调用方按自由浮窗处理）。
  */
 
-import type { PaneId, Point, Rect, Size } from './layout.js'
+import type { PaneId, Point, Rect, Size, TabHostRef } from './layout.js'
 
-export type SnapRegion = 'left' | 'right' | 'top'
+export type SnapRegion = 'left' | 'right' | 'top' | 'bottom'
 export type SnapCorner = 'tl' | 'tr' | 'bl' | 'br'
 
 export type DockDestination =
   | { readonly to: 'pane'; readonly pane: PaneId; readonly index?: number }
+  | { readonly to: 'host'; readonly host: TabHostRef; readonly index?: number }
   | { readonly to: 'edge'; readonly region: SnapRegion }
   | { readonly to: 'corner'; readonly corner: SnapCorner }
   | { readonly to: 'float'; readonly rect: Rect }
   | { readonly to: 'window' }
 
 export interface SnapZone {
-  readonly kind: 'corner' | 'edge' | 'top'
+  readonly kind: 'corner' | 'edge' | 'top' | 'bottom' | 'pane'
   readonly corner?: SnapCorner
   readonly region?: SnapRegion
   /** 命中判定用的热区（含缓冲前的原始带）。 */
@@ -93,7 +94,7 @@ function quadrant(work: Rect, corner: SnapCorner): Rect {
 }
 
 /**
- * 生成落区，**顺序即优先级**：四角 → 左右边缘 → 顶部。
+ * 生成落区，**顺序即优先级**：四角 → 左右边缘 → 顶部 → 底部。
  * 调用方用 `pickZone()` 取第一个命中的，就自动实现了"角落优先"。
  */
 export function snapZones(work: Rect, opts: SnapOptions = {}): readonly SnapZone[] {
@@ -144,6 +145,17 @@ export function snapZones(work: Rect, opts: SnapOptions = {}): readonly SnapZone
       hit: { x: work.x, y: work.y, w: work.w, h: b.top },
       rect: topRect,
       dest: { to: 'edge', region: 'top' },
+    })
+  }
+
+  const bottomRect = half(work, 'bottom')
+  if (bottomRect.w >= minW && bottomRect.h >= minH) {
+    zones.push({
+      kind: 'bottom',
+      region: 'bottom',
+      hit: { x: work.x, y: work.y + work.h - b.top, w: work.w, h: b.top },
+      rect: bottomRect,
+      dest: { to: 'edge', region: 'bottom' },
     })
   }
 

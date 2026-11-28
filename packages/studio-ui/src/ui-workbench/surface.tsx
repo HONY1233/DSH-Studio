@@ -10,9 +10,10 @@
 
 import { Fragment, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 
-import type { LayoutNode, PaneId, PaneNode, SplitNode, Tab, TabId } from '../workbench/index.js'
+import type { LayoutNode, PaneNode, SplitNode, Tab, TabHostRef, TabId } from '../workbench/index.js'
 
 import type { WorkbenchController } from './controller.js'
+import { TabPanel } from './tab-panel.js'
 import { TabStrip, type TabStripLabels } from './tab-strip.js'
 
 export interface SurfaceContext {
@@ -20,20 +21,50 @@ export interface SurfaceContext {
   readonly resolveTitle: (tab: Tab) => string
   readonly renderContent: (tab: Tab, active: boolean) => ReactNode
   readonly labels: TabStripLabels & { readonly separator: string }
-  readonly onTabDragStart?: (pane: PaneId, tabId: TabId, event: PointerEvent<HTMLElement>) => void
+  readonly onTabDragStart?: (host: TabHostRef, tabId: TabId, event: PointerEvent<HTMLElement>) => void
+  readonly onContentTarget?: (tabId: TabId, node: HTMLDivElement | null) => void
 }
 
 export function DockSurface({ node, ctx }: { node: LayoutNode; ctx: SurfaceContext }): ReactNode {
   return node.kind === 'pane' ? <PaneView pane={node} ctx={ctx} /> : <SplitView split={node} ctx={ctx} />
 }
 
-function PaneView({ pane, ctx }: { pane: PaneNode; ctx: SurfaceContext }): ReactNode {
-  const { controller, resolveTitle, renderContent, labels, onTabDragStart } = ctx
+export function PaneView({ pane, ctx, hostKind = 'pane' }: { pane: PaneNode; ctx: SurfaceContext; hostKind?: 'pane' | 'region' }): ReactNode {
+  const { controller, resolveTitle, renderContent, labels, onTabDragStart, onContentTarget } = ctx
   const active = pane.tabs.find((t) => t.id === pane.activeTab) ?? pane.tabs[pane.tabs.length - 1]
+  const host: TabHostRef = { kind: hostKind, id: pane.id }
+  const selectTab = (tabId: TabId): void => {
+    if (hostKind === 'region') {
+      controller.dispatchMany(
+        [
+          { kind: 'setHostTabs', host, tabs: pane.tabs, activeTab: tabId },
+          { kind: 'focus', id: pane.id },
+        ],
+        'activate-tab',
+      )
+      return
+    }
+    controller.dispatch({ kind: 'activateTab', pane: pane.id, tabId }, 'activate-tab')
+  }
+  const closeTab = (tabId: TabId): void => {
+    if (hostKind === 'pane') {
+      controller.dispatch({ kind: 'removeTab', pane: pane.id, tabId }, 'close-tab')
+      return
+    }
+    const index = pane.tabs.findIndex((tab) => tab.id === tabId)
+    const tabs = pane.tabs.filter((tab) => tab.id !== tabId)
+    const activeTab = pane.activeTab === tabId
+      ? tabs[Math.min(Math.max(index, 0), Math.max(0, tabs.length - 1))]?.id
+      : pane.activeTab
+    controller.dispatch({ kind: 'setHostTabs', host, tabs, activeTab }, 'close-tab')
+  }
 
   return (
     <section
       data-pane-id={pane.id}
+      data-dock-host={pane.id}
+      data-host-kind={hostKind}
+      data-drop-region="pane"
       data-empty={pane.tabs.length === 0 ? 'true' : 'false'}
       style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, height: '100%', overflow: 'hidden' }}
     >
@@ -45,23 +76,22 @@ function PaneView({ pane, ctx }: { pane: PaneNode; ctx: SurfaceContext }): React
             resolveTitle={resolveTitle}
             labels={labels}
             testId={`tab-strip-${pane.id}`}
-            onSelect={(id) => controller.dispatch({ kind: 'activateTab', pane: pane.id, tabId: id })}
-            onClose={(id) => controller.dispatch({ kind: 'removeTab', pane: pane.id, tabId: id })}
-            onDragStart={(id, event) => onTabDragStart?.(pane.id, id, event)}
+            onSelect={selectTab}
+            onClose={closeTab}
+            onDragStart={(id, event) => onTabDragStart?.(host, id, event)}
           />
         </div>
       )}
       <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
         {pane.tabs.map((tab) => (
-          <div
+          <TabPanel
             key={tab.id}
-            role="tabpanel"
-            data-tab-panel={tab.id}
-            hidden={tab.id !== active?.id}
-            style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}
+            tabId={tab.id}
+            active={tab.id === active?.id}
+            registerTarget={onContentTarget}
           >
-            {renderContent(tab, tab.id === active?.id)}
-          </div>
+            {onContentTarget ? null : renderContent(tab, tab.id === active?.id)}
+          </TabPanel>
         ))}
       </div>
     </section>
@@ -102,6 +132,11 @@ function SplitView({ split, ctx }: { split: SplitNode; ctx: SurfaceContext }): R
     next[state.index] = a + moved
     next[state.index + 1] = b - moved
     setPreview(next)
+  }
+
+  const cancel = (): void => {
+    drag.current = null
+    setPreview(null)
   }
 
   const finish = (): void => {
@@ -167,7 +202,8 @@ function SplitView({ split, ctx }: { split: SplitNode; ctx: SurfaceContext }): R
               onPointerDown={onPointerDown(index)}
               onPointerMove={onPointerMove}
               onPointerUp={finish}
-              onPointerCancel={finish}
+              onPointerCancel={cancel}
+              onLostPointerCapture={cancel}
               onDoubleClick={() => {
                 const even = split.children.map(() => 1 / split.children.length)
                 ctx.controller.dispatch({ kind: 'resize', split: split.id, sizes: even })

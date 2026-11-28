@@ -13,6 +13,26 @@ export type ConversationSourceClient = Pick<StudioClient, "query" | "subscribe">
 export type ConversationSourcePage = ConversationTranscriptPage | ConversationTranscriptReadPage;
 
 /**
+ * A bounded recovery journal is usable only when every sequence after the
+ * client's contiguous watermark is present. Initial opens intentionally omit
+ * the watermark because their transcript page already contains history.
+ */
+export function hasContiguousReplay(
+  afterStreamSeq: number | undefined,
+  events: readonly { readonly streamSeq: number }[],
+  watermark: number,
+): boolean {
+  if (afterStreamSeq === undefined) return true
+  if (!Number.isSafeInteger(afterStreamSeq) || afterStreamSeq < 0 || afterStreamSeq > watermark) return false
+  let expected = afterStreamSeq + 1
+  for (const event of events) {
+    if (event.streamSeq !== expected) return false
+    expected += 1
+  }
+  return expected === watermark + 1
+}
+
+/**
  * The only module aware of transport query names. Engines consume this narrow
  * source so protocol migrations do not leak into Store or React hooks.
  */
@@ -21,8 +41,10 @@ export function createConversationSource(client: ConversationSourceClient) {
     subscribe(listener: (event: ClientEvent) => void): Unsubscribe {
       return client.subscribe({ scope: "all" }, listener);
     },
-    open(target: ConversationTarget, limit: number): Promise<ConversationOpenResult> {
-      return client.query("conversation.open", { target, limit });
+    open(target: ConversationTarget, limit: number, afterStreamSeq?: number): Promise<ConversationOpenResult> {
+      return afterStreamSeq === undefined
+        ? client.query("conversation.open", { target, limit })
+        : client.query("conversation.open", { target, limit, afterStreamSeq });
     },
     readLiveOlder(target: ConversationTarget, cursor: OpaqueCursor, limit: number): Promise<ConversationTranscriptPage> {
       return target.kind === "session"

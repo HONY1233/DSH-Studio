@@ -11,24 +11,35 @@
  * 不允许出现「同一个 TabId 同时在两处」的**可见**状态（纯函数，中间态不对外）。
  */
 
+import { reduceWindowLifecycle, type WindowLifecycleOp } from '@dsh-studio/workbench-core/window-lifecycle'
+
 import {
   type FloatNode,
   type LayoutNode,
+  type MinimizedRecord,
   type PaneId,
   type PaneNode,
   type PinLevel,
   type Rect,
+  type RegionId,
+  type RegionSizes,
   type SplitId,
   type SplitNode,
   type Tab,
+  type TabHost,
+  type TabHostRef,
   type TabId,
   type WorkbenchLayout,
+  ensureWorkbenchRegions,
   findParentSplit,
   findPane,
+  findTabHost,
   isPane,
   mapPanes,
   normalizeSizes,
+  regionEntries,
   replaceNode,
+  workbenchIds,
 } from './layout.js'
 
 /** 单个逆操作，或一段按执行顺序排列的复合逆操作。 */
@@ -37,7 +48,16 @@ export type Inverse = LayoutOp | readonly LayoutOp[]
 export type LayoutOp =
   // ---- 格内标签
   | { readonly kind: 'insertTab'; readonly pane: PaneId; readonly tab: Tab; readonly index?: number }
+  | { readonly kind: 'insertRegionTab'; readonly region: RegionId; readonly pane?: PaneId; readonly tab: Tab; readonly index?: number }
   | { readonly kind: 'removeTab'; readonly pane: PaneId; readonly tabId: TabId }
+  /** pane / region / float 之间原子移动；同宿主时只重排。 */
+  | {
+      readonly kind: 'transferTab'
+      readonly from: TabHostRef
+      readonly to: TabHostRef
+      readonly tabId: TabId
+      readonly index?: number
+    }
   | { readonly kind: 'moveTab'
       readonly from: PaneId
       readonly to: PaneId
@@ -62,6 +82,15 @@ export type LayoutOp =
   /** 合并：把 from 的全部标签按序并入 into，然后移除 from 的格。 */
   | { readonly kind: 'mergePanes'; readonly from: PaneId; readonly into: PaneId; readonly index?: number }
   // ---- 浮窗
+  /** 从任意 tab 宿主原子创建浮窗。 */
+  | {
+      readonly kind: 'floatTab'
+      readonly from: TabHostRef
+      readonly tabId: TabId
+      readonly floatId: string
+      readonly rect: Rect
+      readonly pin?: PinLevel
+    }
   | {
       readonly kind: 'float'
       readonly pane: PaneId
@@ -86,13 +115,29 @@ export type LayoutOp =
       readonly index?: number
     }
   | { readonly kind: 'moveFloat'; readonly floatId: string; readonly rect: Rect }
+  | {
+      readonly kind: 'moveFloatGroup'
+      readonly groupId: string
+      readonly moves: readonly { readonly floatId: string; readonly rect: Rect }[]
+    }
+  | { readonly kind: 'raiseFloat'; readonly floatId: string }
+  | { readonly kind: 'reorderFloats'; readonly order: readonly string[] }
   | { readonly kind: 'setPin'; readonly floatId: string; readonly pin: PinLevel }
+  | { readonly kind: 'setLocked'; readonly floatId: string; readonly locked?: boolean }
+  | { readonly kind: 'setFloatGroup'; readonly floatId: string; readonly groupId?: string }
+  | { readonly kind: 'groupFloats'; readonly groupId: string; readonly floatIds: readonly string[] }
+  | { readonly kind: 'ungroupFloat'; readonly floatId: string }
   | { readonly kind: 'closeFloatTab'; readonly floatId: string; readonly tabId: TabId }
   | { readonly kind: 'activateFloatTab'; readonly floatId: string; readonly tabId: TabId }
   | { readonly kind: 'minimize'; readonly floatId: string; readonly x: number; readonly y: number }
   | { readonly kind: 'unminimize'; readonly floatId: string }
   // ---- 恢复原语（复合逆操作使用，也可被"整理布局"直接调用）
   | { readonly kind: 'setPaneTabs'; readonly pane: PaneId; readonly tabs: readonly Tab[]; readonly activeTab?: TabId }
+  | { readonly kind: 'setHostTabs'; readonly host: TabHostRef; readonly tabs: readonly Tab[]; readonly activeTab?: TabId }
+  | { readonly kind: 'replaceRegions'; readonly regions?: WorkbenchLayout['regions'] }
+  | { readonly kind: 'replaceRegionSizes'; readonly regionSizes?: RegionSizes }
+  | { readonly kind: 'restoreMinimized'; readonly minimized: readonly MinimizedRecord[] }
+  | { readonly kind: 'resizeRegion'; readonly region: RegionId; readonly sizes?: number }
   | { readonly kind: 'setFloatTabs'; readonly floatId: string; readonly tabs: readonly Tab[]; readonly activeTab?: TabId }
   | { readonly kind: 'addFloat'; readonly float: FloatNode; readonly index?: number }
   | { readonly kind: 'removeFloat'; readonly floatId: string }
@@ -129,6 +174,76 @@ function assertFloat(layout: WorkbenchLayout, id: string): FloatNode {
   return node
 }
 
+function assertHost(layout: WorkbenchLayout, ref: TabHostRef): TabHost {
+  const host = findTabHost(layout, ref)
+  if (!host) throw new OpError(`${ref.kind} host not found: ${ref.id}`)
+  return host
+}
+
+function assertRegion(layout: WorkbenchLayout, region: RegionId): PaneNode {
+  const pane = layout.regions?.[region]
+  if (!pane) throw new OpError(`region not found: ${region}`)
+  return pane
+}
+
+function sameHost(a: TabHostRef, b: TabHostRef): boolean {
+  return a.kind === b.kind && a.id === b.id
+}
+
+/** 与 withTabs 不同：activeTab 缺省时真正删除该字段，保证快照级精确撤销。 */
+function replaceHostTabs(host: TabHost, tabs: readonly Tab[], activeTab?: TabId): TabHost {
+  const { activeTab: _activeTab, ...rest } = host
+  return activeTab === undefined ? { ...rest, tabs } : { ...rest, tabs, activeTab }
+}
+
+function mapHost(layout: WorkbenchLayout, ref: TabHostRef, next: TabHost): WorkbenchLayout {
+  if (ref.kind === 'pane') {
+    return { ...layout, root: mapPanes(layout.root, (pane) => pane.id === ref.id ? next as PaneNode : pane) }
+  }
+  if (ref.kind === 'float') {
+    return { ...layout, floats: layout.floats.map((float) => float.id === ref.id ? next as FloatNode : float) }
+  }
+  const entry = regionEntries(layout).find(([, pane]) => pane.id === ref.id)
+  if (!entry || !layout.regions) throw new OpError(`region host not found: ${ref.id}`)
+  const [region] = entry
+  return { ...layout, regions: { ...layout.regions, [region]: next as PaneNode } }
+}
+
+function withRegionsFor(layout: WorkbenchLayout, refs: readonly TabHostRef[]): {
+  readonly layout: WorkbenchLayout
+  readonly added: boolean
+} {
+  const added = !layout.regions && refs.some((ref) => ref.kind === 'region')
+  return { layout: added ? ensureWorkbenchRegions(layout) : layout, added }
+}
+
+function snapshotHost(layout: WorkbenchLayout, ref: TabHostRef): LayoutOp {
+  const host = assertHost(layout, ref)
+  return { kind: 'setHostTabs', host: ref, tabs: host.tabs, ...(host.activeTab === undefined ? {} : { activeTab: host.activeTab }) }
+}
+
+/** Internal floats adapt their side-car minimization records to XC-01. */
+function reduceFloatLifecycle(layout: WorkbenchLayout, op: WindowLifecycleOp): WorkbenchLayout {
+  const projected = layout.floats.map((float) => ({
+    id: float.id,
+    minimized: layout.minimized.some((item) => item.floatId === float.id),
+  }))
+  const reduced = reduceWindowLifecycle(projected, op)
+  const byId = new Map(reduced.map((state) => [state.id, state]))
+  const floats = layout.floats.filter((float) => byId.has(float.id))
+  let minimized = layout.minimized.filter((item) => byId.get(item.floatId)?.minimized === true)
+  if (op.kind === 'minimize') {
+    if (typeof op.x !== 'number' || typeof op.y !== 'number' || !Number.isFinite(op.x) || !Number.isFinite(op.y)) {
+      throw new OpError('minimize requires finite capsule coordinates')
+    }
+    const state = byId.get(op.id)
+    if (state?.minimized && !minimized.some((item) => item.floatId === op.id)) {
+      minimized = [...minimized, { floatId: op.id, x: op.x, y: op.y }]
+    }
+  }
+  return { ...layout, floats, minimized }
+}
+
 function activeAfterRemoval(tabs: readonly Tab[], removed: TabId, fallback?: TabId): TabId | undefined {
   const idx = tabs.findIndex((t) => t.id === removed)
   const rest = tabs.filter((t) => t.id !== removed)
@@ -144,9 +259,7 @@ function withTabs(pane: PaneNode, tabs: Tab[], activeTab?: TabId): PaneNode {
 
 function withFloatTabs(float: FloatNode, tabs: Tab[], activeTab?: TabId): FloatNode {
   const active = activeTab ?? tabs[tabs.length - 1]?.id
-  return active === undefined
-    ? { kind: 'float', id: float.id, rect: float.rect, pin: float.pin, tabs }
-    : { ...float, tabs, activeTab: active }
+  return active === undefined ? { ...float, tabs, activeTab: undefined } : { ...float, tabs, activeTab: active }
 }
 
 function findSplit(root: LayoutNode, id: SplitId): SplitNode {
@@ -188,6 +301,23 @@ export function applyOp(layout: WorkbenchLayout, op: LayoutOp): OpResult {
         next: { ...layout, root, focused: op.pane },
         inverse: { kind: 'removeTab', pane: op.pane, tabId: op.tab.id },
       }
+    }
+
+    case 'insertRegionTab': {
+      const prepared = withRegionsFor(layout, [{ kind: 'region', id: op.pane ?? op.region }])
+      const region = assertRegion(prepared.layout, op.region)
+      if (op.pane !== undefined && op.pane !== region.id) throw new OpError(`region pane mismatch: ${op.region}`)
+      const index = Math.max(0, Math.min(op.index ?? region.tabs.length, region.tabs.length))
+      const tabs = [...region.tabs]
+      tabs.splice(index, 0, op.tab)
+      const host: TabHostRef = { kind: 'region', id: region.id }
+      const next = mapHost(prepared.layout, host, replaceHostTabs(region, tabs, op.tab.id))
+      const inverse: LayoutOp[] = [
+        snapshotHost(prepared.layout, host),
+        ...(prepared.added ? [{ kind: 'replaceRegions' } as LayoutOp] : []),
+        { kind: 'focus', id: prepared.layout.focused },
+      ]
+      return { next: { ...next, focused: region.id }, inverse }
     }
 
     case 'removeTab': {
@@ -240,6 +370,98 @@ export function applyOp(layout: WorkbenchLayout, op: LayoutOp): OpResult {
         next: { ...layout, root, focused: op.to },
         inverse: { kind: 'moveTab', from: op.to, to: op.from, tabId: op.tabId, index: srcIndex },
       }
+    }
+
+    case 'transferTab': {
+      const prepared = withRegionsFor(layout, [op.from, op.to])
+      const from = assertHost(prepared.layout, op.from)
+      const to = assertHost(prepared.layout, op.to)
+      const srcIndex = from.tabs.findIndex((tab) => tab.id === op.tabId)
+      if (srcIndex < 0) throw new OpError(`tab not in source host: ${op.tabId}`)
+      const tab = from.tabs[srcIndex] as Tab
+      const fromSnapshot = snapshotHost(prepared.layout, op.from)
+      const toSnapshot = snapshotHost(prepared.layout, op.to)
+      const rest = from.tabs.filter((item) => item.id !== op.tabId)
+      const sourceActive = from.activeTab === op.tabId ? activeAfterRemoval(from.tabs, op.tabId) : from.activeTab
+      const targetLength = sameHost(op.from, op.to) ? rest.length : to.tabs.length
+      const requested = op.index ?? targetLength
+      // targetIndex 指向移除源标签前的列表；同宿主移除后要左移一位，
+      // 才能与跨宿主的“插到该标签之前”语义保持一致。
+      const adjusted = sameHost(op.from, op.to) && srcIndex < requested ? requested - 1 : requested
+      const target = Math.max(0, Math.min(adjusted, targetLength))
+      const targetTabs = [...rest]
+      targetTabs.splice(target, 0, tab)
+
+      let next = sameHost(op.from, op.to)
+        ? mapHost(prepared.layout, op.from, replaceHostTabs(from, targetTabs, op.tabId))
+        : mapHost(mapHost(prepared.layout, op.from, replaceHostTabs(from, rest, sourceActive)), op.to,
+            replaceHostTabs(to, [...to.tabs.slice(0, target), tab, ...to.tabs.slice(target)], op.tabId))
+      // 与 redock 一致：浮窗最后一个 tab 离开时关闭浮窗，并记住精确恢复位置/胶囊状态。
+      const closeSourceFloat = !sameHost(op.from, op.to) && op.from.kind === 'float' && rest.length === 0
+      const sourceFloatIndex = op.from.kind === 'float'
+        ? prepared.layout.floats.findIndex((float) => float.id === op.from.id)
+        : -1
+      if (closeSourceFloat) {
+        next = {
+          ...next,
+          floats: next.floats.filter((float) => float.id !== op.from.id),
+          minimized: next.minimized.filter((item) => item.floatId !== op.from.id),
+        }
+      }
+      next = { ...next, focused: op.to.id }
+
+      const inverse: LayoutOp[] = sameHost(op.from, op.to)
+        ? [fromSnapshot]
+        : [
+            toSnapshot,
+            ...(closeSourceFloat ? [{ kind: 'addFloat', float: from as FloatNode, index: sourceFloatIndex } as LayoutOp] : []),
+            fromSnapshot,
+          ]
+      if (closeSourceFloat) inverse.push({ kind: 'restoreMinimized', minimized: prepared.layout.minimized })
+      if (prepared.added) inverse.push({ kind: 'replaceRegions' })
+      inverse.push({ kind: 'focus', id: prepared.layout.focused })
+      return { next, inverse }
+    }
+
+    case 'floatTab': {
+      const prepared = withRegionsFor(layout, [op.from])
+      const from = assertHost(prepared.layout, op.from)
+      const srcIndex = from.tabs.findIndex((tab) => tab.id === op.tabId)
+      if (srcIndex < 0) throw new OpError(`tab not in source host: ${op.tabId}`)
+      if (workbenchIds(prepared.layout).has(op.floatId)) throw new OpError(`float id already exists: ${op.floatId}`)
+      const tab = from.tabs[srcIndex] as Tab
+      const rest = from.tabs.filter((item) => item.id !== op.tabId)
+      const sourceActive = from.activeTab === op.tabId ? activeAfterRemoval(from.tabs, op.tabId) : from.activeTab
+      const closeSourceFloat = op.from.kind === 'float' && rest.length === 0
+      const sourceFloatIndex = op.from.kind === 'float'
+        ? prepared.layout.floats.findIndex((float) => float.id === op.from.id)
+        : -1
+      let next = mapHost(prepared.layout, op.from, replaceHostTabs(from, rest, sourceActive))
+      if (closeSourceFloat) {
+        next = {
+          ...next,
+          floats: next.floats.filter((float) => float.id !== op.from.id),
+          minimized: next.minimized.filter((item) => item.floatId !== op.from.id),
+        }
+      }
+      const float: FloatNode = {
+        kind: 'float',
+        id: op.floatId,
+        rect: op.rect,
+        pin: op.pin ?? 'none',
+        tabs: [tab],
+        activeTab: tab.id,
+      }
+      next = { ...next, floats: [...next.floats, float], focused: op.floatId }
+      const inverse: LayoutOp[] = [
+        { kind: 'removeFloat', floatId: op.floatId },
+        ...(closeSourceFloat ? [{ kind: 'addFloat', float: from as FloatNode, index: sourceFloatIndex } as LayoutOp] : []),
+        snapshotHost(prepared.layout, op.from),
+      ]
+      if (closeSourceFloat) inverse.push({ kind: 'restoreMinimized', minimized: prepared.layout.minimized })
+      if (prepared.added) inverse.push({ kind: 'replaceRegions' })
+      inverse.push({ kind: 'focus', id: prepared.layout.focused })
+      return { next, inverse }
     }
 
     case 'activateTab': {
@@ -423,14 +645,22 @@ export function applyOp(layout: WorkbenchLayout, op: LayoutOp): OpResult {
       const paneTabs = [...pane.tabs]
       paneTabs.splice(index, 0, tab)
       const root = mapPanes(layout.root, (p) => (p.id === op.pane ? withTabs(p, paneTabs, tab.id) : p))
-      const floats =
-        rest.length === 0
-          ? layout.floats.filter((f) => f.id !== float.id)
-          : layout.floats.map((f) =>
-              f.id === float.id
-                ? withFloatTabs(f, [...rest], f.activeTab === tabId ? rest[rest.length - 1]?.id : f.activeTab)
-                : f,
-            )
+      const floats = rest.length === 0
+        ? layout.floats
+        : layout.floats.map((f) =>
+            f.id === float.id
+              ? withFloatTabs(f, [...rest], f.activeTab === tabId ? rest[rest.length - 1]?.id : f.activeTab)
+              : f,
+          )
+      let next: WorkbenchLayout = {
+        ...layout,
+        root,
+        floats: rest.length === 0
+          ? reduceFloatLifecycle(layout, { kind: 'close', id: float.id }).floats
+          : floats,
+        focused: op.pane,
+      }
+      if (rest.length === 0) next = { ...next, minimized: next.minimized.filter((item) => item.floatId !== float.id) }
 
       const restoreFloat: LayoutOp =
         rest.length === 0
@@ -443,7 +673,7 @@ export function applyOp(layout: WorkbenchLayout, op: LayoutOp): OpResult {
             }
 
       return {
-        next: { ...layout, root, floats, focused: op.pane },
+        next,
         inverse: [
           {
             kind: 'setPaneTabs',
@@ -465,7 +695,7 @@ export function applyOp(layout: WorkbenchLayout, op: LayoutOp): OpResult {
 
       if (rest.length === 0) {
         return {
-          next: { ...layout, floats: layout.floats.filter((f) => f.id !== float.id) },
+          next: reduceFloatLifecycle(layout, { kind: 'close', id: float.id }),
           inverse: { kind: 'addFloat', float, index: floatIndex },
         }
       }
@@ -501,12 +731,76 @@ export function applyOp(layout: WorkbenchLayout, op: LayoutOp): OpResult {
 
     case 'moveFloat': {
       const float = assertFloat(layout, op.floatId)
+      if (float.locked) throw new OpError(`locked float cannot move: ${op.floatId}`)
       return {
         next: {
           ...layout,
           floats: layout.floats.map((f) => (f.id === op.floatId ? { ...f, rect: op.rect } : f)),
         },
         inverse: { kind: 'moveFloat', floatId: op.floatId, rect: float.rect },
+      }
+    }
+
+    case 'moveFloatGroup': {
+      const members = layout.floats.filter((float) => float.groupId === op.groupId)
+      if (members.length < 2) throw new OpError(`float group not found: ${op.groupId}`)
+      if (op.moves.length !== members.length) throw new OpError('float group move length mismatch')
+      if (new Set(op.moves.map((move) => move.floatId)).size !== op.moves.length) {
+        throw new OpError('float group move contains duplicates')
+      }
+      const byId = new Map(members.map((float) => [float.id, float]))
+      for (const move of op.moves) {
+        const member = byId.get(move.floatId)
+        if (!member) throw new OpError(`float not in group: ${move.floatId}`)
+        if (member.locked) throw new OpError(`locked float cannot move: ${move.floatId}`)
+      }
+      const rects = new Map(op.moves.map((move) => [move.floatId, move.rect]))
+      return {
+        next: {
+          ...layout,
+          floats: layout.floats.map((float) =>
+            float.groupId === op.groupId ? { ...float, rect: rects.get(float.id) ?? float.rect } : float,
+          ),
+        },
+        inverse: {
+          kind: 'moveFloatGroup',
+          groupId: op.groupId,
+          moves: members.map((float) => ({ floatId: float.id, rect: float.rect })),
+        },
+      }
+    }
+
+    case 'raiseFloat': {
+      const float = assertFloat(layout, op.floatId)
+      const order = layout.floats.map((f) => f.id)
+      const index = order.indexOf(op.floatId)
+      if (index === order.length - 1) {
+        return {
+          next: layout.focused === op.floatId ? layout : { ...layout, focused: op.floatId },
+          inverse: { kind: 'reorderFloats', order },
+        }
+      }
+      const floats = [...layout.floats]
+      floats.splice(index, 1)
+      floats.push(float)
+      return {
+        next: { ...layout, floats, focused: op.floatId },
+        inverse: { kind: 'reorderFloats', order },
+      }
+    }
+
+    case 'reorderFloats': {
+      if (op.order.length !== layout.floats.length) throw new OpError('float order length mismatch')
+      const byId = new Map(layout.floats.map((float) => [float.id, float]))
+      if (new Set(op.order).size !== op.order.length) throw new OpError('float order contains duplicates')
+      const floats = op.order.map((id) => {
+        const float = byId.get(id)
+        if (!float) throw new OpError(`float not found: ${id}`)
+        return float
+      })
+      return {
+        next: { ...layout, floats },
+        inverse: { kind: 'reorderFloats', order: layout.floats.map((float) => float.id) },
       }
     }
 
@@ -521,31 +815,122 @@ export function applyOp(layout: WorkbenchLayout, op: LayoutOp): OpResult {
       }
     }
 
-    case 'minimize': {
+    case 'setLocked': {
       const float = assertFloat(layout, op.floatId)
-      const prev = layout.minimized.find((m) => m.floatId === op.floatId)
-      const inverse: LayoutOp = prev
-        ? { kind: 'minimize', floatId: op.floatId, x: prev.x, y: prev.y }
-        : { kind: 'unminimize', floatId: op.floatId }
+      const { locked: _locked, ...rest } = float
+      const nextFloat = op.locked === undefined ? rest : { ...rest, locked: op.locked }
       return {
         next: {
           ...layout,
-          minimized: [
-            ...layout.minimized.filter((m) => m.floatId !== op.floatId),
-            { floatId: float.id, x: op.x, y: op.y },
-          ],
+          floats: layout.floats.map((f) => (f.id === op.floatId ? nextFloat : f)),
         },
+        inverse: {
+          kind: 'setLocked',
+          floatId: op.floatId,
+          ...(float.locked === undefined ? {} : { locked: float.locked }),
+        },
+      }
+    }
+
+    case 'setFloatGroup': {
+      const float = assertFloat(layout, op.floatId)
+      const { groupId: _previousGroup, ...rest } = float
+      const nextFloat = op.groupId === undefined ? rest : { ...rest, groupId: op.groupId }
+      return {
+        next: { ...layout, floats: layout.floats.map((f) => (f.id === op.floatId ? nextFloat : f)) },
+        inverse: {
+          kind: 'setFloatGroup',
+          floatId: op.floatId,
+          ...(float.groupId === undefined ? {} : { groupId: float.groupId }),
+        },
+      }
+    }
+
+    case 'groupFloats': {
+      if (op.floatIds.length < 2) throw new OpError('groupFloats needs at least two floats')
+      if (new Set(op.floatIds).size !== op.floatIds.length) throw new OpError('groupFloats contains duplicates')
+      const members = op.floatIds.map((id) => assertFloat(layout, id))
+      if (members.some((float) => float.groupId !== undefined)) throw new OpError('float is already grouped')
+      const previous = members.map((float) => ({ kind: 'setFloatGroup' as const, floatId: float.id }))
+      return {
+        next: {
+          ...layout,
+          floats: layout.floats.map((float) =>
+            op.floatIds.includes(float.id) ? { ...float, groupId: op.groupId } : float,
+          ),
+        },
+        inverse: previous,
+      }
+    }
+
+    case 'ungroupFloat': {
+      const float = assertFloat(layout, op.floatId)
+      return applyOp(layout, { kind: 'setFloatGroup', floatId: op.floatId })
+    }
+
+    case 'minimize': {
+      const float = assertFloat(layout, op.floatId)
+      const prev = layout.minimized.find((m) => m.floatId === op.floatId)
+      const next = reduceFloatLifecycle(layout, { kind: 'minimize', id: float.id, x: op.x, y: op.y })
+      const inverse: LayoutOp = prev
+        ? { kind: 'minimize', floatId: op.floatId, x: prev.x, y: prev.y }
+        : { kind: 'unminimize', floatId: op.floatId }
+      return { next, inverse }
+    }
+
+    case 'unminimize': {
+      const float = assertFloat(layout, op.floatId)
+      const prev = layout.minimized.find((m) => m.floatId === op.floatId)
+      if (!prev) throw new OpError(`not minimized: ${op.floatId}`)
+      return {
+        next: reduceFloatLifecycle(layout, { kind: 'restore', id: float.id }),
+        inverse: { kind: 'minimize', floatId: op.floatId, x: prev.x, y: prev.y },
+      }
+    }
+
+    case 'setHostTabs': {
+      const host = assertHost(layout, op.host)
+      const inverse = snapshotHost(layout, op.host)
+      return {
+        next: mapHost(layout, op.host, replaceHostTabs(host, [...op.tabs], op.activeTab)),
         inverse,
       }
     }
 
-    case 'unminimize': {
-      const prev = layout.minimized.find((m) => m.floatId === op.floatId)
-      if (!prev) throw new OpError(`not minimized: ${op.floatId}`)
+    case 'replaceRegions': {
+      const { regions: _regions, ...rest } = layout
       return {
-        next: { ...layout, minimized: layout.minimized.filter((m) => m.floatId !== op.floatId) },
-        inverse: { kind: 'minimize', floatId: op.floatId, x: prev.x, y: prev.y },
+        next: op.regions === undefined ? rest : { ...rest, regions: op.regions },
+        inverse: { kind: 'replaceRegions', ...(layout.regions === undefined ? {} : { regions: layout.regions }) },
       }
+    }
+
+    case 'replaceRegionSizes': {
+      const { regionSizes: _sizes, ...rest } = layout
+      return {
+        next: op.regionSizes === undefined ? rest : { ...rest, regionSizes: op.regionSizes },
+        inverse: {
+          kind: 'replaceRegionSizes',
+          ...(layout.regionSizes === undefined ? {} : { regionSizes: layout.regionSizes }),
+        },
+      }
+    }
+
+    case 'restoreMinimized': {
+      return { next: { ...layout, minimized: op.minimized }, inverse: { kind: 'restoreMinimized', minimized: layout.minimized } }
+    }
+
+    case 'resizeRegion': {
+      assertRegion(layout, op.region)
+      if (op.sizes !== undefined && (!Number.isFinite(op.sizes) || op.sizes < 0)) {
+        throw new OpError('region size must be a finite non-negative number')
+      }
+      const sizes = { ...layout.regionSizes }
+      if (op.sizes === undefined) delete sizes[op.region]
+      else sizes[op.region] = op.sizes
+      const { regionSizes: _previousSizes, ...rest } = layout
+      const next = Object.keys(sizes).length === 0 ? rest : { ...rest, regionSizes: sizes }
+      return { next, inverse: { kind: 'replaceRegionSizes', ...(layout.regionSizes === undefined ? {} : { regionSizes: layout.regionSizes }) } }
     }
 
     case 'setPaneTabs': {
@@ -591,11 +976,7 @@ export function applyOp(layout: WorkbenchLayout, op: LayoutOp): OpResult {
       const float = assertFloat(layout, op.floatId)
       const index = layout.floats.findIndex((f) => f.id === op.floatId)
       return {
-        next: {
-          ...layout,
-          floats: layout.floats.filter((f) => f.id !== op.floatId),
-          minimized: layout.minimized.filter((m) => m.floatId !== op.floatId),
-        },
+        next: reduceFloatLifecycle(layout, { kind: 'close', id: float.id }),
         inverse: { kind: 'addFloat', float, index },
       }
     }
@@ -610,8 +991,9 @@ export function applyOp(layout: WorkbenchLayout, op: LayoutOp): OpResult {
     }
 
     case 'focus': {
+      const { focused: _focused, ...rest } = layout
       return {
-        next: { ...layout, focused: op.id },
+        next: op.id === undefined ? rest : { ...rest, focused: op.id },
         inverse: { kind: 'focus', id: layout.focused },
       }
     }
@@ -669,6 +1051,15 @@ export class WorkbenchHistory {
     this.done.push(intent)
     if (this.done.length > this.limit) this.done.shift()
     this.undone.length = 0
+  }
+
+  /** 预览栈顶但不改变历史；持久化失败时调用方仍可原样重试。 */
+  peekUndo(): Intent | undefined {
+    return this.done[this.done.length - 1]
+  }
+
+  peekRedo(): Intent | undefined {
+    return this.undone[this.undone.length - 1]
   }
 
   undo(current: WorkbenchLayout): WorkbenchLayout | undefined {

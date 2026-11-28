@@ -59,6 +59,15 @@ function makeSource(entries: RawEventEntry[], revision = 1) {
     republish() {
       for (const fn of [...listeners]) fn()
     },
+    replace(entries: RawEventEntry[]) {
+      window = {
+        entries,
+        hasMore: false,
+        revision: window.revision + 1,
+        change: { kind: 'replace', entries },
+      }
+      for (const fn of [...listeners]) fn()
+    },
     get listenerCount() {
       return listeners.size
     },
@@ -231,5 +240,112 @@ describe('SessionEventHub 边界', () => {
     hub.dispose()
     expect(source.listenerCount).toBe(0)
     expect(hub.size).toBe(0)
+  })
+})
+
+describe('SessionEventHub 连续性与有界补洞', () => {
+  it('holds out-of-order entries and folds only when the gap closes', () => {
+    const cache = new DerivedCache()
+    const handle = cache.acquire('s1', counter)
+    const hub = new SessionEventHub({ cache })
+    const source = makeSource([ev(0)])
+    hub.attach('s1', source)
+    source.append(ev(2))
+    expect(handle.state().value.n).toBe(1)
+    expect(hub.continuityOf('s1')).toBe('gap')
+    source.append(ev(1))
+    expect(handle.state().value.n).toBe(3)
+    expect(hub.progressOf('s1')).toEqual({ min: 0, max: 2 })
+    expect(hub.continuityOf('s1')).toBe('complete')
+  })
+
+  it('accepts a synchronous subscribe snapshot without folding it twice', () => {
+    const cache = new DerivedCache()
+    const handle = cache.acquire('s1', counter)
+    const onEntries = vi.fn()
+    const hub = new SessionEventHub({ cache, onEntries })
+    const source = {
+      getSnapshot: () => ({ entries: [ev(0)], hasMore: false, revision: 1 }),
+      subscribe: (listener: () => void) => { listener(); return () => {} },
+    }
+    hub.attach('s1', source)
+    expect(handle.state().value.n).toBe(1)
+    expect(onEntries).toHaveBeenCalledTimes(1)
+    expect(hub.progressOf('s1')).toEqual({ min: 0, max: 0 })
+  })
+
+  it('ignores exact duplicates and refuses a conflicting payload at the same sequence', () => {
+    const cache = new DerivedCache()
+    const handle = cache.acquire('s1', counter)
+    const hub = new SessionEventHub({ cache })
+    const source = makeSource([ev(1)])
+    hub.attach('s1', source)
+    source.append(ev(1))
+    expect(handle.state().value.n).toBe(1)
+    source.append(ev(1, 'assistant/message'))
+    expect(handle.state().value.n).toBe(1)
+    expect(hub.continuityOf('s1')).toBe('conflict')
+  })
+
+  it('marks buffer overflow instead of dropping a gap silently', () => {
+    const cache = new DerivedCache()
+    const handle = cache.acquire('s1', counter)
+    const hub = new SessionEventHub({ cache, maxPendingEntries: 1 })
+    const source = makeSource([ev(0)])
+    hub.attach('s1', source)
+    source.append(ev(2))
+    source.append(ev(3))
+    expect(hub.continuityOf('s1')).toBe('buffer-overflow')
+    expect(handle.state().value.n).toBe(1)
+    expect(hub.progressOf('s1')).toEqual({ min: 0, max: 0 })
+  })
+
+  it('publishes one shared window snapshot to all conversation views', () => {
+    const { hub, source } = setup()
+    const first = vi.fn()
+    const second = vi.fn()
+    const offFirst = hub.subscribeWindow(first)
+    const offSecond = hub.subscribeWindow(second)
+    hub.attach('s1', source)
+    source.append(ev(4))
+    expect(first).toHaveBeenCalledTimes(2)
+    expect(second).toHaveBeenCalledTimes(2)
+    expect(hub.getWindowSnapshot('s1')?.entries).toHaveLength(4)
+    offFirst(); offSecond()
+    source.append(ev(5))
+    expect(first).toHaveBeenCalledTimes(2)
+  })
+
+  it('source replacement resets progress and stale callbacks cannot mutate the new generation', () => {
+    const cache = new DerivedCache()
+    const handle = cache.acquire('s1', counter)
+    const hub = new SessionEventHub({ cache })
+    let stale!: () => void
+    const oldSource = {
+      getSnapshot: () => ({ entries: [ev(1)], hasMore: false, revision: 1 }),
+      subscribe: (listener: () => void) => { stale = listener; return () => {} },
+    }
+    hub.attach('s1', oldSource)
+    const replacement = makeSource([ev(10)])
+    hub.attach('s1', replacement)
+    expect(handle.state().value.n).toBe(1)
+    expect(hub.progressOf('s1')).toEqual({ min: 10, max: 10 })
+    stale()
+    expect(handle.state().value.n).toBe(1)
+    expect(hub.getWindowSnapshot('s1')?.entries[0]?.event.seq).toBe(10)
+  })
+
+  it('emits Host facts only for entries actually folded, never pending gaps', () => {
+    const cache = new DerivedCache()
+    cache.acquire('s1', counter)
+    const onEntries = vi.fn()
+    const hub = new SessionEventHub({ cache, onEntries })
+    const source = makeSource([ev(0)])
+    hub.attach('s1', source)
+    source.append(ev(2))
+    expect(onEntries).toHaveBeenCalledTimes(1)
+    source.append(ev(1))
+    expect(onEntries).toHaveBeenCalledTimes(2)
+    expect(onEntries.mock.calls[1]?.[1].map((entry: { seq: number }) => entry.seq)).toEqual([1, 2])
   })
 })

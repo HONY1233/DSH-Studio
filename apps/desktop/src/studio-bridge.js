@@ -12,21 +12,30 @@
 import { EventEmitter } from 'node:events'
 import { createLocalDraftStore } from './local-drafts.js'
 import { execFile } from 'node:child_process'
+import { stat } from 'node:fs/promises'
 import { promisify } from 'node:util'
-import { createCapabilityManifest, createEventRouter } from '@dsh-studio/workbench-core'
 import {
+  closeSessionToolInstance,
+  createCapabilityManifest,
+  createEventRouter,
+  createToolCapabilitySnapshot,
+  createWorkbenchLimits,
+  createWorkbenchRegistry,
+  effectiveSessionToolset,
+  getConversationWorkspace,
+  putConversationWorkspace,
+  registerSessionToolInstance,
+  setSessionToolset,
+} from '@dsh-studio/workbench-core'
+import {
+  createGitWorkspace,
   createSystemDirectory,
+  createWorkspaceFiles,
   credentialRefNames,
   credentialRefValue,
   deleteSession,
   deriveToolCatalog,
-  gitChanges,
-  gitCommit,
-  gitDiff,
-  gitHead,
-  gitStage,
   inspectSystemFile,
-  listDirectory,
   listSessions,
   listSystem,
   readAssetOverview,
@@ -39,7 +48,6 @@ import {
   readSkillRootExtras,
   readSystemChunk,
   readSystemText,
-  readTextFile,
   renameSystemEntry,
   scanSkills,
   setCredentialRef,
@@ -67,6 +75,61 @@ const CONTROL_RUNTIME_METHODS = Object.freeze({
   'session.queue.remove': 'session/queue.cancel',
   'session.draft.get': 'session/draft.get',
   'session.draft.put': 'session/draft.put',
+})
+
+/**
+ * The Host-owned workbench tool matrix (X4.3).
+ *
+ * `available` entries name the adapter that really backs them. Everything else
+ * stays blocked with a reason so a renderer cannot promote a configured or
+ * preview-only capability by sending its own snapshot.
+ */
+const WORKBENCH_TOOL_CAPABILITIES = Object.freeze({
+  files: Object.freeze({ grade: 'available', evidence: 'workspace.file.* + fs.file.*' }),
+  changes: Object.freeze({ grade: 'available', evidence: 'git.repository.get + git.diff' }),
+  git: Object.freeze({ grade: 'available', evidence: 'git.toolchain.get + git.log.list' }),
+  terminal: Object.freeze({ grade: 'available', evidence: 'ompStudioTerminal + terminal-service' }),
+  agents: Object.freeze({ grade: 'available', evidence: 'subagent.started + subagent.finished' }),
+  mcp: Object.freeze({
+    grade: 'configured',
+    reason: 'MCP 仅解析 profile 配置；当前没有运行时连接、工具注册或健康检查',
+  }),
+  skills: Object.freeze({
+    grade: 'configured',
+    reason: 'Skills 来自磁盘发现；当前没有 Runtime loaded/session 事实',
+  }),
+  browser: Object.freeze({
+    grade: 'unavailable',
+    reason: '托管浏览器仍处于安全门关闭状态，未开放 browser preload',
+  }),
+  computer: Object.freeze({
+    grade: 'unavailable',
+    reason: '没有真实 ComputerAdapter 或系统驱动',
+  }),
+  ssh: Object.freeze({
+    grade: 'unavailable',
+    reason: 'SSH 驱动、主机密钥校验和凭据存储尚未接入',
+  }),
+  wsl: Object.freeze({
+    grade: 'unavailable',
+    reason: 'WSL 独立 profile 适配器尚未接入；本地 shell 使用 terminal',
+  }),
+  btw: Object.freeze({
+    grade: 'unavailable',
+    reason: 'Runtime 没有隔离的 BTW 上下文',
+  }),
+  voice: Object.freeze({
+    grade: 'unavailable',
+    reason: '没有宿主音频/ASR 适配器',
+  }),
+  evaluation: Object.freeze({
+    grade: 'limited',
+    reason: '只识别测试命令；没有 judge、评分集或隔离执行',
+  }),
+  'time-travel': Object.freeze({
+    grade: 'unavailable',
+    reason: 'Runtime 没有 fork/restore 或工作区快照协议',
+  }),
 })
 
 /** Workspace id derived from the runtime cwd, stable for one folder. */
@@ -271,19 +334,20 @@ function projectEvent(state, sessionId, event) {
 }
 
 /** Build a transcript page from the persisted session log. */
-/** 映射 host-services 的读文件结果到 contract 的 WorkspaceFileInfo。 */
+/** 映射 workspace-files 的读模型到 contract 的 WorkspaceFileInfo。 */
 function workspaceFileInfo(workspaceId, info) {
-  const name = String(info.path ?? '').split('/').pop() || String(info.path ?? '')
+  const name = info.name || String(info.path ?? '').split('/').pop() || String(info.path ?? '')
   return {
+    ...info,
     workspaceId,
     path: info.path,
     id: `${workspaceId}:${info.path}`,
     name,
-    mime: 'text/plain',
+    mime: info.mime ?? 'text/plain',
     size: info.size ?? 0,
-    // 与 writeSystemText 使用同一套版本号，保存时的乐观并发校验才能对上。
-    version: `${Math.round(info.mtimeMs ?? Date.now())}:${info.size ?? 0}`,
-    writable: true,
+    // workspace-files 用内容哈希作版本；旧 system 文件服务使用 mtime:size。
+    version: info.version ?? `${Math.round(info.mtimeMs ?? Date.now())}:${info.size ?? 0}`,
+    writable: info.writable !== false,
   }
 }
 
@@ -509,7 +573,6 @@ const COMMAND_REASONS = {
   'mode.plan.review.respond': 'DSH 的计划评审走 /plan 命令，没有独立评审回执',
   'permissions.mode.set': 'DSH 的权限模式用内置命令调整，请发送 /permission',
   'approvals.forget': 'DSH 没有审批记忆清除接口',
-  'git.execute': 'Git 写操作请用终端面板执行；变更、分支、提交历史等只读信息已在 Git 面板接入',
   'runtime.pause': 'DSH SDK 没有暂停接口',
   'runtime.resume': 'DSH SDK 没有恢复接口',
 }
@@ -646,12 +709,33 @@ export function skillRecords(skills = []) {
 
 /**
  * Create the bridge. `emit` receives every `ClientEvent` for the window.
+ * `limits` is the X4.6 pressure boundary; it is validated here so a bad
+ * configuration fails at startup instead of silently running unbounded.
  */
-export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
+export function createStudioBridge({ runtime, cwd, emit, host = {}, limits = {}, workspaceFiles, gitWorkspace } = {}) {
+  const workbenchLimits = createWorkbenchLimits(limits)
   const localDrafts = host.draftStore ? createLocalDraftStore({ store: host.draftStore }) : null
   const authorityEpoch = 1
   const runtimeEpoch = 1
   const workspaceId = workspaceIdFor(cwd)
+  let workspaceFilesService = workspaceFiles
+  let gitWorkspaceService = gitWorkspace
+
+  /** Lazily bind the filesystem service so a bad root reports on the first file call. */
+  function files() {
+    if (!workspaceFilesService) {
+      workspaceFilesService = createWorkspaceFiles({ root: uncFromWsl(cwd) })
+    }
+    return workspaceFilesService
+  }
+
+  /** Git uses the same native workspace root as Files; tests can inject a fixture. */
+  function git() {
+    if (!gitWorkspaceService) {
+      gitWorkspaceService = createGitWorkspace({ cwd: uncFromWsl(cwd) })
+    }
+    return gitWorkspaceService
+  }
   let stateVersion = 1
   let cursor = 0
   let serverInfo = null
@@ -662,6 +746,14 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
   const ROOT_CONTEXT = 'root'
   const contexts = new Map()
   let contextSeq = 0
+
+  // X4.3: one owner-scoped registry for workbench toolsets and instances.
+  const WORKBENCH_HOST_ID = 'dsh-desktop'
+  const WORKBENCH_WINDOW_ID = 'studio-main'
+  const WORKBENCH_AUDIT_LIMIT = 100
+  let workbenchRegistry = createWorkbenchRegistry()
+  let workbenchInstanceSeq = 0
+  const workbenchAudit = new Map()
 
   function contextOf(contextId) {
     const id = contextId ?? ROOT_CONTEXT
@@ -679,6 +771,135 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
       if (context.currentSessionId === sessionId) owners.push(contextId)
     }
     return owners
+  }
+
+  function workbenchCapabilities() {
+    return createToolCapabilitySnapshot({
+      source: 'host',
+      revision: `dsh-tools-${runtimeEpoch}-v1`,
+      observedAt: new Date().toISOString(),
+      tools: WORKBENCH_TOOL_CAPABILITIES,
+    })
+  }
+
+  function workbenchOwner(sessionId) {
+    return {
+      kind: 'session',
+      id: sessionId,
+      hostId: WORKBENCH_HOST_ID,
+      windowId: WORKBENCH_WINDOW_ID,
+    }
+  }
+
+  /**
+   * A context may only manage the session it currently owns. The workbench
+   * registry itself is session-scoped so two views of the same session share
+   * one toolset and one instance set.
+   */
+  function workbenchSession(input, context) {
+    const sessionId = input?.sessionId ?? context.currentSessionId
+    if (!sessionId) throw clientError('INVALID_ARGUMENT', 'no session selected')
+    if (context.currentSessionId !== sessionId) {
+      throw clientError('PERMISSION_DENIED', 'context does not own this workbench session')
+    }
+    return sessionId
+  }
+
+  function ensureWorkbenchWorkspace(sessionId) {
+    const owner = workbenchOwner(sessionId)
+    let workspace = getConversationWorkspace(workbenchRegistry, owner)
+    if (!workspace) {
+      workbenchRegistry = putConversationWorkspace(workbenchRegistry, {
+        owner,
+        document: {
+          draftId: `draft:${sessionId}`,
+          contentBlocks: [],
+          revision: 0,
+          queueLocal: [],
+        },
+        toolset: [],
+        runtimeCapabilities: workbenchCapabilities(),
+      })
+      workspace = getConversationWorkspace(workbenchRegistry, owner)
+    }
+    if (!workspace) throw clientError('INTERNAL', 'workbench workspace 初始化失败')
+    return { owner, workspace }
+  }
+
+  function workbenchAuditFor(sessionId) {
+    return (workbenchAudit.get(sessionId) ?? []).map((entry) => structuredClone(entry))
+  }
+
+  function recordWorkbenchAudit(sessionId, action, detail = {}) {
+    const rows = workbenchAudit.get(sessionId) ?? []
+    rows.push({
+      action,
+      sessionId,
+      revision: workbenchRegistry.revision,
+      at: new Date().toISOString(),
+      ...detail,
+    })
+    if (rows.length > WORKBENCH_AUDIT_LIMIT) rows.splice(0, rows.length - WORKBENCH_AUDIT_LIMIT)
+    workbenchAudit.set(sessionId, rows)
+  }
+
+  function emitWorkbenchChange(sessionId, change) {
+    for (const ownerContextId of contextsForSession(sessionId)) {
+      emitEvent({
+        kind: 'workbench.toolset.changed',
+        sessionId,
+        revision: workbenchRegistry.revision,
+        ...change,
+      }, ownerContextId)
+    }
+  }
+
+  function workbenchCapacity(sessionId) {
+    const open = Object.values(workbenchRegistry.toolInstances)
+      .filter((instance) => instance.state !== 'closed')
+    const sessionOpen = open.filter(
+      (instance) => instance.owner?.kind === 'session' && instance.owner.id === sessionId,
+    )
+    const terminalUsed = open.filter((instance) => instance.toolId === 'terminal').length
+    const browserUsed = open.filter((instance) => instance.toolId === 'browser').length
+    const eventQueueUsed = eventRouter.snapshot(sessionId).pendingSequences.length
+    const capacity = {
+      toolInstances: {
+        used: sessionOpen.length,
+        limit: workbenchLimits.maxToolInstancesPerSession,
+        perToolLimit: workbenchLimits.maxInstancesPerTool,
+      },
+      terminalInstances: { used: terminalUsed, limit: workbenchLimits.maxTerminalInstances },
+      browserTabs: { used: browserUsed, limit: workbenchLimits.maxBrowserTabs },
+      eventQueue: { used: eventQueueUsed, limit: workbenchLimits.isolationQueueLength },
+    }
+    return {
+      ...capacity,
+      overloaded: Object.values(capacity).some((row) => row.used >= row.limit),
+    }
+  }
+
+  function workbenchReadModel(sessionId) {
+    const { workspace } = ensureWorkbenchWorkspace(sessionId)
+    const capabilities = workbenchCapabilities()
+    const effective = effectiveSessionToolset(capabilities, workspace.toolset)
+    const instances = Object.values(workbenchRegistry.toolInstances)
+      .filter((instance) => instance.owner?.kind === 'session' && instance.owner.id === sessionId)
+      .sort((left, right) => left.instanceId.localeCompare(right.instanceId))
+    return {
+      schemaVersion: 1,
+      sessionId,
+      revision: workbenchRegistry.revision,
+      capabilityRevision: capabilities.revision,
+      capabilities,
+      toolset: [...workspace.toolset],
+      effectiveToolset: effective.toolset,
+      staleToolset: effective.stale,
+      instances,
+      capacity: workbenchCapacity(sessionId),
+      audit: workbenchAuditFor(sessionId),
+      observedAt: capabilities.observedAt,
+    }
   }
 
   /**
@@ -756,11 +977,14 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
 
   const sessionState = new Map()
   const liveSessionSeq = new Map()
+  /** Bounded per-session projection journal used to catch up after a renderer reconnect. */
+  const conversationJournal = new Map()
+  const CONVERSATION_REPLAY_LIMIT = 512
   const streamingSessions = new Set()
   const activeTurns = new Map()
   const observedNativeBaseline = new Set()
   const reportedEventGaps = new Set()
-  const eventRouter = createEventRouter({ replayWindow: 128 })
+  const eventRouter = createEventRouter({ replayWindow: workbenchLimits.isolationQueueLength })
   /**
    * 子 Agent 树。DSH 只推生命周期通知（`subagent.started` / `subagent.finished`），
    * 不推子会话的事件流；这里按根会话归组，快照与 `session.agents.list` 都读这一份。
@@ -905,6 +1129,14 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
     ['session.thinking.set', 'unavailable'],
     ['interaction.respond', 'stable'],
     ['workspace.files', 'stable'],
+    ['workspace.fileTree', 'stable'],
+    ['workspace.file.inspect', 'stable'],
+    ['workspace.file.readText', 'stable'],
+    ['workspace.file.readChunk', 'stable'],
+    ['workspace.paths.resolve', 'stable'],
+    ['workspace.file.create', 'stable'],
+    ['workspace.directory.create', 'stable'],
+    ['workspace.file.writeText', 'stable'],
     ['git.changes', 'stable'],
     // 桌面端真实实现的能力；渲染层据此点亮对应入口。
     ['fs.file.inspect', 'stable'],
@@ -915,7 +1147,6 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
     ['fs.directory.create', 'stable'],
     ['fs.rename', 'stable'],
     ['fs.trash', 'stable'],
-    ['workspace.file.writeText', 'stable'],
     ['workspace.pick', 'limited'],
     ['skills.reveal', 'stable'],
     ['skills.revealRoot', 'stable'],
@@ -1166,38 +1397,11 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
   }
 
   async function gitRepository() {
-    let changes = []
-    try {
-      changes = await gitChanges(cwd)
-    } catch {
-      changes = []
-    }
-    let branch = null
-    let headOid = null
-    try {
-      branch = (await execFileAsync(GIT, ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: uncFromWsl(cwd) })).stdout.trim()
-      headOid = (await execFileAsync(GIT, ['rev-parse', 'HEAD'], { cwd: uncFromWsl(cwd) })).stdout.trim()
-    } catch {
-      /* not a repository */
-    }
+    const model = await git().repository()
     return {
       workspaceId,
-      isRepository: headOid !== null,
-      ...(headOid ? { repositoryId: workspaceId } : {}),
-      ...(branch ? { branch } : {}),
-      ...(headOid ? { headOid } : {}),
-      detached: false,
-      unborn: headOid === null,
-      ahead: 0,
-      behind: 0,
-      stashCount: 0,
-      changes: changes.map((row) => ({
-        path: row.path,
-        ...(row.from ? { originalPath: row.from } : {}),
-        index: 'unmodified',
-        worktree: row.worktree === '?' ? 'untracked' : 'modified',
-        conflicted: row.index === 'U' || row.worktree === 'U',
-      })),
+      ...model,
+      ...(model.isRepository ? { repositoryId: workspaceId } : {}),
     }
   }
 
@@ -1240,72 +1444,6 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
     return [...byName.values()]
   }
 
-  /** 最近提交；refs 从 `%D` 解析成契约要求的引用列表。 */
-  async function gitLog(limit = 40) {
-    const headOid = await gitHead(cwd)
-    if (!headOid) return { workspaceId, commits: [], truncated: false, ahead: 0, behind: 0 }
-    const size = Math.max(1, Math.min(Number(limit) || 40, 200))
-    const { stdout } = await execFileAsync(
-      GIT,
-      ['log', `--format=%H%x1f%P%x1f%s%x1f%an%x1f%aI%x1f%D`, '-n', String(size)],
-      { cwd: uncFromWsl(cwd), maxBuffer: 8 * 1024 * 1024 },
-    )
-    const commits = stdout.split('\n').filter(Boolean).map((row, index) => {
-      const [oid, parents, subject, authorName, authorDate, decorate] = row.split('\x1f')
-      const refs = String(decorate ?? '').split(',').map((item) => item.trim()).filter(Boolean).map((item) => {
-        const name = item.replace(/^HEAD -> /, '')
-        const kind = item.startsWith('tag:') ? 'tag' : name.includes('/') ? 'remote' : item.startsWith('HEAD') ? 'head' : 'local'
-        return { name: name.replace(/^tag: /, ''), kind, current: item.startsWith('HEAD') }
-      })
-      return {
-        oid,
-        parents: String(parents ?? '').split(' ').filter(Boolean),
-        subject: subject ?? '',
-        authorName: authorName ?? '',
-        authorDate: authorDate ?? new Date().toISOString(),
-        refs,
-        relation: index === 0 ? 'head' : 'common',
-      }
-    })
-    return { workspaceId, commits, truncated: false, headOid, ahead: 0, behind: 0 }
-  }
-
-  /** 单个提交的文件清单（Git 历史面板展开用）。 */
-  async function gitCommitChanges(oid) {
-    const target = String(oid ?? '')
-    if (!target) throw clientError('INVALID_ARGUMENT', 'oid is required')
-    const gitCwd = uncFromWsl(cwd)
-    const subject = (await execFileAsync(GIT, ['show', '-s', '--format=%s', target], { cwd: gitCwd })).stdout.trim()
-    const { stdout } = await execFileAsync(GIT, ['show', '--name-status', '--format=', '-z', target], { cwd: gitCwd, maxBuffer: 8 * 1024 * 1024 })
-    const tokens = stdout.split('\0').filter(Boolean)
-    const files = []
-    for (let index = 0; index < tokens.length;) {
-      const status = tokens[index][0]
-      const path = tokens[index + 1]
-      if (!path) break
-      if (status === 'R' || status === 'C') {
-        files.push({ path, status: status === 'R' ? 'renamed' : 'copied', originalPath: tokens[index + 2] })
-        index += 3
-        continue
-      }
-      files.push({
-        path,
-        status: status === 'A' ? 'added' : status === 'D' ? 'deleted' : 'modified',
-      })
-      index += 2
-    }
-    return { workspaceId, oid: target, subject, files }
-  }
-
-  /** 工作区相对路径 → 运行时 POSIX 绝对路径（拒绝 .. 穿越）。 */
-  function workspaceAbsolutePath(relativePath) {
-    const relative = String(relativePath ?? '').replaceAll('\\', '/').replace(/^\/+/, '')
-    if (relative.split('/').some((segment) => segment === '..')) {
-      throw clientError('INVALID_ARGUMENT', '路径不能包含 ..')
-    }
-    return relative ? `${cwd.replace(/\/$/, '')}/${relative}` : cwd
-  }
-
   /**
    * 把本地化命令名换成运行时认识的英文名：`/计划 xxx` → `/plan xxx`。
    * DSH 的 commands registry 本身也认中文 token，但统一成英文后，
@@ -1342,12 +1480,62 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
     }
   }
 
-  async function fileTree(input) {
-    const rows = await listDirectory(cwd, input?.path ?? '')
-    return {
-      workspaceId,
-      nodes: rows.map((row) => ({ type: row.type, name: row.name, path: row.path })),
+  /**
+ * Translate a path inside the runtime workspace to its relative form so path
+ * classification uses the same root-checked service as reads and writes.
+ */
+  function workspaceRelativePath(value) {
+    const text = String(value ?? '').replaceAll('\\', '/')
+    const root = cwd.replace(/\/$/, '')
+    if (text === root) return ''
+    if (text.startsWith(`${root}/`)) return text.slice(root.length + 1)
+    let windowsRoot
+    try {
+      windowsRoot = uncFromWsl(cwd).replaceAll('/', '\\').replace(/\\+$/, '')
+    } catch {
+      return null
     }
+    const windowsText = text.replaceAll('/', '\\')
+    if (windowsText.toLowerCase() === windowsRoot.toLowerCase()) return ''
+    if (windowsText.toLowerCase().startsWith(`${windowsRoot.toLowerCase()}\\`)) {
+      return windowsText.slice(windowsRoot.length + 1).replaceAll('\\', '/')
+    }
+    return null
+  }
+
+  async function classifyPath(value) {
+    const text = String(value ?? '')
+    if (!text) return 'missing'
+    const relative = workspaceRelativePath(text)
+    if (relative !== null) {
+      try {
+        return await files().kind(relative)
+      } catch {
+        return 'missing'
+      }
+    }
+    if (/^(?:[A-Za-z]:[\\/]|[\\/]|~(?:[\\/]|$)|file:)/.test(text)) {
+      try {
+        const info = await stat(toSystemPath(text))
+        return info.isDirectory() ? 'directory' : info.isFile() ? 'file' : 'missing'
+      } catch {
+        return 'missing'
+      }
+    }
+    try {
+      return await files().kind(text)
+    } catch {
+      return 'missing'
+    }
+  }
+
+  async function resolveWorkspacePaths(input) {
+    const paths = Array.isArray(input?.paths) ? input.paths : []
+    const resolutions = []
+    for (const path of paths) {
+      resolutions.push({ path, kind: await classifyPath(path) })
+    }
+    return { resolutions }
   }
 
   async function query(name, input, contextId) {
@@ -1460,14 +1648,48 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
           bindContextSession(contextId, target.sessionId)
           cancelOrphanedApprovals()
         }
+        const afterStreamSeq = Number.isSafeInteger(input?.afterStreamSeq) && input.afterStreamSeq >= 0
+          ? input.afterStreamSeq
+          : null
+        // Capture the projection watermark before awaiting disk I/O. Events
+        // emitted during the read stay above this watermark for the live stream;
+        // advancing it afterwards could skip events absent from the page snapshot.
+        const watermark = liveSessionSeq.get(target.sessionId) ?? 0
         const page = await readPage(target.sessionId, input?.limit)
+        const replayAfter = afterStreamSeq ?? watermark
         return {
           target: { kind: 'session', sessionId: target.sessionId, conversationSessionId: target.sessionId },
           page,
-          // 水位必须是桥已经发出的最新序号，否则重开对话后下一条事件会被判定为
-          // “序号不连续”并反复重同步，界面就永远停在加载态。
-          live: { status: 'complete', watermark: liveSessionSeq.get(target.sessionId) ?? 0, events: [] },
+          // 初次打开由 transcript page 提供完整历史；重连/补洞只返回水位之后的投影事件。
+          // 若事件已超出有界 journal，客户端会看到首个 streamSeq 不连续并回退到整页重同步。
+          live: {
+            status: 'complete',
+            watermark,
+            events: (conversationJournal.get(target.sessionId) ?? [])
+              .filter((event) => event.streamSeq > replayAfter && event.streamSeq <= watermark),
+          },
         }
+      }
+      case 'interaction.list': {
+        // A context newly mounted for an already-running session must be able to
+        // recover pending cards. Listing also grants it ownership: it is bound to
+        // the same session, so it may answer exactly like the original views.
+        const sessionId = context.currentSessionId
+        if (!sessionId) return { approvals: [] }
+        if (typeof contextId === 'string') {
+          for (const approval of approvals.values()) {
+            if (approval.sessionId === sessionId) approval.owners.add(contextId)
+          }
+        }
+        return {
+          approvals: [...approvals.entries()]
+            .filter(([, approval]) => approval.sessionId === sessionId)
+            .map(([interactionId, approval]) => approvalCard(interactionId, approval)),
+        }
+      }
+      case 'workbench.toolset.get': {
+        const sessionId = workbenchSession(input, context)
+        return workbenchReadModel(sessionId)
       }
       case 'session.transcript.readPage': {
         const sessionId = input?.sessionId ?? context.currentSessionId
@@ -1525,26 +1747,26 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
         return { sessionId: input?.sessionId ?? context.currentSessionId, generatedAt: new Date().toISOString() }
       case 'session.compaction.read':
         return { sessionId: input?.sessionId ?? context.currentSessionId, compactions: [] }
-      case 'workspace.fileTree':
-        return fileTree(input)
-      case 'workspace.file.readText': {
-        const info = await readTextFile(cwd, input?.path ?? '')
-        return {
-          file: workspaceFileInfo(workspaceId, info),
-          text: info.text,
-          encoding: 'utf8',
-          bom: info.text.charCodeAt(0) === 0xfeff,
-          lineEnding: info.text.includes('\r\n') ? 'crlf' : 'lf',
-        }
+      case 'workspace.fileTree': {
+        const nodes = await files().list(input?.path ?? '')
+        return { workspaceId, nodes }
       }
-      case 'workspace.file.inspect': {
-        const info = await readTextFile(cwd, input?.path ?? '')
-        return { ...workspaceFileInfo(workspaceId, info), binary: info.binary === true, tooLarge: info.tooLarge === true }
+      case 'workspace.file.readText': {
+        const value = await files().readText(input?.path ?? '')
+        return { ...value, file: workspaceFileInfo(workspaceId, value.file) }
+      }
+      case 'workspace.file.inspect':
+        return workspaceFileInfo(workspaceId, await files().inspect(input?.path ?? ''))
+      case 'workspace.file.readChunk': {
+        const value = await files().readChunk(input?.path ?? '', input ?? {})
+        return value
       }
       case 'workspace.paths.resolve':
-        return { kind: 'file', path: input?.path ?? '' }
-      case 'git.toolchain.get':
-        return { git: { available: true }, githubCli: { available: false, unavailableReason: 'not bridged' } }
+        return resolveWorkspacePaths(input)
+      case 'git.toolchain.get': {
+        const toolchain = await git().toolchain()
+        return { git: toolchain, githubCli: { available: false, unavailableReason: 'not bridged' } }
+      }
       case 'git.repository.get':
         return gitRepository()
       case 'git.repository.summary': {
@@ -1553,43 +1775,43 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
           workspaceId,
           isRepository: repo.isRepository,
           ...(repo.repositoryId ? { repositoryId: repo.repositoryId } : {}),
+          ...(repo.workspacePrefix ? { workspacePrefix: repo.workspacePrefix } : {}),
           ...(repo.branch ? { branch: repo.branch } : {}),
           ...(repo.headOid ? { headOid: repo.headOid } : {}),
           detached: repo.detached,
           ahead: repo.ahead,
           behind: repo.behind,
+          ...(repo.unavailableReason ? { unavailableReason: repo.unavailableReason } : {}),
           changedFiles: repo.changes.length,
           sampledAt: new Date().toISOString(),
         }
       }
-      case 'git.diff.get':
+      case 'git.diff.get': {
+        const target = input?.target === 'staged' ? 'staged' : 'working'
+        const model = await git().diff(input?.path ?? '', target)
         return {
           workspaceId,
-          path: input?.path ?? '',
-          target: input?.target ?? 'working',
-          patch: await gitDiff(cwd, input?.path ?? '', input?.target === 'staged'),
-          binary: false,
-          truncated: false,
-          revision: String(cursor),
+          path: String(input?.path ?? '').replaceAll('\\', '/'),
+          target,
+          ...model,
         }
+      }
       case 'git.branches.list':
         return { workspaceId, branches: await gitBranches() }
       case 'git.worktrees.list':
-        return { workspaceId, rootConfigured: false, worktrees: [] }
+        return { workspaceId, ...(await git().worktrees()) }
       case 'git.remotes.list':
         return { workspaceId, remotes: await gitRemotes() }
       case 'git.log.list':
-        return gitLog(input?.limit)
+        return { workspaceId, ...(await git().log({ limit: input?.limit, skip: input?.skip })) }
       case 'git.commit.changes':
-        return gitCommitChanges(input?.oid)
+        return { workspaceId, ...(await git().commitChanges(input?.oid)) }
       case 'git.commit.diff':
         return {
           workspaceId,
-          oid: input?.oid ?? '',
-          path: input?.path ?? '',
-          patch: (await execFileAsync(GIT, ['show', '--no-color', '--format=', input?.oid ?? 'HEAD', '--', input?.path ?? ''], { cwd: uncFromWsl(cwd), maxBuffer: 8 * 1024 * 1024 })).stdout,
-          binary: false,
-          truncated: false,
+          oid: String(input?.oid ?? ''),
+          path: String(input?.path ?? '').replaceAll('\\', '/'),
+          ...(await git().commitDiff(input?.oid, input?.path ?? '')),
         }
       case 'fs.places':
         return systemPlaces()
@@ -1770,14 +1992,19 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
   function emitConversation(sessionId, update, nativeSequence = undefined) {
     const seq = (liveSessionSeq.get(sessionId) ?? 0) + 1
     liveSessionSeq.set(sessionId, seq)
+    const change = {
+      kind: 'conversation.changed',
+      sessionId,
+      streamSeq: seq,
+      ...(Number.isSafeInteger(nativeSequence) && nativeSequence >= 0 ? { runtimeEventSeq: nativeSequence } : {}),
+      update,
+    }
+    const journal = conversationJournal.get(sessionId) ?? []
+    journal.push(change)
+    if (journal.length > CONVERSATION_REPLAY_LIMIT) journal.splice(0, journal.length - CONVERSATION_REPLAY_LIMIT)
+    conversationJournal.set(sessionId, journal)
     forEachSessionContext(sessionId, (contextId) => {
-      emitEvent({
-        kind: 'conversation.changed',
-        sessionId,
-        streamSeq: seq,
-        ...(Number.isSafeInteger(nativeSequence) && nativeSequence >= 0 ? { runtimeEventSeq: nativeSequence } : {}),
-        update,
-      }, contextId)
+      emitEvent(change, contextId)
     })
   }
 
@@ -2063,6 +2290,20 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
     emitSessionSnapshot(record.rootSessionId)
   }
 
+  /** Public, serialisable view of a bridge-owned approval (never includes respond). */
+  function approvalCard(interactionId, approval, status = 'pending') {
+    return {
+      interactionId,
+      sessionId: approval.sessionId,
+      leaseGeneration: approval.leaseGeneration,
+      title: 'Tool approval',
+      kind: 'approval',
+      approvalType: approval.approvalType,
+      detail: approval.detail,
+      status,
+    }
+  }
+
   /** Forward a DSH approval request only to contexts that own its session. */
   function onApprovalRequest({ requestId = null, params, respond }) {
     const sessionId = params?.sessionId
@@ -2077,29 +2318,24 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
     }
     interactionSeq += 1
     const interactionId = `approval-${interactionSeq}`
-    approvals.set(interactionId, {
+    const approval = {
       requestId,
       sessionId,
       owners: new Set(owners),
       leaseGeneration: 1,
+      approvalType: params?.type ?? params?.kind ?? 'command',
+      detail: {
+        ...(params?.command ? { command: params.command } : {}),
+        ...(params?.path ? { path: params.path } : {}),
+        ...(params?.reason ? { reason: params.reason } : {}),
+      },
       respond,
-    })
+    }
+    approvals.set(interactionId, approval)
     for (const contextId of owners) {
       emitEvent({
         kind: 'interaction.required',
-        interaction: {
-          interactionId,
-          sessionId,
-          leaseGeneration: 1,
-          title: 'Tool approval',
-          kind: 'approval',
-          approvalType: params?.type ?? params?.kind ?? 'command',
-          detail: {
-            ...(params?.command ? { command: params.command } : {}),
-            ...(params?.path ? { path: params.path } : {}),
-            ...(params?.reason ? { reason: params.reason } : {}),
-          },
-        },
+        interaction: approvalCard(interactionId, approval),
       }, contextId)
     }
   }
@@ -2308,10 +2544,123 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
         }
         return
       }
+      case 'workbench.toolset.set': {
+        try {
+          const sessionId = workbenchSession(input, context)
+          const { owner, workspace } = ensureWorkbenchWorkspace(sessionId)
+          const capabilities = workbenchCapabilities()
+          if (input?.capabilityRevision !== undefined && input.capabilityRevision !== capabilities.revision) {
+            throw clientError('CONFLICT', 'capability snapshot 已变化；请重新读取后再选择工具')
+          }
+          const before = [...workspace.toolset]
+          workbenchRegistry = setSessionToolset(workbenchRegistry, {
+            owner,
+            toolset: input?.toolset,
+            capabilities,
+            expectedRevision: input?.expectedRevision,
+            updatedAt: new Date().toISOString(),
+          })
+          recordWorkbenchAudit(sessionId, 'toolset.set', {
+            before,
+            after: [...(getConversationWorkspace(workbenchRegistry, owner)?.toolset ?? [])],
+            capabilityRevision: capabilities.revision,
+          })
+          emitWorkbenchChange(sessionId, {
+            toolset: [...(getConversationWorkspace(workbenchRegistry, owner)?.toolset ?? [])],
+          })
+          receipt(requestId, commandName, {
+            status: 'completed',
+            result: workbenchReadModel(sessionId),
+            observedAt: new Date().toISOString(),
+          })
+        } catch (error) {
+          receipt(requestId, commandName, {
+            status: 'failed',
+            error: controlError(error),
+            observedAt: new Date().toISOString(),
+          })
+        }
+        return
+      }
+      case 'workbench.tool.register': {
+        try {
+          const sessionId = workbenchSession(input, context)
+          const { owner } = ensureWorkbenchWorkspace(sessionId)
+          const capabilities = workbenchCapabilities()
+          if (input?.capabilityRevision !== undefined && input.capabilityRevision !== capabilities.revision) {
+            throw clientError('CONFLICT', 'capability snapshot 已变化；请重新读取后再注册工具')
+          }
+          const instanceId = `workbench-tool-${workbenchInstanceSeq + 1}`
+          workbenchRegistry = registerSessionToolInstance(workbenchRegistry, {
+            owner,
+            expectedRevision: input?.expectedRevision,
+            instanceId,
+            toolId: input?.toolId,
+            metadata: input?.metadata,
+            limits: workbenchLimits,
+          })
+          workbenchInstanceSeq += 1
+          recordWorkbenchAudit(sessionId, 'tool.register', {
+            instanceId,
+            toolId: input?.toolId,
+          })
+          emitWorkbenchChange(sessionId, {
+            instanceId,
+            toolId: input?.toolId,
+            instanceState: 'opening',
+          })
+          receipt(requestId, commandName, {
+            status: 'completed',
+            result: {
+              ...workbenchReadModel(sessionId),
+              instance: workbenchRegistry.toolInstances[instanceId],
+            },
+            observedAt: new Date().toISOString(),
+          })
+        } catch (error) {
+          receipt(requestId, commandName, {
+            status: 'failed',
+            error: controlError(error),
+            observedAt: new Date().toISOString(),
+          })
+        }
+        return
+      }
+      case 'workbench.tool.close': {
+        try {
+          const sessionId = workbenchSession(input, context)
+          const { owner } = ensureWorkbenchWorkspace(sessionId)
+          workbenchRegistry = closeSessionToolInstance(workbenchRegistry, {
+            owner,
+            expectedRevision: input?.expectedRevision,
+            instanceId: input?.instanceId,
+          })
+          recordWorkbenchAudit(sessionId, 'tool.close', {
+            instanceId: input?.instanceId,
+          })
+          emitWorkbenchChange(sessionId, {
+            instanceId: input?.instanceId,
+            instanceState: 'closed',
+          })
+          receipt(requestId, commandName, {
+            status: 'completed',
+            result: workbenchReadModel(sessionId),
+            observedAt: new Date().toISOString(),
+          })
+        } catch (error) {
+          receipt(requestId, commandName, {
+            status: 'failed',
+            error: controlError(error),
+            observedAt: new Date().toISOString(),
+          })
+        }
+        return
+      }
       case 'session.create': {
         bindContextSession(contextId, newSessionId('omp'))
         cancelOrphanedApprovals()
         liveSessionSeq.set(context.currentSessionId, 0)
+        conversationJournal.delete(context.currentSessionId)
         emitEvent({ kind: 'snapshot', snapshot: snapshot(undefined, contextId) }, contextId)
         receipt(requestId, commandName, { status: 'completed', result: snapshot(undefined, contextId), observedAt: new Date().toISOString() })
         return
@@ -2331,6 +2680,7 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
           }
           // 运行时里还挂着的会话保留内存状态，但历史已经不可恢复。
           liveSessionSeq.delete(threadId)
+          conversationJournal.delete(threadId)
           receipt(requestId, commandName, {
             status: 'completed',
             result: { message: '会话已删除', cleanup: 'complete' },
@@ -2665,13 +3015,34 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
       }
       case 'workspace.file.writeText': {
         const relative = String(input?.path ?? '')
-        const absolute = workspaceAbsolutePath(relative)
         try {
-          const result = await writeSystemText(uncFromWsl(absolute), input)
-          const file = { ...result.file, workspaceId, path: relative, id: `${workspaceId}:${relative}` }
-          receipt(requestId, commandName, { status: 'completed', result: { ...result, file }, observedAt: new Date().toISOString() })
+          const result = await files().writeText(relative, input)
+          const file = result.file ? workspaceFileInfo(workspaceId, result.file) : undefined
+          receipt(requestId, commandName, {
+            status: 'completed',
+            result: file ? { ...result, file } : result,
+            observedAt: new Date().toISOString(),
+          })
         } catch (error) {
-          receipt(requestId, commandName, { status: 'failed', error: clientError('INTERNAL', error.message), observedAt: new Date().toISOString() })
+          receipt(requestId, commandName, { status: 'failed', error: fileError(error), observedAt: new Date().toISOString() })
+        }
+        return
+      }
+      case 'workspace.file.create': {
+        try {
+          const result = await files().createFile(String(input?.path ?? ''), { text: input?.text ?? '' })
+          receipt(requestId, commandName, { status: 'completed', result, observedAt: new Date().toISOString() })
+        } catch (error) {
+          receipt(requestId, commandName, { status: 'failed', error: fileError(error), observedAt: new Date().toISOString() })
+        }
+        return
+      }
+      case 'workspace.directory.create': {
+        try {
+          const result = await files().createDirectory(String(input?.path ?? ''))
+          receipt(requestId, commandName, { status: 'completed', result, observedAt: new Date().toISOString() })
+        } catch (error) {
+          receipt(requestId, commandName, { status: 'failed', error: fileError(error), observedAt: new Date().toISOString() })
         }
         return
       }
@@ -2710,6 +3081,71 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
         receipt(requestId, commandName, { status: 'completed', result: { result: {} }, observedAt: new Date().toISOString() })
         return
       }
+      case 'git.execute': {
+        try {
+          const operation = input?.operation
+          if (!operation || typeof operation !== 'object' || typeof operation.kind !== 'string') {
+            throw clientError('INVALID_ARGUMENT', '缺少 Git 操作')
+          }
+          let message
+          switch (operation.kind) {
+            case 'stage': {
+              const staged = await git().stage(operation.paths)
+              message = `已暂存 ${staged.paths.length} 个路径`
+              break
+            }
+            case 'unstage': {
+              const unstaged = await git().unstage(operation.paths)
+              message = `已取消暂存 ${unstaged.paths.length} 个路径`
+              break
+            }
+            case 'discard': {
+              const discarded = await git().discard(operation.paths, operation.expectedRevision)
+              message = `已丢弃 ${discarded.paths.length} 个路径的工作区改动`
+              break
+            }
+            case 'commit': {
+              const committed = await git().commit(operation.message, {
+                ...(operation.paths !== undefined ? { paths: operation.paths } : {}),
+                ...(operation.amend !== undefined ? { amend: operation.amend } : {}),
+                ...(operation.noVerify !== undefined ? { noVerify: operation.noVerify } : {}),
+                ...(operation.sign !== undefined ? { sign: operation.sign } : {}),
+              })
+              message = `已提交 ${committed.oid.slice(0, 7)}：${committed.subject}`
+              break
+            }
+            default:
+              throw clientError(
+                'CAPABILITY_UNAVAILABLE',
+                `Git 操作 ${operation.kind} 尚未接入；X5.3 支持暂存、取消暂存、丢弃和提交`,
+              )
+          }
+          const repository = await gitRepository()
+          if (repository.isRepository) {
+            emitEvent({
+              kind: 'git.repository.changed',
+              repository: {
+                workspaceId,
+                repositoryId: workspaceId,
+                ...(repository.revision ? { revision: repository.revision } : {}),
+                reason: 'command',
+              },
+            })
+          }
+          receipt(requestId, commandName, {
+            status: 'completed',
+            result: { operation: operation.kind, message, repository, workspaceId },
+            observedAt: new Date().toISOString(),
+          })
+        } catch (error) {
+          receipt(requestId, commandName, {
+            status: 'failed',
+            error: gitFailure(error),
+            observedAt: new Date().toISOString(),
+          })
+        }
+        return
+      }
       case 'session.model.set':
       case 'session.thinking.set':
       case 'session.speed.set':
@@ -2728,7 +3164,6 @@ export function createStudioBridge({ runtime, cwd, emit, host = {} }) {
       case 'mode.plan.review.respond':
       case 'permissions.mode.set':
       case 'approvals.forget':
-      case 'git.execute':
       case 'runtime.pause':
       case 'runtime.resume': {
         // 这些命令在 DSH 里没有等价实现；返回失败回执，界面会显示下面的中文原因。
@@ -2787,4 +3222,19 @@ function clientError(code, message) {
   const error = new Error(message)
   error.code = code
   return { code, message }
+}
+
+/** Preserve workspace-file failures instead of collapsing them to INTERNAL. */
+function fileError(error) {
+  const supported = new Set(['INVALID_ARGUMENT', 'NOT_FOUND', 'CONFLICT', 'STORAGE_FAILED', 'PERMISSION_DENIED'])
+  const code = supported.has(error?.code) ? error.code : 'INTERNAL'
+  return clientError(code, error?.message || '文件操作失败')
+}
+
+/** Preserve Git conflict/path errors so Changes can show the real reason. */
+function gitFailure(error) {
+  const supported = new Set(['INVALID_ARGUMENT', 'NOT_FOUND', 'CONFLICT', 'PERMISSION_DENIED', 'CAPABILITY_UNAVAILABLE', 'FAILED_PRECONDITION'])
+  const code = supported.has(error?.code) ? error.code : 'INTERNAL'
+  const base = clientError(code, error?.message || 'Git 操作失败')
+  return error?.details === undefined ? base : { ...base, details: error.details }
 }

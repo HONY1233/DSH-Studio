@@ -7,7 +7,8 @@
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
-    "./client": "./lib/client.js"
+    "./client": "./lib/client.js",
+    "./workbench": "./src/ui-workbench/index.ts"
   },
   "dsh": {
     "client": {
@@ -20,5 +21,8 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@dsh-studio/workbench-core": "0.1.0"
   }
 }

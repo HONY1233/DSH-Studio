@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <title>DSH Native Content</title>
+    <link rel="stylesheet" href="./native-content.css" />
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">DSH Studio · Native content host</p>
+      <h1>原生内容宿主</h1>
+      <p id="status" role="status">正在验证一次性窗口票据…</p>
+      <p class="hint">此文档运行在独立 BrowserWindow 的 WebContentsView 中。正文可跨窗口 attach/detach，页面状态不会因宿主移动而重建。</p>
+      <section aria-label="窗口控制">
+        <button type="button" data-command="minimize" disabled>最小化</button>
+        <button type="button" data-command="maximize" disabled>最大化</button>
+        <button type="button" data-command="restore" disabled>恢复</button>
+        <button type="button" data-command="close" disabled>关闭</button>
+      </section>
+      <pre id="capabilities" aria-label="当前能力">waiting</pre>
+    </main>
+    <script src="./native-content.js"></script>
+  </body>
+</html>

@@ -72,6 +72,7 @@ export function TabStrip(props: TabStripProps): ReactNode {
       role="tablist"
       aria-label={labels.list}
       data-testid={testId ?? 'tab-strip'}
+      data-drop-region="tab"
       data-dockkit-strip-scroll="true"
       style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflowX: 'auto' }}
     >

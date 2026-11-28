@@ -12,6 +12,19 @@ import { zstdDecompressSync } from 'node:zlib'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
+export {
+  createGitWorkspace,
+  DEFAULT_MAX_DIFF_BYTES,
+  GIT_WORKSPACE_SCHEMA_VERSION,
+  parseGitStatus,
+} from './git-workspace.js'
+export {
+  createWorkspaceFiles,
+  DEFAULT_MAX_HASH_BYTES,
+  DEFAULT_MAX_TEXT_BYTES,
+  WORKSPACE_FILES_SCHEMA_VERSION,
+} from './workspace-files.js'
+
 const execFileAsync = promisify(execFile)
 const GIT = process.env.GIT_BIN ?? 'git'
 

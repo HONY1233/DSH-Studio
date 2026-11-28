@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+
+import { SessionViewsProvider } from '../ui-session-views/provider.js'
+import { SessionViewStore, type ConversationIdentity } from '../ui-session-views/session-view-store.js'
+import { useOwnerSessionView } from '../ui-session-views/use-session-view.js'
 
 import {
   asSessionFace,
@@ -14,6 +19,7 @@ import {
 interface PromptCall {
   readonly content: readonly PromptPart[]
   readonly mode: 'queue' | 'steer'
+  readonly requestId?: string
 }
 
 type Accepted = RemoteResultLike<{ readonly accepted: true }>
@@ -21,8 +27,8 @@ type Accepted = RemoteResultLike<{ readonly accepted: true }>
 function fakeSession(result?: () => Promise<Accepted>) {
   const calls: PromptCall[] = []
   const face: SessionFaceLike = {
-    async prompt(content, mode) {
-      calls.push({ content, mode })
+    async prompt(content, mode, _signal, requestId) {
+      calls.push({ content, mode, ...(requestId === undefined ? {} : { requestId }) })
       if (result) return result()
       return { ok: true, value: { accepted: true } }
     },
@@ -206,5 +212,142 @@ describe('Composer 错误处理', () => {
     expect(calls).toHaveLength(1)
     release()
     await settle()
+  })
+})
+
+function SharedComposer(props: {
+  readonly store: SessionViewStore
+  readonly owner: ConversationIdentity
+  readonly session: SessionFaceLike
+  readonly sessionId: string
+  readonly uploader?: unknown
+}): ReactNode {
+  const { projection, dispatchDraft } = useOwnerSessionView(props.owner)
+  return (
+    <Composer
+      session={props.session}
+      sessionId={props.sessionId}
+      uploader={props.uploader}
+      draft={projection?.draft ?? null}
+      draftOwner={props.owner}
+      dispatchDraft={dispatchDraft}
+    />
+  )
+}
+
+function sharedTree(store: SessionViewStore, owner: ConversationIdentity, session: SessionFaceLike, uploader?: unknown): ReactNode {
+  return (
+    <SessionViewsProvider registry={{} as never} store={store}>
+      <SharedComposer store={store} owner={owner} session={session} sessionId={owner.id} uploader={uploader} />
+    </SessionViewsProvider>
+  )
+}
+
+describe('Composer owner-scoped sharing', () => {
+  it('two same-session views share text and permit only one request with a requestId', async () => {
+    const store = new SessionViewStore()
+    const owner = { kind: 'session' as const, id: 'session-a' }
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const calls: PromptCall[] = []
+    const face: SessionFaceLike = {
+      async prompt(content, mode, _signal, requestId) {
+        calls.push({ content, mode, ...(requestId === undefined ? {} : { requestId }) })
+        await gate
+        return { ok: true, value: { accepted: true } }
+      },
+    }
+    render(
+      <SessionViewsProvider registry={{} as never} store={store}>
+        <div data-testid="view-a"><SharedComposer store={store} owner={owner} session={face} sessionId={owner.id} /></div>
+        <div data-testid="view-b"><SharedComposer store={store} owner={owner} session={face} sessionId={owner.id} /></div>
+      </SessionViewsProvider>,
+    )
+    const first = within(screen.getByTestId('view-a')).getByTestId('studio-composer-input')
+    const second = within(screen.getByTestId('view-b')).getByTestId('studio-composer-input')
+    fireEvent.change(first, { target: { value: 'shared' } })
+    expect((second as HTMLTextAreaElement).value).toBe('shared')
+    fireEvent.keyDown(first, { key: 'Enter' })
+    fireEvent.keyDown(second, { key: 'Enter' })
+    await settle()
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.requestId).toEqual(expect.any(String))
+    release()
+    await settle()
+  })
+
+  it('A/B owners keep independent drafts in the same store', () => {
+    const store = new SessionViewStore()
+    const { face } = fakeSession()
+    const ownerA = { kind: 'session' as const, id: 'session-a' }
+    const ownerB = { kind: 'session' as const, id: 'session-b' }
+    render(<>{sharedTree(store, ownerA, face)}{sharedTree(store, ownerB, face)}</>)
+    const [first, second] = screen.getAllByTestId('studio-composer-input') as HTMLTextAreaElement[]
+    fireEvent.change(first!, { target: { value: 'only A' } })
+    expect(first!.value).toBe('only A')
+    expect(second!.value).toBe('')
+  })
+
+  it('a late success does not clear newer text entered while sending', async () => {
+    const store = new SessionViewStore()
+    const owner = { kind: 'session' as const, id: 'session-a' }
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const face: SessionFaceLike = {
+      async prompt() { await gate; return { ok: true, value: { accepted: true } } },
+    }
+    render(sharedTree(store, owner, face))
+    const input = screen.getByTestId('studio-composer-input') as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: 'original' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(store.getDraft(owner)?.submission?.state).toBe('sending'))
+    fireEvent.change(input, { target: { value: 'newer' } })
+    release()
+    await waitFor(() => expect(store.getDraft(owner)?.submission?.state).toBe('accepted'))
+    expect(input.value).toBe('newer')
+  })
+
+  it('a failed shared send retains text and exposes the Host error', async () => {
+    const store = new SessionViewStore()
+    const owner = { kind: 'session' as const, id: 'session-a' }
+    const { face } = fakeSession(async () => ({ ok: false, error: { code: 'OFFLINE', message: 'offline' } }))
+    render(sharedTree(store, owner, face))
+    const input = screen.getByTestId('studio-composer-input') as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: 'retry' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('studio-composer-error').textContent).toBe('offline'))
+    expect(input.value).toBe('retry')
+    expect(store.getDraft(owner)?.submission?.state).toBe('failed')
+  })
+
+  it('persists a ready attachment DTO without preview or progress state', async () => {
+    const store = new SessionViewStore()
+    const owner = { kind: 'session' as const, id: 'session-a' }
+    const { face } = fakeSession()
+    const uploader = { upload: vi.fn(async () => ({ ok: true as const, value: { receiptId: 'receipt-1' } })) }
+    render(sharedTree(store, owner, face, uploader))
+    fireEvent.change(screen.getByTestId('studio-composer-file-input'), { target: { files: [new File(['abc'], 'a.txt', { type: 'text/plain' })] } })
+    await waitFor(() => expect(store.getDraft(owner)?.attachments).toHaveLength(1))
+    expect(store.getDraft(owner)?.attachments[0]).toEqual({
+      id: expect.any(String), name: 'a.txt', size: 3, mediaType: 'text/plain', receiptId: 'receipt-1',
+    })
+    expect(JSON.stringify(store.getDraft(owner))).not.toContain('previewUrl')
+  })
+
+  it('ignores an upload completion after the view moves to another owner', async () => {
+    const store = new SessionViewStore()
+    const ownerA = { kind: 'session' as const, id: 'session-a' }
+    const ownerB = { kind: 'session' as const, id: 'session-b' }
+    const { face } = fakeSession()
+    let release!: (value: { ok: true; value: { receiptId: string } }) => void
+    const uploader = { upload: vi.fn(() => new Promise<{ ok: true; value: { receiptId: string } }>((resolve) => { release = resolve })) }
+    const view = render(sharedTree(store, ownerA, face, uploader))
+    fireEvent.change(screen.getByTestId('studio-composer-file-input'), { target: { files: [new File(['abc'], 'a.txt', { type: 'text/plain' })] } })
+    await waitFor(() => expect(uploader.upload).toHaveBeenCalledOnce())
+    view.rerender(sharedTree(store, ownerB, face, uploader))
+    release({ ok: true, value: { receiptId: 'late-receipt' } })
+    await settle()
+    expect(store.getDraft(ownerA)?.attachments ?? []).toHaveLength(0)
+    expect(store.getDraft(ownerB)).toBeNull()
   })
 })

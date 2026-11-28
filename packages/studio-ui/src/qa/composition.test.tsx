@@ -313,7 +313,7 @@ describe('装配：会话多视图', () => {
 
     // 前提确认：确实发生过整棵替换（两个格合成一格，SplitView → PaneView）。
     // 没有这条断言，上面的"引用不断"可能只是因为根本没重建过。
-    expect(document.querySelectorAll('[data-pane-id]')).toHaveLength(1)
+    expect(document.querySelectorAll('[data-pane-id][data-host-kind="pane"]')).toHaveLength(1)
 
     // 等过宽限期，仍然不能释放
     await act(async () => {

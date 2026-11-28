@@ -65,6 +65,27 @@ contextBridge.exposeInMainWorld('dsh', {
   },
 })
 
+// Narrow main-renderer port for X3 native windows. It never returns Electron
+// handles, URLs, tickets, or raw IPC; native child frames use a separate preload.
+contextBridge.exposeInMainWorld('dshWorkbench', Object.freeze({
+  createNativeWindow: (options) => ipcRenderer.invoke('workbench:window:create', options),
+  listNativeWindows: () => ipcRenderer.invoke('workbench:window:list'),
+  attachNativeWindow: (windowId, host, rect) => ipcRenderer.invoke('workbench:window:attach', windowId, host, rect),
+  detachNativeWindow: (windowId) => ipcRenderer.invoke('workbench:window:detach', windowId),
+  setNativeWindowBounds: (windowId, rect) => ipcRenderer.invoke('workbench:window:bounds', windowId, rect),
+  focusNativeWindow: (windowId) => ipcRenderer.invoke('workbench:window:focus', windowId),
+  minimizeNativeWindow: (windowId) => ipcRenderer.invoke('workbench:window:minimize-main', windowId),
+  maximizeNativeWindow: (windowId) => ipcRenderer.invoke('workbench:window:maximize-main', windowId),
+  restoreNativeWindow: (windowId) => ipcRenderer.invoke('workbench:window:restore-main', windowId),
+  setNativeWindowTopmost: (windowId, value) => ipcRenderer.invoke('workbench:window:topmost', windowId, value),
+  closeNativeWindow: (windowId) => ipcRenderer.invoke('workbench:window:close-main', windowId),
+  onNativeWindowsChanged: (callback) => {
+    const listener = (_event, payload) => callback(payload)
+    ipcRenderer.on('workbench:windows:state', listener)
+    return () => ipcRenderer.removeListener('workbench:windows:state', listener)
+  },
+}))
+
 // Strict system-browser opening for renderer links. Main revalidates the URL;
 // this bridge never exposes a generic Electron window or shell primitive.
 contextBridge.exposeInMainWorld('ompStudioChrome', {

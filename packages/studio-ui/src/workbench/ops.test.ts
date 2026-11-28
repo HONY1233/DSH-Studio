@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest'
 
 import {
   type PaneId,
+  type PaneNode,
   type SplitId,
+  type TabHostRef,
   type TabId,
   type WorkbenchLayout,
+  allTabs,
   compact,
   createMint,
   emptyLayout,
+  ensureWorkbenchRegions,
+  findTabHost,
   makeTab,
   panes,
   sameLayout,
@@ -268,6 +273,43 @@ describe('浮窗（取舍 3：多标签）', () => {
     expect(back.floats[0]?.activeTab).toBe(before)
   })
 
+  it('raiseFloat 把浮窗移到顶层且撤销恢复原顺序', () => {
+    const { layout, p1, ids } = seedThree()
+    let floated = layout
+    for (let index = 0; index < ids.length; index += 1) {
+      floated = applyOp(floated, {
+        kind: 'floatTabs',
+        pane: p1,
+        tabIds: [ids[index] as TabId],
+        floatId: `f${index + 1}`,
+        rect: { x: 10 + index * 20, y: 10 + index * 20, w: 400, h: 300 },
+      }).next
+    }
+    expect(floated.floats.map((float) => float.id)).toEqual(['f1', 'f2', 'f3'])
+
+    const raised = applyOp(floated, { kind: 'raiseFloat', floatId: 'f1' })
+    expect(raised.next.floats.map((float) => float.id)).toEqual(['f2', 'f3', 'f1'])
+    expect(raised.next.focused).toBe('f1')
+    expect(applyInverse(raised.next, raised.inverse).floats.map((float) => float.id)).toEqual(['f1', 'f2', 'f3'])
+  })
+
+  it('reorderFloats 拒绝缺失、重复或未知浮窗', () => {
+    const { layout, p1, ids } = seedThree()
+    let floated = layout
+    for (let index = 0; index < 2; index += 1) {
+      floated = applyOp(floated, {
+        kind: 'floatTabs',
+        pane: p1,
+        tabIds: [ids[index] as TabId],
+        floatId: `f${index + 1}`,
+        rect: { x: 10 + index * 20, y: 10 + index * 20, w: 400, h: 300 },
+      }).next
+    }
+    expect(() => applyOp(floated, { kind: 'reorderFloats', order: [] })).toThrow(/length mismatch/)
+    expect(() => applyOp(floated, { kind: 'reorderFloats', order: ['f1', 'f1'] })).toThrow(/duplicates/)
+    expect(() => applyOp(floated, { kind: 'reorderFloats', order: ['f1', 'missing'] })).toThrow(/not found/)
+  })
+
   it('移动 / Pin / 最小化都可逆', () => {
     const { layout, p1, ids } = seedThree()
     const floated = applyOp(layout, {
@@ -288,6 +330,86 @@ describe('浮窗（取舍 3：多标签）', () => {
     const unmoved = applyInverse(unpinned, moved.inverse)
     expect(unmoved.floats[0]?.rect.x).toBe(10)
     expect(unmoved.floats[0]?.pin).toBe('none')
+  })
+})
+
+describe('分组、锁定与 Pin', () => {
+  function seedFloats() {
+    const base = seed()
+    const mint = createMint('group')
+    let layout = base.layout
+    const ids: TabId[] = [base.tab]
+    for (const [index, name] of ['files', 'git'].entries()) {
+      const id = mint.tab()
+      ids.push(id)
+      layout = applyOp(layout, { kind: 'insertTab', pane: base.p1, tab: makeTab(id, ref(name)) }).next
+      layout = applyOp(layout, {
+        kind: 'floatTabs',
+        pane: base.p1,
+        tabIds: [id],
+        floatId: `g${index + 1}`,
+        rect: { x: 10 + index * 30, y: 20 + index * 40, w: 300, h: 200 },
+      }).next
+    }
+    return { layout, p1: base.p1, ids }
+  }
+
+  it('分组与取消分组都可逆', () => {
+    const { layout } = seedFloats()
+    const grouped = applyOp(layout, { kind: 'groupFloats', groupId: 'group-1', floatIds: ['g1', 'g2'] })
+    expect(grouped.next.floats.map((float) => float.groupId)).toEqual(['group-1', 'group-1'])
+    const undone = applyInverse(grouped.next, grouped.inverse)
+    expect(sameLayout(undone, layout)).toBe(true)
+
+    const ungrouped = applyOp(grouped.next, { kind: 'ungroupFloat', floatId: 'g1' })
+    expect(ungrouped.next.floats[0]?.groupId).toBeUndefined()
+    expect(ungrouped.next.floats[1]?.groupId).toBe('group-1')
+    expect(sameLayout(applyInverse(ungrouped.next, ungrouped.inverse), grouped.next)).toBe(true)
+  })
+
+  it('整组移动保持相对位置并作为一条历史撤销', () => {
+    const { layout } = seedFloats()
+    const grouped = applyOp(layout, { kind: 'groupFloats', groupId: 'group-1', floatIds: ['g1', 'g2'] }).next
+    const moved = applyOp(grouped, {
+      kind: 'moveFloatGroup',
+      groupId: 'group-1',
+      moves: [
+        { floatId: 'g1', rect: { x: 110, y: 120, w: 300, h: 200 } },
+        { floatId: 'g2', rect: { x: 140, y: 160, w: 300, h: 200 } },
+      ],
+    })
+    expect(moved.next.floats.map((float) => float.rect.x)).toEqual([110, 140])
+    expect(moved.next.floats[1]!.rect.x - moved.next.floats[0]!.rect.x).toBe(30)
+    expect(sameLayout(applyInverse(moved.next, moved.inverse), grouped)).toBe(true)
+  })
+
+  it('locked 禁止单窗和整组移动，解锁后可移动', () => {
+    const { layout } = seedFloats()
+    const grouped = applyOp(layout, { kind: 'groupFloats', groupId: 'group-1', floatIds: ['g1', 'g2'] }).next
+    const locked = applyOp(grouped, { kind: 'setLocked', floatId: 'g2', locked: true })
+    expect(sameLayout(applyInverse(locked.next, locked.inverse), grouped)).toBe(true)
+    expect(() => applyOp(locked.next, {
+      kind: 'moveFloat',
+      floatId: 'g2',
+      rect: { x: 0, y: 0, w: 300, h: 200 },
+    })).toThrow(/locked/)
+    expect(() => applyOp(locked.next, {
+      kind: 'moveFloatGroup',
+      groupId: 'group-1',
+      moves: [
+        { floatId: 'g1', rect: { x: 100, y: 100, w: 300, h: 200 } },
+        { floatId: 'g2', rect: { x: 130, y: 140, w: 300, h: 200 } },
+      ],
+    })).toThrow(/locked/)
+  })
+
+  it('五档 Pin 切换可逆', () => {
+    const { layout } = seedFloats()
+    for (const pin of ['workspace', 'app', 'window', 'windowTop', 'none'] as const) {
+      const changed = applyOp(layout, { kind: 'setPin', floatId: 'g1', pin })
+      expect(changed.next.floats[0]?.pin).toBe(pin)
+      expect(sameLayout(applyInverse(changed.next, changed.inverse), layout)).toBe(true)
+    }
   })
 })
 
@@ -373,5 +495,243 @@ describe('applyOps 与历史', () => {
       history.push({ label: 'b', before: undone, after: b })
       expect(history.canRedo).toBe(false)
     }
+  })
+})
+
+describe('X4.2 fixed regions and generic hosts', () => {
+  function hostSeed() {
+    const pane = (name: string): PaneNode => ({
+      kind: 'pane',
+      id: `${name}-pane` as PaneId,
+      tabs: [
+        makeTab(`${name}-a` as TabId, ref(`${name}-a`)),
+        makeTab(`${name}-b` as TabId, ref(`${name}-b`)),
+      ],
+      activeTab: `${name}-b` as TabId,
+    })
+    const root = pane('main')
+    const regions = { sidebar: pane('sidebar'), right: pane('right'), bottom: pane('bottom') }
+    const float = {
+      kind: 'float' as const,
+      id: 'float-host',
+      rect: { x: 10, y: 20, w: 400, h: 300 },
+      pin: 'none' as const,
+      tabs: [
+        makeTab('float-a' as TabId, ref('float-a')),
+        makeTab('float-b' as TabId, ref('float-b')),
+      ],
+      activeTab: 'float-b' as TabId,
+    }
+    const layout: WorkbenchLayout = {
+      version: 2,
+      root,
+      regions,
+      floats: [float],
+      minimized: [{ floatId: float.id, x: 700, y: 500 }],
+      focused: root.id,
+      regionSizes: { sidebar: 220 },
+    }
+    const hosts: TabHostRef[] = [
+      { kind: 'pane', id: root.id },
+      { kind: 'region', id: regions.sidebar.id },
+      { kind: 'region', id: regions.right.id },
+      { kind: 'region', id: regions.bottom.id },
+      { kind: 'float', id: float.id },
+    ]
+    return { layout, hosts }
+  }
+
+  it('ensureWorkbenchRegions keeps legacy layouts optional and avoids default-id collisions', () => {
+    const rootId = 'region-sidebar' as PaneId
+    const legacy: WorkbenchLayout = {
+      ...emptyLayout(rootId),
+      root: {
+        kind: 'pane',
+        id: rootId,
+        tabs: [makeTab('region-right' as TabId, ref('legacy'))],
+        activeTab: 'region-right' as TabId,
+      },
+    }
+    expect(legacy.regions).toBeUndefined()
+    const ensured = ensureWorkbenchRegions(legacy)
+    expect(ensured.regions?.sidebar.id).toBe('region-sidebar-2')
+    expect(ensured.regions?.right.id).toBe('region-right-2')
+    expect(ensured.regions?.bottom.id).toBe('region-bottom')
+    expect(legacy.regions).toBeUndefined()
+    expect(ensureWorkbenchRegions(ensured)).toBe(ensured)
+  })
+
+  it('allTabs/sameLayout include regions, while compact never removes or compacts them', () => {
+    const { layout } = hostSeed()
+    const withRegionTab = applyOp(layout, {
+      kind: 'insertRegionTab',
+      region: 'sidebar',
+      pane: layout.regions!.sidebar.id,
+      tab: makeTab('extra' as TabId, ref('extra')),
+    }).next
+    expect(allTabs(withRegionTab).map((tab) => tab.id)).toEqual([
+      'main-a', 'main-b', 'sidebar-a', 'sidebar-b', 'extra', 'right-a', 'right-b',
+      'bottom-a', 'bottom-b', 'float-a', 'float-b',
+    ])
+    const compacted = compact(withRegionTab, layout.root.id as PaneId)
+    expect(compacted.regions).toBe(withRegionTab.regions)
+    expect(sameLayout(withRegionTab, { ...withRegionTab, focused: 'elsewhere' })).toBe(true)
+    expect(sameLayout(withRegionTab, layout)).toBe(false)
+  })
+
+  it('covers all 25 directed transfers across pane/sidebar/right/bottom/float, including self', () => {
+    const { layout, hosts } = hostSeed()
+    for (const from of hosts) {
+      for (const to of hosts) {
+        const source = findTabHost(layout, from)!
+        const target = findTabHost(layout, to)!
+        const moving = source.tabs[1]!
+        const result = applyOp(layout, { kind: 'transferTab', from, to, tabId: moving.id, index: 0 })
+        const same = from.kind === to.kind && from.id === to.id
+        const nextSource = findTabHost(result.next, from)!
+        const nextTarget = findTabHost(result.next, to)!
+        expect(nextSource.tabs.map((tab) => tab.id), `${from.kind}:${from.id} -> ${to.kind}:${to.id}`)
+          .toEqual(same ? [moving.id, source.tabs[0]!.id] : [source.tabs[0]!.id])
+        expect(nextTarget.tabs.map((tab) => tab.id)).toEqual(
+          same ? [moving.id, source.tabs[0]!.id] : [moving.id, ...target.tabs.map((tab) => tab.id)],
+        )
+        expect(nextTarget.activeTab).toBe(moving.id)
+        expect(nextSource.activeTab).toBe(same ? moving.id : source.tabs[0]!.id)
+        expect(result.next.focused).toBe(to.id)
+        const ids = allTabs(result.next).map((tab) => tab.id)
+        expect(ids).toHaveLength(10)
+        expect(new Set(ids).size).toBe(10)
+        expect(applyInverse(result.next, result.inverse)).toStrictEqual(layout)
+      }
+    }
+  })
+
+  it('transfer preserves a non-moving source active tab and focuses the destination', () => {
+    const { layout, hosts } = hostSeed()
+    const source = hosts[0]!
+    const target = hosts[1]!
+    const adjusted: WorkbenchLayout = {
+      ...layout,
+      root: {
+        kind: 'pane',
+        id: source.id as PaneId,
+        tabs: findTabHost(layout, source)!.tabs,
+        activeTab: 'main-a' as TabId,
+      },
+    }
+    const moved = applyOp(adjusted, {
+      kind: 'transferTab', from: source, to: target, tabId: 'main-b' as TabId, index: 1,
+    })
+    expect(findTabHost(moved.next, source)!.activeTab).toBe('main-a')
+    expect(findTabHost(moved.next, target)!.activeTab).toBe('main-b')
+    expect(findTabHost(moved.next, target)!.tabs.map((tab) => tab.id)).toEqual(['sidebar-a', 'main-b', 'sidebar-b'])
+    expect(moved.next.focused).toBe(target.id)
+    expect(applyInverse(moved.next, moved.inverse)).toStrictEqual(adjusted)
+  })
+
+  it('same-host transfer clamps the index and restores exact order/active/focus', () => {
+    const { layout, hosts } = hostSeed()
+    const host = hosts[0]!
+    const first = findTabHost(layout, host)!.tabs[0]!
+    const moved = applyOp(layout, { kind: 'transferTab', from: host, to: host, tabId: first.id, index: 99 })
+    expect(findTabHost(moved.next, host)!.tabs.map((tab) => tab.id)).toEqual(['main-b', 'main-a'])
+    expect(moved.next.focused).toBe(host.id)
+    expect(applyInverse(moved.next, moved.inverse)).toStrictEqual(layout)
+  })
+
+  it('same-host transfer treats the raw drop index as insertion before that tab', () => {
+    const { layout, hosts } = hostSeed()
+    const host = hosts[0]!
+    const first = findTabHost(layout, host)!.tabs[0]!
+    const withThird = applyOp(layout, {
+      kind: 'insertTab',
+      pane: host.id as PaneId,
+      tab: makeTab('main-c' as TabId, ref('main-c')),
+    }).next
+    const moved = applyOp(withThird, {
+      kind: 'transferTab', from: host, to: host, tabId: first.id, index: 2,
+    })
+    expect(findTabHost(moved.next, host)!.tabs.map((tab) => tab.id)).toEqual(['main-b', 'main-a', 'main-c'])
+    expect(applyInverse(moved.next, moved.inverse)).toStrictEqual(withThird)
+  })
+
+  it('transfer closes a last-tab source float and restores its order and minimized record exactly', () => {
+    const { layout } = hostSeed()
+    const float = layout.floats[0]!
+    const single: WorkbenchLayout = {
+      ...layout,
+      floats: [{ ...float, tabs: [float.tabs[0]!], activeTab: float.tabs[0]!.id }],
+    }
+    const moved = applyOp(single, {
+      kind: 'transferTab',
+      from: { kind: 'float', id: float.id },
+      to: { kind: 'region', id: layout.regions!.right.id },
+      tabId: float.tabs[0]!.id,
+    })
+    expect(moved.next.floats).toEqual([])
+    expect(moved.next.minimized).toEqual([])
+    expect(applyInverse(moved.next, moved.inverse)).toStrictEqual(single)
+  })
+
+  it('floatTab creates a pinned float from each of the five host kinds with exact inverse', () => {
+    const { layout, hosts } = hostSeed()
+    for (const [index, from] of hosts.entries()) {
+      const source = findTabHost(layout, from)!
+      const moving = source.tabs[1]!
+      const result = applyOp(layout, {
+        kind: 'floatTab',
+        from,
+        tabId: moving.id,
+        floatId: `new-float-${index}`,
+        rect: { x: 100 + index, y: 120 + index, w: 500, h: 360 },
+        pin: 'window',
+      })
+      expect(findTabHost(result.next, from)!.tabs.map((tab) => tab.id)).toEqual([source.tabs[0]!.id])
+      expect(result.next.floats.at(-1)).toMatchObject({
+        id: `new-float-${index}`,
+        pin: 'window',
+        activeTab: moving.id,
+        tabs: [{ id: moving.id }],
+      })
+      expect(result.next.focused).toBe(`new-float-${index}`)
+      expect(applyInverse(result.next, result.inverse)).toStrictEqual(layout)
+    }
+  })
+
+  it('floatTab from the last tab of a minimized float removes and precisely restores that float', () => {
+    const { layout } = hostSeed()
+    const float = layout.floats[0]!
+    const single: WorkbenchLayout = {
+      ...layout,
+      floats: [{ ...float, tabs: [float.tabs[0]!], activeTab: float.tabs[0]!.id }],
+    }
+    const result = applyOp(single, {
+      kind: 'floatTab',
+      from: { kind: 'float', id: float.id },
+      tabId: float.tabs[0]!.id,
+      floatId: 'replacement-float',
+      rect: { x: 1, y: 2, w: 300, h: 200 },
+    })
+    expect(result.next.floats.map((node) => node.id)).toEqual(['replacement-float'])
+    expect(result.next.minimized).toEqual([])
+    expect(applyInverse(result.next, result.inverse)).toStrictEqual(single)
+    expect(() => applyOp(layout, {
+      kind: 'floatTab',
+      from: { kind: 'pane', id: layout.root.id },
+      tabId: 'main-a' as TabId,
+      floatId: float.id,
+      rect: float.rect,
+    })).toThrow(/already exists/)
+  })
+
+  it('resizeRegion updates/removes sizes and has an exact inverse', () => {
+    const { layout } = hostSeed()
+    const resized = applyOp(layout, { kind: 'resizeRegion', region: 'sidebar', sizes: 280 })
+    expect(resized.next.regionSizes).toEqual({ sidebar: 280 })
+    expect(applyInverse(resized.next, resized.inverse)).toStrictEqual(layout)
+    const cleared = applyOp(resized.next, { kind: 'resizeRegion', region: 'sidebar' })
+    expect(cleared.next.regionSizes).toBeUndefined()
+    expect(applyInverse(cleared.next, cleared.inverse)).toStrictEqual(resized.next)
+    expect(() => applyOp(layout, { kind: 'resizeRegion', region: 'right', sizes: -1 })).toThrow(/non-negative/)
   })
 })

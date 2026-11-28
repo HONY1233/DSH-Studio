@@ -3,7 +3,7 @@
  *
  * 直接验证 client.js 在模拟 ModuleLoader / React runtime 下的行为：
  *   1. loader 包装与 exports 形状；
- *   2. 只依赖 loader 提供的 react 与 react/jsx-runtime；
+ *   2. 只依赖 loader 提供的 react / react-dom 运行时；
  *   3. 同时注册 main.conversation 与 sidebar，且 priority 能 shadow 官方槽；
  *   4. sidebar 渲染真实会话列表、新建入口与折叠态。
  */
@@ -45,10 +45,16 @@ const mockJsxRuntime = {
   jsx: (type, props, key) => mockReact.createElement(type, { ...props, key }),
   jsxs: (type, props, key) => mockReact.createElement(type, { ...props, key }),
 }
+// 工作台把会话正文 portal 到稳定的 DOM host 上，避免跨 pane 移动时重建。
+// 真机上 react-dom 由 loader 注入；这里只模拟 portal 的单节点透传。
+const mockReactDom = {
+  createPortal: (node) => node,
+}
 
 function runtimeRequire(name) {
   if (name === 'react') return mockReact
   if (name === 'react/jsx-runtime') return mockJsxRuntime
+  if (name === 'react-dom') return mockReactDom
   throw new Error(`未预期的运行时依赖：${name}（应用 loader 注入，测试只允许 react 运行时）`)
 }
 
@@ -133,7 +139,7 @@ test('client.js：只依赖 loader 提供的 React 运行时', () => {
     seen.push(name)
     return runtimeRequire(name)
   })
-  assert.deepEqual(seen, ['react', 'react/jsx-runtime'])
+  assert.deepEqual(seen, ['react', 'react/jsx-runtime', 'react-dom'])
 })
 
 test('exports：导出 inject 与 apply，并声明 slots / sessions', () => {

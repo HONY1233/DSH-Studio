@@ -205,13 +205,13 @@ export function ConversationBody(props: ConversationBodyProps): ReactNode {
    */
   const anchorRef = useRef<{ readonly height: number; readonly top: number } | null>(null)
 
-  // 只读订阅：拿当前事件窗口，读尾部的流式文本。
-  // 与上面的 hub 分开是因为语义不同 —— 这个只为了渲染，不产生任何折叠副作用。
+  // The Hub owns the only source subscription and fans the same window snapshot
+  // out to every same-session view for live-stream rendering.
   const subscribeWindow = useCallback(
-    (listener: () => void) => (source ? source.subscribe(listener) : () => {}),
-    [source],
+    (listener: () => void) => hub.subscribeWindow(listener),
+    [hub],
   )
-  const getWindow = useCallback(() => (source ? source.getSnapshot() : undefined), [source])
+  const getWindow = useCallback(() => hub.getWindowSnapshot(sessionId), [hub, sessionId])
   const liveWindow = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
   const live = readLiveStream(liveWindow)
 

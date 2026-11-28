@@ -32,6 +32,28 @@ describe("subagentConversationEngine", () => {
     first.dispose(); second.dispose();
     expect(listeners.size).toBe(0);
   });
+  it("passes the contiguous watermark when a live child recovers from a gap", async () => {
+    const listeners = new Set<(event: never) => void>();
+    const query = vi.fn(async (_name: string, input: { afterStreamSeq?: number }) => ({
+      target: { kind: "agent", parentSessionId: "parent", agentId: "worker", conversationSessionId: conversationPages.userAssistant.sessionId },
+      page: conversationPages.userAssistant,
+      live: input.afterStreamSeq === undefined
+        ? { status: "complete" as const, watermark: 1, events: [] }
+        : { status: "complete" as const, watermark: 2, events: [] },
+    }));
+    const engine = createSubagentConversationEngine({
+      preview: false, previewItems: [], client: { query: query as never, subscribe: (_scope, listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; } },
+      target: { agentId: "worker" }, parentSessionId: "parent" as SessionId, liveSessionId: "parent" as SessionId, runtimeConnected: true,
+    });
+    try {
+      engine.start();
+      await vi.waitFor(() => expect(engine.getSnapshot().state.hydrateStatus).toBe("ready"));
+      for (const listener of [...listeners]) listener({ kind: "conversation.changed", sessionId: conversationPages.userAssistant.sessionId,
+        streamSeq: 3, update: { kind: "conversation.turn.completed", sessionId: conversationPages.userAssistant.sessionId, turnId: "turn" } } as never);
+      await vi.waitFor(() => expect(query).toHaveBeenCalledTimes(2));
+      expect(query).toHaveBeenLastCalledWith("conversation.open", expect.objectContaining({ afterStreamSeq: 1 }));
+    } finally { engine.dispose(); }
+  });
   it("suspends a hidden child without losing text, resynchronizes on reopen and retains text offline", async () => {
     const off = vi.fn();
     const subscribe = vi.fn(() => off);

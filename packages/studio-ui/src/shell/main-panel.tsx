@@ -18,7 +18,7 @@ import type { PanelRegistry } from '../ui-panel-host/registry.js'
 import { PanelHost } from '../ui-panel-host/host.js'
 import type { SessionLeaseRegistry } from '../ui-session-views/leases.js'
 import { SessionTabView, sessionIdOf, type SessionTabViewLabels } from '../ui-session-views/index.js'
-import { SessionViewsProvider } from '../ui-session-views/provider.js'
+import { SessionViewsProvider, type SessionViewStore } from '../ui-session-views/index.js'
 import type { WorkbenchController } from '../ui-workbench/controller.js'
 import { placeOps, type Placement } from '../ui-workbench/placement.js'
 import { browserStorage, PlacementMemory } from '../ui-workbench/placement-memory.js'
@@ -60,6 +60,7 @@ export interface StudioMainPanelProps {
   readonly leases: SessionLeaseRegistry
   readonly derived: DerivedCache
   readonly hub: SessionEventHub
+  readonly store?: SessionViewStore
   readonly panels: PanelRegistry
   readonly labels: WorkbenchLabels
   readonly sessionLabels: SessionTabViewLabels
@@ -171,6 +172,7 @@ export function StudioMainPanel(props: StudioMainPanelProps): ReactNode {
             pane: controller.mint.pane(),
             split: controller.mint.split(),
             floatId: controller.mint.float(),
+            regions: controller.getState().regions,
           },
         }),
         `open-panel:${region}`,
@@ -256,7 +258,7 @@ export function StudioMainPanel(props: StudioMainPanelProps): ReactNode {
   )
 
   return (
-    <SessionViewsProvider registry={leases}>
+    <SessionViewsProvider registry={leases} store={props.store}>
       <WorkbenchView
         controller={controller}
         labels={labels}

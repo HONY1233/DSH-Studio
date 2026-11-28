@@ -565,6 +565,55 @@ test('native sequence zero is routed and retained without becoming a projection 
   assert.equal(messages.some((event) => 'eventSeq' in event), false)
 })
 
+test('conversation.open replays only projection events after the reconnect watermark', async () => {
+  const { bridge } = harness()
+  const first = bridge.openContext({ sessionId: 'reconnect' })
+  const event = (id) => bridge.onSessionEvent({
+    sessionId: 'reconnect',
+    event: { seq: Number(id.slice(1)) - 1, type: 'user/message', time: Date.now(), data: { id, source: { kind: 'user' }, content: [{ type: 'text', text: id }] } },
+  })
+  event('u1')
+  event('u2')
+  bridge.closeContext(first)
+  event('u3')
+  const second = bridge.openContext({ sessionId: 'reconnect' })
+
+  const caughtUp = await bridge.query('conversation.open', {
+    target: { kind: 'session', sessionId: 'reconnect' }, afterStreamSeq: 2,
+  }, second)
+  assert.equal(caughtUp.live.watermark, 3)
+  assert.deepEqual(caughtUp.live.events.map((item) => item.streamSeq), [3])
+  assert.equal(caughtUp.live.events[0].update.messageId, 'u3')
+
+  const duplicateFree = await bridge.query('conversation.open', {
+    target: { kind: 'session', sessionId: 'reconnect' }, afterStreamSeq: 3,
+  }, second)
+  assert.deepEqual(duplicateFree.live.events, [])
+
+  const initial = await bridge.query('conversation.open', {
+    target: { kind: 'session', sessionId: 'reconnect' },
+  }, second)
+  assert.deepEqual(initial.live.events, [])
+})
+
+test('conversation.open bounds the reconnect journal and exposes eviction as a sequence gap', async () => {
+  const { bridge } = harness()
+  const contextId = bridge.openContext({ sessionId: 'bounded-reconnect' })
+  for (let seq = 0; seq < 515; seq += 1) {
+    bridge.onSessionEvent({
+      sessionId: 'bounded-reconnect',
+      event: { seq, type: 'turn/start', time: Date.now(), data: { turn: seq + 1 } },
+    })
+  }
+  const opened = await bridge.query('conversation.open', {
+    target: { kind: 'session', sessionId: 'bounded-reconnect' }, afterStreamSeq: 1,
+  }, contextId)
+  assert.equal(opened.live.watermark, 515)
+  assert.equal(opened.live.events.length, 512)
+  assert.equal(opened.live.events[0].streamSeq, 4)
+  assert.equal(opened.live.events.at(-1).streamSeq, 515)
+})
+
 test('event-router overflow is surfaced as an error instead of silently dropping input', () => {
   const { bridge, events } = harness()
   bridge.openContext({ sessionId: 'overflow' })

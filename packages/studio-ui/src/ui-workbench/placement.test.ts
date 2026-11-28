@@ -12,12 +12,13 @@ import {
   applyOps,
   createMint,
   emptyLayout,
+  ensureWorkbenchRegions,
   makeTab,
   type WorkbenchLayout,
 } from '../workbench/index.js'
 import { placeOps, type Placement, type PlacementIds } from './placement.js'
 
-function harness(placement: Placement, ratio?: number) {
+function harness(placement: Placement) {
   const mint = createMint('t')
   const layout = emptyLayout(mint.pane())
   const ids: PlacementIds = { pane: mint.pane(), split: mint.split(), floatId: mint.float() }
@@ -25,7 +26,6 @@ function harness(placement: Placement, ratio?: number) {
   const basePane = (layout.root as { id: string }).id
   const ops = placeOps(placement, { pane: basePane as never, tab, ids })
   const { next } = applyOps(layout, ops)
-  void ratio
   return { layout, next, tab, ids, basePane }
 }
 
@@ -43,27 +43,28 @@ describe('placeOps', () => {
     expect(next.floats).toHaveLength(0)
   })
 
-  it('right 切成 row：左边原格、右边新格，新格带 tab', () => {
+  it('right 直接插入固定 right 区域，不切主区', () => {
     const { next, tab } = harness('right')
-    expect(shape(next.root)).toEqual(['row', 'pane(0)', 'pane(1)'])
-    const right = next.root.kind === 'split' ? next.root.children[1] : undefined
-    expect(right?.kind === 'pane' && right.tabs[0]?.id).toBe(tab.id)
+    expect(shape(next.root)).toBe('pane(0)')
+    expect(next.regions?.right.tabs[0]?.id).toBe(tab.id)
+    expect(next.regions?.sidebar.tabs).toHaveLength(0)
+    expect(next.regions?.bottom.tabs).toHaveLength(0)
     expect(next.floats).toHaveLength(0)
   })
 
-  it('left 把新格放在前面', () => {
+  it('left 直接插入固定 sidebar 区域', () => {
     const { next, tab } = harness('left')
-    expect(shape(next.root)).toEqual(['row', 'pane(1)', 'pane(0)'])
-    const first = next.root.kind === 'split' ? next.root.children[0] : undefined
-    expect(first?.kind === 'pane' && first.tabs[0]?.id).toBe(tab.id)
+    expect(shape(next.root)).toBe('pane(0)')
+    expect(next.regions?.sidebar.tabs[0]?.id).toBe(tab.id)
   })
 
-  it('bottom 切成 column', () => {
-    const { next } = harness('bottom')
-    expect(shape(next.root)).toEqual(['column', 'pane(0)', 'pane(1)'])
+  it('bottom 直接插入固定 bottom 区域', () => {
+    const { next, tab } = harness('bottom')
+    expect(shape(next.root)).toBe('pane(0)')
+    expect(next.regions?.bottom.tabs[0]?.id).toBe(tab.id)
   })
 
-  it('float 先把 tab 插进格、再浮起来（浮窗里有且只有一个 tab）', () => {
+  it('float 先插进格、再原子浮起来（浮窗里有且只有一个 tab）', () => {
     const { next, tab } = harness('float')
     expect(shape(next.root)).toBe('pane(0)')
     expect(next.floats).toHaveLength(1)
@@ -74,33 +75,44 @@ describe('placeOps', () => {
     expect(rect && rect.h).toBeGreaterThan(200)
   })
 
-  it('四种区域互不干扰：连续放两次右侧会得到三格', () => {
+  it('连续放两次右侧进入同一固定区域，主区始终不 split', () => {
     const mint = createMint('t')
-    const start = emptyLayout(mint.pane())
+    const pane = mint.pane()
+    const start = emptyLayout(pane)
     const mk = (contentId: string) => makeTab(mint.tab(), { kind: 'panel', contentId, instanceId: contentId })
-    // 切完第一次之后根节点已经变成 split，不能再拿 root.id 当 pane 用
-    const firstPaneId = (node: WorkbenchLayout['root']): string =>
-      node.kind === 'pane' ? node.id : firstPaneId(node.children[0]!)
+    const ids = (): PlacementIds => ({ pane: mint.pane(), split: mint.split(), floatId: mint.float() })
 
-    const first = applyOps(
-      start,
-      placeOps('right', {
-        pane: firstPaneId(start.root) as never,
-        tab: mk('a'),
-        ids: { pane: mint.pane(), split: mint.split(), floatId: mint.float() },
-      }),
-    ).next
-    // 第二次以"现在的第一格"为基准再切一刀
-    const second = applyOps(
-      first,
-      placeOps('right', {
-        pane: firstPaneId(first.root) as never,
-        tab: mk('b'),
-        ids: { pane: mint.pane(), split: mint.split(), floatId: mint.float() },
-      }),
-    ).next
+    const first = applyOps(start, placeOps('right', { pane, tab: mk('a'), ids: ids() })).next
+    const second = applyOps(first, placeOps('right', {
+      pane,
+      tab: mk('b'),
+      ids: { ...ids(), regions: first.regions },
+    })).next
 
-    expect(shape(second.root)).toEqual(['row', ['row', 'pane(0)', 'pane(1)'], 'pane(1)'])
+    expect(shape(second.root)).toBe('pane(0)')
+    expect(second.regions?.right.tabs.map((tab) => tab.ref.contentId)).toEqual(['a', 'b'])
+  })
+
+  it('尊重恢复出的自定义 region pane id', () => {
+    const mint = createMint('custom')
+    const pane = mint.pane()
+    const base = ensureWorkbenchRegions(emptyLayout(pane))
+    const regions = {
+      sidebar: { ...base.regions!.sidebar, id: mint.pane() },
+      right: { ...base.regions!.right, id: mint.pane() },
+      bottom: { ...base.regions!.bottom, id: mint.pane() },
+    }
+    const tab = makeTab(mint.tab(), { kind: 'panel', contentId: 'p', instanceId: 'p' })
+    const { next } = applyOps(
+      { ...base, regions },
+      placeOps('right', {
+        pane,
+        tab,
+        ids: { pane: mint.pane(), split: mint.split(), floatId: mint.float(), regions },
+      }),
+    )
+    expect(next.regions?.right.id).toBe(regions.right.id)
+    expect(next.regions?.right.tabs[0]?.id).toBe(tab.id)
   })
 
   it('返回值永远非空，且 center 恰好一条操作', () => {

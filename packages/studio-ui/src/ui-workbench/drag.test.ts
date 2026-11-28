@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { type TabId } from '../workbench/index.js'
+import { type PaneId, type TabId } from '../workbench/index.js'
 
 import { DRAG_THRESHOLD, beginDrag, dragPreview, dropDrag, moveDrag } from './drag.js'
 
@@ -37,6 +37,42 @@ describe('moveDrag', () => {
     const s = moveDrag(session(), { x: 30, y: 30 }, WORK)
     expect(s.zone?.corner).toBe('tl')
     expect(dragPreview(s)?.kind).toBe('zone')
+  })
+
+  it('底部边缘给出下半屏停靠目标', () => {
+    const s = moveDrag(session(), { x: 600, y: 780 }, WORK)
+    expect(s.zone?.region).toBe('bottom')
+    expect(dropDrag(s)).toEqual({ dest: { to: 'edge', region: 'bottom' } })
+  })
+
+  it('落在具体格内时返回该格，而不是焦点格', () => {
+    const targetRect = { x: 400, y: 0, w: 800, h: 800 }
+    const s = moveDrag(session(), { x: 700, y: 300 }, WORK, {
+      targetPane: 'pane-2' as PaneId,
+      targetRect,
+    })
+    expect(s.targetPane).toBe('pane-2')
+    expect(dropDrag(s)).toEqual({ dest: { to: 'pane', pane: 'pane-2' } })
+  })
+
+  it('真实 pane 宿主同时推导出旧 targetPane 别名', () => {
+    const targetRect = { x: 400, y: 0, w: 800, h: 800 }
+    const s = moveDrag(session(), { x: 700, y: 300 }, WORK, {
+      targetHost: { kind: 'pane', id: 'pane-2' },
+      targetRect,
+    })
+    expect(s.targetPane).toBe('pane-2')
+    expect(dropDrag(s)).toEqual({ dest: { to: 'host', host: { kind: 'pane', id: 'pane-2' } } })
+  })
+
+  it('落在标签条时保留目标插入顺序', () => {
+    const targetRect = { x: 400, y: 0, w: 800, h: 800 }
+    const s = moveDrag(session(), { x: 700, y: 20 }, WORK, {
+      targetPane: 'pane-2' as PaneId,
+      targetRect,
+      targetIndex: 1,
+    })
+    expect(dropDrag(s)).toEqual({ dest: { to: 'pane', pane: 'pane-2', index: 1 } })
   })
 
   it('按住修饰键时暂停吸附，退化为自由浮窗', () => {

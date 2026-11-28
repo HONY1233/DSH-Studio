@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { useSyncExternalStore } from 'react'
 
 import { makeTab, type Tab } from '../workbench/index.js'
@@ -118,6 +118,29 @@ describe('DockSurface', () => {
     controller.undo()
     expect(JSON.stringify(controller.getState().root)).toBe(JSON.stringify(before.root))
     expect(pane).toBeTruthy()
+  })
+
+  it.each(['pointercancel', 'lostpointercapture'] as const)('%s 回滚分隔条拖动且不提交 resize', (kind) => {
+    const { controller } = setup()
+    render(<Harness controller={controller} />)
+    const before = controller.getState()
+    const canUndoBefore = controller.canUndo()
+    const separator = screen.getByRole('separator')
+    const split = separator.parentElement as HTMLElement
+    Object.defineProperty(separator, 'setPointerCapture', { configurable: true, value: vi.fn() })
+    Object.defineProperty(split, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ x: 0, y: 0, left: 0, top: 0, right: 1000, bottom: 800, width: 1000, height: 800, toJSON() {} }),
+    })
+
+    fireEvent.pointerDown(separator, { button: 0, clientX: 500, clientY: 400, pointerId: 1 })
+    fireEvent.pointerMove(separator, { clientX: 600, clientY: 400, pointerId: 1 })
+    fireEvent(separator, new Event(kind, { bubbles: true }))
+
+    expect(controller.getState()).toBe(before)
+    expect(controller.canUndo()).toBe(canUndoBefore)
+    const firstCell = split.firstElementChild as HTMLElement
+    expect(firstCell.style.flexGrow).toBe('0.5')
   })
 
   it('双击分隔条恢复均分', () => {

@@ -1,115 +1,119 @@
-/**
- * 事件订阅的唯一入口 —— 同一个会话只订阅一次 `eventSource`。
- *
- * 为什么必须共享：一个会话开两个窗口时，如果每个视图各自订阅，两边都会
- * 在挂载时执行一次 flush。真机实测（probe-workbench-deep）：两个窗口时
- * `applies` 从 20 直接变 40，折叠量翻倍，且第二个窗口挂上来会**清掉已有状态**
- * 再重建 —— 表现为打开第二个窗口时第一个窗口的内容闪一下。
- *
- * 为什么不靠 `change.kind` 判断要不要重折：
- * `SessionEventWindow.change` 是"最近一次变更"的快照字段，它不会因为有人重读
- * 而更新。于是"重新挂载 / 重投通知"这类**内容没变**的场景，会读到上一次的
- * `replace`，被误判成"窗口起点变了"，整窗重折。这条真机与单测都抓到过。
- *
- * 现在的做法是记**自己的折叠进度** `{ min, max }`，判断依据只有"窗口内容有没有
- * 朝更早的方向扩展"：
- * - 窗口最早的 seq 比已折的 min 更小 → 向前扩展了（prepend），必须 reset 重折；
- * - 否则只折 `seq > max` 的部分 —— 内容没变时自然什么都不折（幂等）。
- *
- * `change.kind === 'append'` 仍走快路径（只映射新增的那几条），避免每次实时
- * 追加都全量映射整个窗口（5000 条窗口下那是 O(n²)）。
- *
- * 与 `SessionLeaseRegistry` 的分工：那一层管「会话引用（retain）」，
- * 这一层管「事件订阅」。两件事的生命周期不同（引用要跨搬家保活，
- * 订阅跟着实际渲染走），所以不合并。
- */
-
+/** One event subscription and one ordered fold path per session (XC-04/XC-14). */
 import type { DerivedCache } from '../session-derived/cache.js'
+import type { DerivedEntry } from '../session-derived/model.js'
 import { toDerivedEntries, type RawSessionEventWindow, type SnapshotLike } from './event-adapter.js'
 
 interface Subscription {
   readonly source: SnapshotLike<RawSessionEventWindow>
-  readonly off: () => void
+  off: () => void
   count: number
 }
 
-/** 已折过的 seq 区间。`max` 之前的 durable 事件都已进缓存。 */
 interface Progress {
   min: number
   max: number
 }
 
+export type EventContinuity = 'unknown' | 'complete' | 'gap' | 'conflict' | 'buffer-overflow'
+
 export interface SessionEventHubOptions {
   readonly cache: DerivedCache
-  /** 调试：每次 reset/ingest 打一行。 */
   readonly trace?: boolean
+  /** Host facts such as usage are emitted only for entries actually folded. */
+  readonly onEntries?: (sessionId: string, entries: readonly DerivedEntry[]) => void
+  readonly maxPendingEntries?: number
+}
+
+interface SessionProgress {
+  readonly progress: Progress
+  signatures: Map<number, string>
+  readonly pending: Map<number, DerivedEntry>
+  continuity: EventContinuity
 }
 
 export class SessionEventHub {
   private readonly cache: DerivedCache
   private readonly trace: boolean
+  private readonly onEntries: SessionEventHubOptions['onEntries']
+  private readonly maxPendingEntries: number
   private readonly subs = new Map<string, Subscription>()
-  /**
-   * 每个会话的折叠进度。**跨订阅存亡保留** —— 搬家时订阅会拆了再建，
-   * 进度不能跟着丢，否则重建那一刻会把整窗再折一遍。
-   */
   private readonly progress = new Map<string, Progress>()
+  private readonly states = new Map<string, SessionProgress>()
+  private readonly windows = new Map<string, RawSessionEventWindow>()
+  private readonly windowListeners = new Set<() => void>()
 
   constructor(options: SessionEventHubOptions) {
     this.cache = options.cache
     this.trace = options.trace === true
+    this.onEntries = options.onEntries
+    this.maxPendingEntries = options.maxPendingEntries ?? 5000
   }
 
-  /**
-   * 让这个视图加入某会话的事件订阅。
-   * @returns 幂等的 detach；最后一个视图离开时取消订阅。
-   */
   attach(sessionId: string, source: SnapshotLike<RawSessionEventWindow> | undefined): () => void {
     if (!source) return () => {}
-
     const existing = this.subs.get(sessionId)
     if (existing && existing.source === source) {
       existing.count += 1
-      // 同一订阅已存在：内容只会通过回调更新，这里不必再读一次。
       return this.makeDetach(sessionId, existing)
     }
-
-    // 同一会话换了 source 实例（例如换了一代）：先退掉旧的，再建新的。
-    // 换实例意味着可能是新的一代，进度作废。
     if (existing) {
       existing.off()
       this.subs.delete(sessionId)
       this.progress.delete(sessionId)
+      this.states.delete(sessionId)
       this.cache.reset(sessionId)
     }
 
-    // 首次挂载（或搬家后重挂）：读一次窗口补齐。内容没变时这次是空操作。
-    this.flush(sessionId, source)
-
-    const off = source.subscribe(() => this.flush(sessionId, source))
-    const sub: Subscription = { source, off, count: 1 }
+    // Register before subscribing: some observable sources synchronously emit
+    // their current snapshot from inside subscribe().
+    const sub: Subscription = { source, off: () => {}, count: 1 }
     this.subs.set(sessionId, sub)
+    this.flush(sessionId, source)
+    try {
+      sub.off = source.subscribe(() => {
+        // A callback from a replaced generation must never mutate the new cache.
+        if (this.subs.get(sessionId) === sub) this.flush(sessionId, source)
+      })
+    } catch (error) {
+      if (this.subs.get(sessionId) === sub) this.subs.delete(sessionId)
+      throw error
+    }
     return this.makeDetach(sessionId, sub)
   }
 
-  /** 当前正在订阅多少个会话（调试用）。 */
   get size(): number {
     return this.subs.size
   }
 
-  /** 某个会话被几个视图共用同一订阅。 */
   countOf(sessionId: string): number {
     return this.subs.get(sessionId)?.count ?? 0
   }
 
-  /** 已折到哪个 seq（调试用；`undefined` 表示还没折过）。 */
   progressOf(sessionId: string): Progress | undefined {
     return this.progress.get(sessionId)
+  }
+
+  continuityOf(sessionId: string): EventContinuity {
+    return this.states.get(sessionId)?.continuity ?? 'unknown'
+  }
+
+  /** Shared render snapshot; ConversationBody must not subscribe to source directly. */
+  getWindowSnapshot(sessionId: string): RawSessionEventWindow | undefined {
+    return this.windows.get(sessionId)
+  }
+
+  subscribeWindow = (listener: () => void): (() => void) => {
+    this.windowListeners.add(listener)
+    return () => { this.windowListeners.delete(listener) }
   }
 
   dispose(): void {
     for (const sub of this.subs.values()) sub.off()
     this.subs.clear()
+    this.progress.clear()
+    this.states.clear()
+    this.windows.clear()
+    this.windowListeners.clear()
   }
 
   private makeDetach(sessionId: string, sub: Subscription): () => void {
@@ -119,7 +123,6 @@ export class SessionEventHub {
       done = true
       sub.count -= 1
       if (sub.count > 0) return
-      // 只有仍是当前登记的那个才拆（换过一代的情况已被 attach 处理）
       if (this.subs.get(sessionId) === sub) this.subs.delete(sessionId)
       sub.off()
     }
@@ -133,81 +136,100 @@ export class SessionEventHub {
       console.warn('[studio] 读事件窗口失败', error)
       return
     }
+    this.windows.set(sessionId, window)
+    for (const listener of [...this.windowListeners]) listener()
     if (!window || window.entries.length === 0) return
 
-    const prev = this.progress.get(sessionId)
-    const change = window.change
-
-    // ── 快路径：尾部追加。只映射新增的那几条，避免全量映射整个窗口。 ──
-    if (change?.kind === 'append' && prev) {
-      const fresh = toDerivedEntries(change.entries ?? []).filter((entry) => entry.seq > prev.max)
-      if (fresh.length === 0) return
-      if (this.trace) console.log(`[hub] ${sessionId} append +${fresh.length}`)
-      this.cache.ingest(sessionId, fresh)
-      this.progress.set(sessionId, { min: prev.min, max: fresh[fresh.length - 1]?.seq ?? prev.max })
-      return
-    }
-
-    // ── 快路径：流式结算。durable 消息替换 transient 行。 ──
-    if (change?.kind === 'settle-assistant' && prev) {
-      if (!change.entry) return
-      const settled = toDerivedEntries([change.entry]).filter((entry) => entry.seq > prev.max)
-      if (settled.length === 0) return
-      if (this.trace) console.log(`[hub] ${sessionId} settle +${settled.length}`)
-      this.cache.ingest(sessionId, settled)
-      this.progress.set(sessionId, { min: prev.min, max: settled[settled.length - 1]?.seq ?? prev.max })
-      return
-    }
-
-    // ── 慢路径：首次读、重挂载、replace、prepend。
-    //    必须全量映射，但只在窗口变过时才真的折。 ──
-    const durable = toDerivedEntries(window.entries)
-    if (durable.length === 0) return
-
-    const head = durable[0]?.seq ?? 0
-    const tail = durable[durable.length - 1]?.seq ?? 0
-
-    // 窗口向前扩展了（拿到更早的历史）→ 优先增量前插。
-    if (!prev || head < prev.min) {
-      if (!prev) {
-        // 首次读：没有可复用的旧结果，整窗折一遍。
-        if (this.trace) {
-          console.log(`[hub] ${sessionId} initial (${change?.kind ?? 'none'}) → ${durable.length} 条`)
-        }
-        this.cache.reset(sessionId)
-        this.cache.ingest(sessionId, durable)
-        this.progress.set(sessionId, { min: head, max: tail })
-        return
+    const all = toDerivedEntries(window.entries).sort((left, right) => left.seq - right.seq)
+    let state = this.states.get(sessionId)
+    if (!state) {
+      const head = all[0]?.seq ?? 0
+      const tail = all.at(-1)?.seq ?? 0
+      this.cache.reset(sessionId)
+      this.cache.ingest(sessionId, all)
+      state = {
+        progress: { min: head, max: tail },
+        signatures: new Map(all.map((entry) => [entry.seq, this.signature(entry)])),
+        pending: new Map(),
+        continuity: 'complete',
       }
+      this.states.set(sessionId, state)
+      this.progress.set(sessionId, state.progress)
+      this.onEntries?.(sessionId, all)
+      if (this.trace) console.log(`[hub] ${sessionId} initial → ${all.length} 条`)
+      return
+    }
 
-      // 增量前插：只折真正更早的那一段，再让模型把两份状态拼起来。
-      // 拼不了（页边界切在工具调用中间、或模型不支持）才退回整窗重折。
-      const older = durable.filter((entry) => entry.seq < prev.min)
+    const prev = state.progress
+    const head = all[0]?.seq ?? prev.min
+    if (head < prev.min) {
+      const older = all.filter((entry) => entry.seq < prev.min)
+      for (const entry of older) {
+        if (!this.remember(state, entry)) return
+      }
       const prepended = this.cache.prepend(sessionId, older)
       if (prepended.fallback) {
-        if (this.trace) {
-          console.log(`[hub] ${sessionId} rebuild (fallback) → ${durable.length} 条`)
-        }
         this.cache.reset(sessionId)
-        this.cache.ingest(sessionId, durable)
-        this.progress.set(sessionId, { min: head, max: tail })
-        return
+        this.cache.ingest(sessionId, all)
+        state.progress.min = head
+        state.progress.max = all.at(-1)?.seq ?? prev.max
+        state.signatures = new Map(all.map((entry) => [entry.seq, this.signature(entry)]))
+        state.pending.clear()
+        state.continuity = 'complete'
+        this.onEntries?.(sessionId, all)
+      } else {
+        state.progress.min = head
+        this.onEntries?.(sessionId, older)
       }
-
-      if (this.trace) {
-        console.log(`[hub] ${sessionId} prepend +${prepended.prepended} (窗口 ${head}…${tail})`)
-      }
-      const fresh = durable.filter((entry) => entry.seq > prev.max)
-      if (fresh.length > 0) this.cache.ingest(sessionId, fresh)
-      this.progress.set(sessionId, { min: head, max: Math.max(prev.max, tail) })
-      return
     }
 
-    // 内容没变或只在尾部增长：只折没折过的部分。
-    const fresh = durable.filter((entry) => entry.seq > prev.max)
-    if (fresh.length === 0) return
-    if (this.trace) console.log(`[hub] ${sessionId} catch-up +${fresh.length}`)
-    this.cache.ingest(sessionId, fresh)
-    this.progress.set(sessionId, { min: prev.min, max: tail })
+    // Append fast path maps only the delta. A gap falls back to the full window,
+    // which also recovers entries delivered out of order by the Host.
+    const delta = window.change?.kind === 'append'
+      ? toDerivedEntries(window.change.entries ?? [])
+      : all
+    for (const entry of delta) {
+      if (!this.remember(state, entry)) return
+    }
+    this.drain(sessionId, state)
+  }
+
+  private drain(sessionId: string, state: SessionProgress): void {
+    if (state.pending.size > this.maxPendingEntries) {
+      state.continuity = 'buffer-overflow'
+      return
+    }
+    const ready: DerivedEntry[] = []
+    let next = state.progress.max + 1
+    while (state.pending.has(next)) {
+      const entry = state.pending.get(next)!
+      ready.push(entry)
+      state.pending.delete(next)
+      next += 1
+    }
+    if (ready.length > 0) {
+      this.cache.ingest(sessionId, ready)
+      state.progress.max = ready.at(-1)!.seq
+      state.continuity = 'complete'
+      this.onEntries?.(sessionId, ready)
+      if (this.trace) console.log(`[hub] ${sessionId} ordered +${ready.length}`)
+    }
+    if (state.pending.size > 0) state.continuity = 'gap'
+  }
+
+  private remember(state: SessionProgress, entry: DerivedEntry): boolean {
+    const signature = this.signature(entry)
+    const known = state.signatures.get(entry.seq)
+    if (known !== undefined && known !== signature) {
+      state.continuity = 'conflict'
+      return false
+    }
+    state.signatures.set(entry.seq, signature)
+    if (entry.seq > state.progress.max) state.pending.set(entry.seq, entry)
+    return true
+  }
+
+  private signature(entry: DerivedEntry): string {
+    return JSON.stringify(entry)
   }
 }

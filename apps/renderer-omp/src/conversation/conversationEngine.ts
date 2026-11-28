@@ -3,7 +3,7 @@ import { CONVERSATION_LIMITS, utf8ByteLength } from "@omp-studio/client-contract
 import type { ConversationTarget } from "@omp-studio/studio-protocol";
 import { getPreviewConvoLive, PREVIEW_CONVO_IDENTITY, previewConversationItems } from "../preview/conversationFixtures";
 import { asClientError, identityKey, isStaleCursorError, type ConversationClient, type ConversationIdentity } from "./conversationHost";
-import { createConversationSource } from "./conversationSource";
+import { createConversationSource, hasContiguousReplay } from "./conversationSource";
 import { ConversationStore } from "./conversationStore";
 import type { ConversationState, PendingUser, TimelineRow } from "./conversationViewModel";
 import { getDefaultThumbStore, type UserThumbStore } from "./userMessageThumbs";
@@ -107,7 +107,9 @@ export function createConversationEngine(input: ConversationEngineInput): Conver
   }
   async function hydrate(resyncing = false): Promise<void> {
     if (disposed) return;
-    const token = ++run; loadingOlder = false; buffer = []; bufferBytes = 0; bufferOverflowed = false; conversationSessionId = undefined; watermark = 0;
+    const token = ++run; loadingOlder = false; buffer = []; bufferBytes = 0; bufferOverflowed = false; conversationSessionId = undefined;
+    const afterStreamSeq = resyncing && watermark > 0 ? watermark : undefined
+    watermark = 0;
     if (identity === null) { store.setUnavailable(isZh() ? "当前没有活动会话。" : "No active conversation."); return; }
     if (input.deferHydrate) { store.setLoading(false); return; }
     if (input.preview) {
@@ -120,7 +122,7 @@ export function createConversationEngine(input: ConversationEngineInput): Conver
     liveTarget = target;
     try {
       if (target) {
-        const opened = await source.open(target, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT);
+        const opened = await source.open(target, CONVERSATION_LIMITS.TRANSCRIPT_LIMIT_DEFAULT, afterStreamSeq);
         if (disposed || token !== run) return;
         const resolvedSessionId = opened.target.conversationSessionId; conversationSessionId = resolvedSessionId; store.resolveTarget(resolvedSessionId, opened.page.runtimeEpoch);
         watermark = opened.live.watermark;
@@ -128,7 +130,10 @@ export function createConversationEngine(input: ConversationEngineInput): Conver
           store.hydrate(opened.page, [], watermark);
           store.requireResync(opened.live.reason);
         } else {
-          store.hydrate(opened.page, opened.live.events.map((event) => ({ streamSeq: event.streamSeq, update: event.update })), watermark);
+          // An evicted/incomplete bounded journal is not a partial recovery:
+          // the freshly read transcript page is the authoritative full fallback.
+          const replay = hasContiguousReplay(afterStreamSeq, opened.live.events, watermark) ? opened.live.events : []
+          store.hydrate(opened.page, replay.map((event) => ({ streamSeq: event.streamSeq, update: event.update })), watermark);
         }
         initialCachedPage = undefined;
         const buffered = buffer; const overflowed = bufferOverflowed; buffer = []; bufferBytes = 0; bufferOverflowed = false;

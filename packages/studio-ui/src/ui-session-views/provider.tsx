@@ -8,16 +8,28 @@
 import { createContext, useContext, type ReactNode } from 'react'
 
 import type { SessionLeaseRegistry } from './leases.js'
+import type { SessionViewStore } from './session-view-store.js'
 
 const RegistryContext = createContext<SessionLeaseRegistry | null>(null)
+const StoreContext = createContext<SessionViewStore | null>(null)
 
 export interface SessionViewsProviderProps {
   readonly registry: SessionLeaseRegistry
+  /** Optional additive owner state; legacy single-session consumers may omit it. */
+  readonly store?: SessionViewStore
   readonly children?: ReactNode
 }
 
 export function SessionViewsProvider(props: SessionViewsProviderProps): ReactNode {
-  return <RegistryContext.Provider value={props.registry}>{props.children}</RegistryContext.Provider>
+  return (
+    <RegistryContext.Provider value={props.registry}>
+      <StoreContext.Provider value={props.store ?? null}>{props.children}</StoreContext.Provider>
+    </RegistryContext.Provider>
+  )
+}
+
+export function useSessionViewStore(): SessionViewStore | null {
+  return useContext(StoreContext)
 }
 
 export function useSessionLeaseRegistry(): SessionLeaseRegistry {
